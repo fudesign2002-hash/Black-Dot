@@ -1,3 +1,5 @@
+// components/scene/art/SculptureExhibit.tsx
+
 
 import React, { useMemo, useRef, useEffect, useState, Suspense } from 'react';
 import * as THREE from 'three';
@@ -111,15 +113,32 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
       if (child instanceof THREE.Mesh) {
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         materials.forEach(originalMaterial => {
-          let newMaterial;
-          // Clone existing material to preserve maps/textures if it's a PBR material
-          if (originalMaterial instanceof THREE.MeshStandardMaterial || originalMaterial instanceof THREE.MeshPhysicalMaterial) {
-              newMaterial = originalMaterial.clone();
+          const config = artworkData?.material;
+
+          let newMaterial: THREE.Material;
+          // Determine if MeshPhysicalMaterial is required based on config
+          const needsPhysicalMaterial = config && (
+                                         (config.transmission !== undefined && config.transmission > 0) ||
+                                         (config.clearcoat !== undefined && config.clearcoat > 0) ||
+                                         (config.thickness !== undefined && config.thickness > 0)
+                                        );
+
+          if (needsPhysicalMaterial) {
+              newMaterial = new THREE.MeshPhysicalMaterial(); // Always create Physical if needed
+          } else if (originalMaterial instanceof THREE.MeshPhysicalMaterial) {
+              newMaterial = originalMaterial.clone(); // If original was Physical, keep it Physical
+          } else if (originalMaterial instanceof THREE.MeshStandardMaterial) {
+              newMaterial = originalMaterial.clone(); // Clone Standard if original was Standard
           } else {
-              newMaterial = new THREE.MeshStandardMaterial(); // Fallback to a basic PBR material
+              newMaterial = new THREE.MeshStandardMaterial(); // Fallback to a basic Standard material
           }
 
-          const config = artworkData?.material;
+          // If a custom material config exists, ensure existing maps are removed
+          if (config && (newMaterial instanceof THREE.MeshStandardMaterial || newMaterial instanceof THREE.MeshPhysicalMaterial)) {
+            newMaterial.map = null; // Explicitly remove any base color texture
+            // You might want to remove other maps too if you want full override (e.g., normalMap, roughnessMap etc.)
+            // For now, only removing the main color map.
+          }
 
           // Apply custom material properties if defined, otherwise use defaults
           newMaterial.color.set(config?.color ?? defaultMaterialPropsForGlb.color);
@@ -129,10 +148,21 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
           newMaterial.roughness = config?.roughness ?? defaultMaterialPropsForGlb.roughness;
           newMaterial.side = getSide(config?.side);
           newMaterial.transparent = config?.transparent ?? defaultMaterialPropsForGlb.transparent;
-          newMaterial.transmission = config?.transmission ?? defaultMaterialPropsForGlb.transmission;
-          newMaterial.thickness = config?.thickness ?? defaultMaterialPropsForGlb.thickness;
-          newMaterial.clearcoat = config?.clearcoat ?? defaultMaterialPropsForGlb.clearcoat;
-          newMaterial.clearcoatRoughness = config?.clearcoatRoughness ?? defaultMaterialPropsForGlb.clearcoatRoughness;
+          
+          // Only apply PhysicalMaterial specific properties if newMaterial is MeshPhysicalMaterial
+          if (newMaterial instanceof THREE.MeshPhysicalMaterial) {
+              newMaterial.transmission = config?.transmission ?? defaultMaterialPropsForGlb.transmission;
+              newMaterial.thickness = config?.thickness ?? defaultMaterialPropsForGlb.thickness;
+              newMaterial.clearcoat = config?.clearcoat ?? defaultMaterialPropsForGlb.clearcoat;
+              newMaterial.clearcoatRoughness = config?.clearcoatRoughness ?? defaultMaterialPropsForGlb.clearcoatRoughness;
+          } else {
+              // Ensure these are not set on MeshStandardMaterial if config somehow provides them
+              // (though `needsPhysicalMaterial` should prevent this path for transmission/clearcoat)
+              if ('transmission' in newMaterial) (newMaterial as any).transmission = 0;
+              if ('thickness' in newMaterial) (newMaterial as any).thickness = 0;
+              if ('clearcoat' in newMaterial) (newMaterial as any).clearcoat = 0;
+              if ('clearcoatRoughness' in newMaterial) (newMaterial as any).clearcoatRoughness = 0;
+          }
           
           newMaterial.transparent = true; // Crucial: ensure transparent is true for fade effect
           newMaterial.opacity = 0; // Initial opacity for fade-in

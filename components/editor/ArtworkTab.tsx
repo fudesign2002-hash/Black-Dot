@@ -53,16 +53,16 @@ const MATERIAL_PRESETS: MaterialPreset[] = [
     config: { color: '#F5F5F5', roughness: 0.3, metalness: 0.05, emissive: '#000000', emissiveIntensity: 0 },
   },
   {
-    id: 'glass_clear',
-    name: 'Clear Glass',
-    iconColor: '#A5F3FC', // Light blue for glass
-    config: { color: '#a5f3fc', roughness: 0, metalness: 0.1, transmission: 1, thickness: 1.5, clearcoat: 1, clearcoatRoughness: 0 },
-  },
-  {
     id: 'gold_polished',
     name: 'Polished Gold',
     iconColor: '#FFD700',
     config: { color: '#FFD700', roughness: 0.05, metalness: 1, emissive: '#302000', emissiveIntensity: 0.2 },
+  },
+  {
+    id: 'frosted_glass',
+    name: 'Frosted Glass',
+    iconColor: '#ADD8E6', // LightBlue
+    config: { color: '#ADD8E6', roughness: 0.3, metalness: 0, transmission: 0.95, thickness: 1.5, clearcoat: 1, clearcoatRoughness: 0, transparent: true, opacity: 1 },
   },
 ];
 
@@ -180,6 +180,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
         if (savedMaterial) {
             const matchedPreset = MATERIAL_PRESETS.find(preset => {
                 if (!preset.config) return false; // Skip 'original' preset for config comparison
+                // FIX: Removed 'ior' from the keys array as it is not part of ArtworkMaterialConfig
                 const keys: Array<keyof ArtworkMaterialConfig> = ['color', 'roughness', 'metalness', 'emissive', 'emissiveIntensity', 'transmission', 'thickness', 'clearcoat', 'clearcoatRoughness', 'transparent', 'opacity', 'side'];
                 return keys.every(key => preset.config?.[key] === savedMaterial[key]);
             });
@@ -560,7 +561,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                                             onClick={() => handleSaveMaterial(artwork.id, preset.id, preset.config)}
                                             className={`flex flex-col items-center gap-1 p-2 rounded-md transition-colors relative
                                                 ${selectedMaterialPresetId === preset.id ? (lightsOn ? 'bg-neutral-200' : 'bg-neutral-700') : (lightsOn ? 'hover:bg-neutral-100' : 'hover:bg-neutral-800')}
-                                                ${(isUploading || updateStatus[artwork.id] === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}
+                                                {(isUploading || updateStatus[artwork.id] === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}
                                             `}
                                             title={preset.name} // Tooltip
                                             disabled={isUploading || updateStatus[artwork.id] === 'saving'}
