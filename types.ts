@@ -40,7 +40,7 @@ export interface ArtworkMaterialConfig {
 
 export interface ArtworkData {
   geometry: ArtworkGeometry;
-  material: ArtworkMaterialConfig; // Changed from materialConfig to material
+  material: ArtworkMaterialConfig | null; // Changed from materialConfig to material, now can be null for default
   position_offset?: [number, number, number]; // Changed from positionOffset to position_offset
   rotation_offset?: [number, number, number]; // NEW: Added rotation_offset for GLB rotation correction
 }
@@ -153,4 +153,12 @@ export interface ArtworkDimensions {
   artworkRenderHeight: number;
   artworkSurfaceZ: number;
   artworkCenterY: number;
+}
+
+// NEW: Interface for Material Presets
+export interface MaterialPreset {
+  id: string; // e.g., 'original', 'matte_black', 'stainless_steel', 'ceramic'
+  name: string;
+  iconColor: string; // For the circular icon swatch
+  config: ArtworkMaterialConfig | null; // null for 'original' to unset material override
 }

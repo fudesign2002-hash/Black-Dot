@@ -1,7 +1,9 @@
+
 // r3f-declarations.ts
 import * as THREE from 'three';
 import { extend } from '@react-three/fiber';
 import type React from 'react'; // FIX: Import React types for global JSX declarations
+import type { Object3DNode } from '@react-three/fiber'; // NEW: Import Object3DNode for primitive
 
 declare global {
   namespace JSX {
@@ -68,6 +70,7 @@ declare global {
       meshBasicMaterial: React.PropsWithChildren<Partial<import('three').MeshBasicMaterial>>;
       color: React.PropsWithChildren<any>;
       fog: React.PropsWithChildren<any>;
+      primitive: Object3DNode<any, typeof import('three').Object3D>; // NEW: Added primitive
     }
   }
 }

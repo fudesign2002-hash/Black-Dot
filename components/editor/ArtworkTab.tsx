@@ -1,8 +1,7 @@
-
 // components/editor/ArtworkTab.tsx
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Image as ImageIcon, Video, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2, FileSize } from 'lucide-react'; // NEW: Added FileSize icon
-import { FirebaseArtwork, ExhibitionArtItem, ArtworkData } from '../../types';
+import { FirebaseArtwork, ExhibitionArtItem, ArtworkData, ArtworkMaterialConfig, MaterialPreset } from '../../types';
 import { storage } from '../../firebase';
 import { getVideoEmbedUrl } from '../../services/utils/videoUtils';
 
@@ -28,6 +27,46 @@ interface ArtworkTabProps {
   onOpenConfirmationDialog: (artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => void; // NEW: Add onOpenConfirmationDialog prop
 }
 
+const MATERIAL_PRESETS: MaterialPreset[] = [
+  {
+    id: 'original',
+    name: 'Original GLB Material',
+    iconColor: '#A0A0A0', // Grey for original
+    config: null, // Signals to revert to GLB's intrinsic material (with base adjustments)
+  },
+  {
+    id: 'matte_black',
+    name: 'Matte Black',
+    iconColor: '#333333',
+    config: { color: '#1a1a1a', roughness: 0.9, metalness: 0, emissive: '#000000', emissiveIntensity: 0 },
+  },
+  {
+    id: 'stainless_steel',
+    name: 'Stainless Steel',
+    iconColor: '#C0C0C0',
+    config: { color: '#C0C0C0', roughness: 0.1, metalness: 0.8, emissive: '#000000', emissiveIntensity: 0 },
+  },
+  {
+    id: 'ceramic_white',
+    name: 'Ceramic White',
+    iconColor: '#F5F5F5',
+    config: { color: '#F5F5F5', roughness: 0.3, metalness: 0.05, emissive: '#000000', emissiveIntensity: 0 },
+  },
+  {
+    id: 'glass_clear',
+    name: 'Clear Glass',
+    iconColor: '#A5F3FC', // Light blue for glass
+    config: { color: '#a5f3fc', roughness: 0, metalness: 0.1, transmission: 1, thickness: 1.5, clearcoat: 1, clearcoatRoughness: 0 },
+  },
+  {
+    id: 'gold_polished',
+    name: 'Polished Gold',
+    iconColor: '#FFD700',
+    config: { color: '#FFD700', roughness: 0.05, metalness: 1, emissive: '#302000', emissiveIntensity: 0.2 },
+  },
+];
+
+
 const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtworks, currentLayout, onUpdateArtworkFile, onUpdateArtworkData, onFocusArtwork, onRemoveArtworkFromLayout, onOpenConfirmationDialog }) => {
   const [editingUrlArtworkId, setEditingUrlArtworkId] = useState<string | null>(null);
   const [currentEditValue, setCurrentEditValue] = useState<string>('');
@@ -39,6 +78,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewMediaError, setPreviewMediaError] = useState<Record<string, boolean>>({});
   const [glbPreviewRotation, setGlbPreviewRotation] = useState<[number, number, number]>([0, 0, 0]);
+  const [selectedMaterialPresetId, setSelectedMaterialPresetId] = useState<string | null>(null); // NEW: State for selected material preset
 
   const { lightsOn, text, subtext, border, input } = theme;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
@@ -102,6 +142,19 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
     }
   }, [glbPreviewRotation, onUpdateArtworkData, handleUpdateStatus]);
 
+  // NEW: handleSaveMaterial function
+  const handleSaveMaterial = useCallback(async (artworkId: string, presetId: string, materialConfig: ArtworkMaterialConfig | null) => {
+    handleUpdateStatus(artworkId, 'saving');
+    try {
+        setSelectedMaterialPresetId(presetId); // Update local UI state
+        await onUpdateArtworkData(artworkId, { material: materialConfig });
+        handleUpdateStatus(artworkId, 'saved');
+    } catch (error) {
+        console.error("Failed to save material preset:", error);
+        handleUpdateStatus(artworkId, 'error', 3000);
+    }
+  }, [onUpdateArtworkData, handleUpdateStatus]);
+
   const handleEditClick = useCallback((artwork: FirebaseArtwork) => {
     setEditingUrlArtworkId(artwork.id);
     const initialValue = artwork.artwork_file || artwork.file || '';
@@ -120,15 +173,37 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
             rotationOffset[1] * (180 / Math.PI),
             rotationOffset[2] * (180 / Math.PI),
         ]);
+
+        // NEW: Determine selected material preset based on saved artwork_data.material
+        const savedMaterial = artwork.artwork_data?.material;
+        let presetIdFound: string | null = 'original'; // Default to original
+        if (savedMaterial) {
+            const matchedPreset = MATERIAL_PRESETS.find(preset => {
+                if (!preset.config) return false; // Skip 'original' preset for config comparison
+                const keys: Array<keyof ArtworkMaterialConfig> = ['color', 'roughness', 'metalness', 'emissive', 'emissiveIntensity', 'transmission', 'thickness', 'clearcoat', 'clearcoatRoughness', 'transparent', 'opacity', 'side'];
+                return keys.every(key => preset.config?.[key] === savedMaterial[key]);
+            });
+            if (matchedPreset) {
+                presetIdFound = matchedPreset.id;
+            } else {
+                // If a material config exists but doesn't match a predefined preset, consider it 'original' for UI purposes.
+                // This means the user saved *some* custom material, but not one of our presets.
+                // To allow reverting to GLB default, 'original' refers to the state without artwork_data.material override.
+                presetIdFound = 'original'; 
+            }
+        }
+        setSelectedMaterialPresetId(presetIdFound);
+
         const artworkInstance = currentLayout.find(item => item.artworkId === artwork.id);
         if (artworkInstance) {
             onFocusArtwork(artworkInstance.id);
         }
     } else {
         setGlbPreviewRotation([0, 0, 0]);
+        setSelectedMaterialPresetId(null); // Clear material selection for non-GLB
         onFocusArtwork(null);
     }
-  }, [setUpdateStatus, currentLayout, onFocusArtwork]);
+  }, [setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks]); // Added firebaseArtworks to deps
 
   // NEW: Handle removal of artwork from layout using custom confirmation dialog
   const handleRemoveClick = useCallback(async (artworkId: string, artworkTitle: string) => {
@@ -473,6 +548,31 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                                         </button>
                                     </div>
                                 ))}
+                            </div>
+
+                            {/* NEW: Material Presets Section */}
+                            <div className="mt-4 border-t pt-4">
+                                <p className={`text-xs font-bold uppercase mb-2 ${subtext}`}>GLB Material Presets</p>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {MATERIAL_PRESETS.map(preset => (
+                                        <button
+                                            key={preset.id}
+                                            onClick={() => handleSaveMaterial(artwork.id, preset.id, preset.config)}
+                                            className={`flex flex-col items-center gap-1 p-2 rounded-md transition-colors relative
+                                                ${selectedMaterialPresetId === preset.id ? (lightsOn ? 'bg-neutral-200' : 'bg-neutral-700') : (lightsOn ? 'hover:bg-neutral-100' : 'hover:bg-neutral-800')}
+                                                ${(isUploading || updateStatus[artwork.id] === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}
+                                            `}
+                                            title={preset.name} // Tooltip
+                                            disabled={isUploading || updateStatus[artwork.id] === 'saving'}
+                                        >
+                                            <div
+                                                className={`w-8 h-8 rounded-full border-2 ${selectedMaterialPresetId === preset.id ? (lightsOn ? 'border-neutral-900' : 'border-white') : (lightsOn ? 'border-neutral-300' : 'border-neutral-600')}`}
+                                                style={{ backgroundColor: preset.iconColor }}
+                                            ></div>
+                                            <span className={`text-[10px] text-center ${selectedMaterialPresetId === preset.id ? (lightsOn ? 'text-neutral-900' : 'text-white') : subtext}`}>{preset.id === 'original' ? 'Original' : preset.name.split(' ')[0]}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}

@@ -1,7 +1,7 @@
 
 import React, { useMemo, useRef, useEffect, useState, Suspense } from 'react';
 import * as THREE from 'three';
-import { useGLTF, Clone } from '@react-three/drei';
+import { useGLTF, primitive } from '@react-three/drei'; // NEW: Import primitive
 import { useFrame } from '@react-three/fiber';
 import { ArtworkData, ArtworkGeometry } from '../../../types';
 import Podium from './Podium';
@@ -62,6 +62,22 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
   // Load GLB model if textureUrl is a GLB
   const gltf = isGLB && textureUrl ? useGLTF(textureUrl) : null;
 
+  // Initial material properties (default values for parameters if artworkData.material is missing)
+  const defaultMaterialPropsForGlb = useMemo(() => ({
+    color: '#ffffff',
+    emissive: '#000000',
+    emissiveIntensity: 0,
+    metalness: 0,
+    roughness: 0.5,
+    side: THREE.FrontSide,
+    transparent: true, // Always transparent for fading
+    opacity: 1,
+    transmission: 0,
+    thickness: 0,
+    clearcoat: 0,
+    clearcoatRoughness: 0,
+  }), []);
+
   // NEW: Process GLB scene to remove lights and cameras, and materials
   // This must be declared before useEffect that depends on it.
   const cleanedGlbScene = useMemo(() => {
@@ -76,29 +92,59 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
           child.parent.remove(child);
         }
       }
-
-      // Modify materials for brightness and cleanliness if it's a mesh
-      // FIX: Use instanceof THREE.Mesh to narrow the type
-      if (child instanceof THREE.Mesh) {
-        // Now TypeScript knows 'child' is a 'THREE.Mesh'
-        // Ensure child.material is an array for consistent handling
-        const materials = Array.isArray(child.material) ? child.material : [child.material];
-        materials.forEach(material => {
-          if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
-            // Apply adjustments for brighter, cleaner textures
-            material.emissive.setHex(0x111111); // Subtle gray emissive
-            material.emissiveIntensity = 0.5; // Boost emissive effect from 0.3 to 0.4
-            material.roughness = Math.max(1.0, Math.min(0.9, material.roughness)); // Clamp roughness
-            material.metalness = Math.min(0, material.metalness || 0); // Cap metalness at 0.1
-            // Do NOT set opacity here, it will be controlled by useFrame's fadeProgress
-            material.transparent = true; // Ensure transparency is always enabled for potential fading
-            material.needsUpdate = true; // Crucial for material changes to take effect
-          }
-        });
-      }
     });
     return sceneClone;
   }, [isGLB, gltf?.scene]);
+
+  // State for the GLB scene with materials applied, ready for rendering
+  const [clonedGlbWithMaterial, setClonedGlbWithMaterial] = useState<THREE.Group | null>(null);
+
+  // Effect to apply custom materials to the GLB model
+  useEffect(() => {
+    if (!isGLB || !cleanedGlbScene) {
+      setClonedGlbWithMaterial(null);
+      return;
+    }
+
+    const newScene = cleanedGlbScene.clone(); // Clone again for material application
+    newScene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        materials.forEach(originalMaterial => {
+          let newMaterial;
+          // Clone existing material to preserve maps/textures if it's a PBR material
+          if (originalMaterial instanceof THREE.MeshStandardMaterial || originalMaterial instanceof THREE.MeshPhysicalMaterial) {
+              newMaterial = originalMaterial.clone();
+          } else {
+              newMaterial = new THREE.MeshStandardMaterial(); // Fallback to a basic PBR material
+          }
+
+          const config = artworkData?.material;
+
+          // Apply custom material properties if defined, otherwise use defaults
+          newMaterial.color.set(config?.color ?? defaultMaterialPropsForGlb.color);
+          newMaterial.emissive.set(config?.emissive ?? defaultMaterialPropsForGlb.emissive);
+          newMaterial.emissiveIntensity = config?.emissiveIntensity ?? defaultMaterialPropsForGlb.emissiveIntensity;
+          newMaterial.metalness = config?.metalness ?? defaultMaterialPropsForGlb.metalness;
+          newMaterial.roughness = config?.roughness ?? defaultMaterialPropsForGlb.roughness;
+          newMaterial.side = getSide(config?.side);
+          newMaterial.transparent = config?.transparent ?? defaultMaterialPropsForGlb.transparent;
+          newMaterial.transmission = config?.transmission ?? defaultMaterialPropsForGlb.transmission;
+          newMaterial.thickness = config?.thickness ?? defaultMaterialPropsForGlb.thickness;
+          newMaterial.clearcoat = config?.clearcoat ?? defaultMaterialPropsForGlb.clearcoat;
+          newMaterial.clearcoatRoughness = config?.clearcoatRoughness ?? defaultMaterialPropsForGlb.clearcoatRoughness;
+          
+          newMaterial.transparent = true; // Crucial: ensure transparent is true for fade effect
+          newMaterial.opacity = 0; // Initial opacity for fade-in
+
+          child.material = newMaterial;
+          child.material.needsUpdate = true; // Mark as updated
+        });
+      }
+    });
+    setClonedGlbWithMaterial(newScene);
+  }, [isGLB, cleanedGlbScene, artworkData?.material, defaultMaterialPropsForGlb]);
+
 
   // NEW: State for fade progress and ref for GLB group
   const [fadeProgress, setFadeProgress] = useState(0);
@@ -107,38 +153,37 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
 
   // Effect to start fade animation when GLB is ready
   useEffect(() => {
-    if (isGLB && cleanedGlbScene) { // Trigger fade when the cleaned scene is ready
+    if (isGLB && clonedGlbWithMaterial) { // Trigger fade when the cloned scene with material is ready
       fadeStartTime.current = performance.now();
       setFadeProgress(0); // Reset to 0 to start fade
     } else if (!isGLB) {
       setFadeProgress(1); // Non-GLB is always visible
       fadeStartTime.current = null;
     }
-  }, [isGLB, cleanedGlbScene]); // Depend on cleanedGlbScene which is derived from gltf.scene
+  }, [isGLB, clonedGlbWithMaterial]); // Depend on clonedGlbWithMaterial
 
   useFrame((state) => {
-    if (isGLB && glbGroupRef.current && fadeStartTime.current !== null && fadeProgress < 1) {
+    if (isGLB && clonedGlbWithMaterial && fadeStartTime.current !== null) {
       const elapsedTime = performance.now() - fadeStartTime.current;
       const newProgress = Math.min(1, elapsedTime / FADE_DURATION);
       
       setFadeProgress(newProgress); // Update state directly
 
-      // Apply opacity to materials
-      glbGroupRef.current.traverse((child) => {
+      // Apply opacity to materials of clonedGlbWithMaterial
+      clonedGlbWithMaterial.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           const materials = Array.isArray(child.material) ? child.material : [child.material];
           materials.forEach(material => {
-            if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial || material instanceof THREE.MeshBasicMaterial) {
-              material.transparent = true;
-              material.opacity = newProgress; // Use newProgress directly
-              material.needsUpdate = true;
+            if (material instanceof THREE.Material) {
+                material.opacity = newProgress;
+                material.needsUpdate = true;
             }
           });
         }
       });
-    } else if (fadeProgress === 1 && fadeStartTime.current !== null) {
-        // Animation complete, stop processing by nulling out the start time
-        fadeStartTime.current = null; 
+      if (newProgress === 1) {
+          fadeStartTime.current = null; // Animation complete, stop processing
+      }
     }
   });
 
@@ -243,7 +288,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
     // is offset from its parent group's local origin (0,0,0) after scaling and rotation.
     // We will subtract these offsets from the GLB's *position* to visually center it.
     const xCenterOffset = worldCenter.x;
-    const zCenterOffset = worldCenter.z;
+    let zCenterOffset = worldCenter.z;
 
 
     return { scale: scaleFactor, yOffset, horizontalFootprint, height, xCenterOffset, zCenterOffset };
@@ -401,8 +446,8 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
     <group position={[0, 0, 0]}>
       <Podium height={actualPodiumHeight} shape="box" width={actualPodiumWidth} /> {/* UPDATED: Use dynamic width */}
       
-      {isGLB && cleanedGlbScene ? (
-        // Render GLB model using useGLTF and Clone for R3F integration
+      {isGLB && clonedGlbWithMaterial ? (
+        // Render GLB model using primitive for R3F integration
         <Suspense fallback={null}> {/* Show nothing or a loader while GLB is loading */}
           {/* FIX: Use lowercase intrinsic element 'group' */}
           <group
@@ -415,8 +460,8 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
             scale={glbRenderProps.scale} // Apply the calculated scale
             rotation={glbRotationEuler} // Apply the calculated Euler rotation
           >
-            {/* Clone the GLTF scene and apply castShadow/receiveShadow to all child meshes */}
-            <Clone object={cleanedGlbScene} castShadow receiveShadow />
+            {/* Use primitive to render the pre-processed clonedGlbWithMaterial */}
+            <primitive object={clonedGlbWithMaterial} castShadow receiveShadow />
           </group>
         </Suspense>
       ) : (
