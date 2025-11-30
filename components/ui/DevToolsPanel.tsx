@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Cpu, Info, Loader2, Focus, Check } from 'lucide-react'; // NEW: Import Focus icon and Check
+import { X, Cpu, Info, Loader2, Focus, Check } from 'lucide-react';
 import { FirebaseArtwork } from '../../types';
 
 interface DevToolsPanelProps {
@@ -17,10 +17,9 @@ interface DevToolsPanelProps {
   activeZoneName: string;
   focusedArtwork: FirebaseArtwork | null;
   isEditorMode: boolean;
-  // FIX: Added 'admin' to the activeEditorTab type.
   activeEditorTab: 'lighting' | 'layout' | 'artworks' | 'admin';
   selectedArtworkTitle: string;
-  fps: number; // NEW: FPS prop
+  fps: number;
 }
 
 const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
@@ -120,7 +119,6 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
             </div>
           </div>
 
-          {/* NEW: AI Studio Link */}
           <div className="border-t pt-2 mt-2 space-y-1 ${theme.border}">
             <p className={`${theme.subtext} flex items-center gap-2`}><Info className="w-4 h-4" /> Resources</p>
             <div className="ml-4 space-y-1">

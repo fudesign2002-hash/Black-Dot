@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Check, Sun, Map, Brush, Settings } from 'lucide-react'; // NEW: Added Settings icon
+import { X, Check, Sun, Map, Brush, Settings } from 'lucide-react';
 import { SimplifiedLightingConfig, ExhibitionArtItem, ZoneLightingDesign, FirebaseArtwork, ArtworkData, Exhibition } from '../../types';
 import LightingTab from './LightingTab';
 import LayoutTab from './LayoutTab';
 import ArtworkTab from './ArtworkTab';
-import AdminTab from './AdminTab'; // NEW: Import AdminTab
+import AdminTab from './AdminTab';
 
 interface FloorPlanEditorProps {
   isOpen: boolean;
@@ -22,8 +22,8 @@ interface FloorPlanEditorProps {
   firebaseArtworks: FirebaseArtwork[];
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
-  onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>; // NEW: Add onUpdateExhibition prop
-  activeExhibition: Exhibition; // NEW: Add activeExhibition prop
+  onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>;
+  activeExhibition: Exhibition;
   theme: {
     lightsOn: boolean;
     bg: string;
@@ -32,7 +32,6 @@ interface FloorPlanEditorProps {
     border: string;
     input: string;
   };
-  // NEW: Updated tab type to include 'admin'
   onActiveTabChange: (tab: 'lighting' | 'layout' | 'artworks' | 'admin') => void; 
   onFocusArtwork: (artworkInstanceId: string | null) => void;
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>;
@@ -55,8 +54,8 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   firebaseArtworks,
   onUpdateArtworkFile,
   onUpdateArtworkData,
-  onUpdateExhibition, // NEW: Destructure prop
-  activeExhibition, // NEW: Destructure prop
+  onUpdateExhibition,
+  activeExhibition,
   theme,
   onActiveTabChange,
   onFocusArtwork,
@@ -64,7 +63,6 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   onOpenConfirmationDialog,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
-  // NEW: Added 'admin' to state
   const [activeTab, setActiveTab] = useState<'lighting' | 'layout' | 'artworks' | 'admin'>('lighting'); 
   
   const [showSaved, setShowSaved] = useState(false);
@@ -78,7 +76,6 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     saveTimeoutRef.current = window.setTimeout(() => setShowSaved(false), 2000);
   }, []);
 
-  // Automatic save notification for lighting changes
   const isInitialMount = useRef(true);
   useEffect(() => {
     if (activeTab !== 'lighting') return;
@@ -89,7 +86,6 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     }
   }, [lightingConfig, triggerSaveNotification, activeTab]);
   
-  // NEW: Effect to inform parent about active tab changes
   useEffect(() => {
     onActiveTabChange(activeTab);
   }, [activeTab, onActiveTabChange]);
@@ -100,12 +96,9 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     };
   }, []);
 
-  // Removed bgClass and borderClass definitions, will use explicit classes below
-
-  // NEW: Added 'admin' to handler
   const handleTabClick = useCallback((tab: 'lighting' | 'layout' | 'artworks' | 'admin') => { 
     setActiveTab(tab);
-    onActiveTabChange(tab); // Explicitly inform parent
+    onActiveTabChange(tab);
   }, [onActiveTabChange]);
 
   return (
@@ -120,7 +113,6 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
       <div 
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        // Updated className for explicit background color with opacity and theme border/text
         className={`absolute top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${theme.border} ${theme.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className={`px-4 py-3 border-b flex justify-between items-center ${theme.border}`}>
@@ -134,7 +126,6 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           <button onClick={onClose} className="p-2 hover:bg-neutral-500/10 rounded-full transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
         </div>
         
-        {/* Updated tab bar background to be semi-transparent */}
         <div className={`p-2 border-b ${theme.border} ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'}`}>
             <div className="flex items-center gap-2">
                 <button
@@ -199,7 +190,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
             onOpenConfirmationDialog={onOpenConfirmationDialog}
           />
-        ) : ( // NEW: Render AdminTab
+        ) : (
             <AdminTab
                 theme={theme}
                 activeExhibition={activeExhibition}

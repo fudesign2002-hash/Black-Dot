@@ -1,13 +1,12 @@
-
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import firebase from 'firebase/compat/app';
 import { db } from '../firebase';
-import { Exhibition, ExhibitionZone, ExhibitionArtItem, SimplifiedLightingConfig, FirebaseArtwork, SimplifiedLightingPreset } from '../types';
-import { processFirebaseExhibitions, processFirebaseZones, processFirebaseArtworks, createLayoutFromZone } from '../services/museumService';
+import { Exhibition, ExhibitionZone, ExhibitionArtItem, SimplifiedLightingConfig, FirebaseArtwork } from '../types';
+import { processFirebaseExhibitions, processFirebaseZones, createFirebaseLayout, processFirebaseArtworks, createLayoutFromZone } from '../services/museumService';
 
 const DEFAULT_SIMPLIFIED_LIGHTING_CONFIG: SimplifiedLightingConfig = {
   lightsOn: true,
-  ambientIntensity: 0.9, // Increased from 0.8 to 0.9 for an even brighter environment
+  ambientIntensity: 0.9,
   spotlightMode: 'off',
   manualSpotlightColor: '#ffffff',
   colorTemperature: 5500,
@@ -25,6 +24,7 @@ const DEFAULT_FALLBACK_EXHIBITION: Exhibition = {
   tags: [],
   posterColor: 'bg-gray-700',
   defaultLayout: [],
+  exhibit_artworks: [],
 };
 
 const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
@@ -40,7 +40,6 @@ const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
 };
 
 export const useMuseumState = () => {
-  // States for raw Firebase data snapshots
   const [rawExhibitionDocs, setRawExhibitionDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [rawArtworkDocs, setRawArtworkDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [zones, setZones] = useState<ExhibitionZone[]>([]);
@@ -49,7 +48,6 @@ export const useMuseumState = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [lightingOverrides, setLightingOverrides] = useState<Record<string, SimplifiedLightingConfig>>({});
 
-  // NEW: State for processed FirebaseArtworks with file sizes
   const [firebaseArtworks, setFirebaseArtworks] = useState<FirebaseArtwork[]>([]);
 
   useEffect(() => {
@@ -84,10 +82,10 @@ export const useMuseumState = () => {
     });
 
     const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
-        // Process artworks to fetch file sizes asynchronously
+        
         const processedArtworks = await processFirebaseArtworks(snapshot.docs);
         setFirebaseArtworks(processedArtworks);
-        setRawArtworkDocs(snapshot.docs); // Keep raw docs for other deps
+        setRawArtworkDocs(snapshot.docs);
         loadedFlags.artworks = true;
         checkAllLoaded();
     }, (error) => {
@@ -101,9 +99,6 @@ export const useMuseumState = () => {
         unsubscribeArtworks();
     };
   }, []);
-
-  // Removed useMemo for firebaseArtworks as it's now managed by state within useEffect
-  // const firebaseArtworks = useMemo(() => processFirebaseArtworks(rawArtworkDocs), [rawArtworkDocs]);
 
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];
@@ -127,29 +122,26 @@ export const useMuseumState = () => {
   }, [activeZone, lightingOverrides]);
   
   const currentLayout = useMemo((): ExhibitionArtItem[] => {
-    // The canonical list of artwork IDs for the current exhibition. This is the source of truth.
     const canonicalArtworkIds = new Set(activeExhibition.exhibit_artworks || []);
 
-    // Get the custom layout from the zone, if it exists.
+    
     const zoneLayout = activeZone.artwork_selected
         ? createLayoutFromZone(activeZone.artwork_selected, firebaseArtworks)
         : [];
 
-    // Get the default layout for fallback positions.
+    
     const defaultLayout = activeExhibition.defaultLayout || [];
 
-    // 1. Filter the custom zone layout to only include artworks that are still part of the exhibition.
-    // This handles removals.
+    
     const filteredZoneLayout = zoneLayout.filter(item => canonicalArtworkIds.has(item.artworkId));
     const artworksWithCustomLayout = new Set(filteredZoneLayout.map(item => item.artworkId));
 
-    // 2. Find artworks from the default layout that are in the exhibition but don't have a custom layout.
-    // This handles additions.
+    
     const newArtworks = defaultLayout.filter(item =>
         canonicalArtworkIds.has(item.artworkId) && !artworksWithCustomLayout.has(item.artworkId)
     );
 
-    // 3. Combine the artworks with custom positions and the newly added artworks with default positions.
+    
     return [...filteredZoneLayout, ...newArtworks];
   }, [activeExhibition, activeZone, firebaseArtworks]);
 
@@ -174,7 +166,7 @@ export const useMuseumState = () => {
     currentLayout,
     lightingConfig,
     currentIndex,
-    handleNavigate, // NEW: Export handleNavigate
+    handleNavigate,
     setLightingOverride,
   };
 };

@@ -1,10 +1,6 @@
-
-
-
-
 import firebase from 'firebase/compat/app';
 import { Exhibition, ExhibitionZone, FirebaseArtwork, ExhibitionArtItem, ArtType, ZoneArtworkItem, ArtworkData } from '../types';
-import { storage } from '../firebase'; // Import storage
+import { storage } from '../firebase';
 
 /**
  * Safely parses the artwork_data field from Firebase.
@@ -17,16 +13,13 @@ const parseArtworkData = (rawData: any): ArtworkData | undefined => {
     return undefined;
   }
 
-  // If it's already an object (and not an array), return it directly
   if (typeof rawData === 'object' && rawData !== null && !Array.isArray(rawData)) {
     return rawData as ArtworkData;
   }
 
-  // If it's a string, attempt to parse it as JSON
   if (typeof rawData === 'string') {
     try {
-      // Remove C-style single-line comments before parsing
-      // This regex looks for '//' followed by any characters to the end of the line, globally.
+      
       const cleanedString = rawData.replace(/\/\/.*$/gm, '');
       const parsed = JSON.parse(cleanedString);
       return parsed as ArtworkData;
@@ -36,7 +29,6 @@ const parseArtworkData = (rawData: any): ArtworkData | undefined => {
     }
   }
 
-  // If it's neither an object nor a string (or null), return undefined
   return undefined;
 };
 
@@ -46,12 +38,11 @@ export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocu
         const data = doc.data();
         let fileSizeMB: number | undefined;
 
-        // Fetch file size if artwork_file exists
         if (data.artwork_file) {
             try {
                 const fileRef = storage.refFromURL(data.artwork_file);
                 const metadata = await fileRef.getMetadata();
-                fileSizeMB = metadata.size / (1024 * 1024); // Convert bytes to MB
+                fileSizeMB = metadata.size / (1024 * 1024);
             } catch (error) {
                 console.warn(`Failed to get metadata for artwork file: ${data.artwork_file}`, error);
                 fileSizeMB = undefined;
@@ -63,30 +54,25 @@ export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocu
             artworkID: data.artworkID || '',
             artwork_type: data.artwork_type || 'unknown',
             title: data.title || 'Untitled Artwork',
-            artist: data.artist || undefined, // NEW: Extract artist field
+            artist: data.artist || undefined,
             file: data.file,
-            artwork_file: data.artwork_file, // NEW: Extract artwork_file field
+            artwork_file: data.artwork_file,
             digitalSize: data.digitalSize,
             materials: data.materials,
             size: data.size,
-            artwork_data: parseArtworkData(data.artwork_data), // UPDATED: Use parseArtworkData helper
-            fileSizeMB: fileSizeMB, // NEW: Assign the calculated file size
+            artwork_data: parseArtworkData(data.artwork_data),
+            fileSizeMB: fileSizeMB,
         };
     });
 
     return Promise.all(artworksPromises);
 };
 
-// --- NEW ---
-// This function takes a saved layout from a zone and enriches it with the necessary
-// renderable data (like 'type' and 'textureUrl') from the master artwork list.
 export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebaseArtworks: FirebaseArtwork[]): ExhibitionArtItem[] => {
     if (!Array.isArray(zoneArtworks) || zoneArtworks.length === 0 || allFirebaseArtworks.length === 0) {
         return [];
     }
     
-    // FIX: Add explicit return type to map callback to prevent incorrect type narrowing.
-    // This ensures the type predicate `item is ExhibitionArtItem` in the filter is valid.
     return zoneArtworks.map((item, index): ExhibitionArtItem | null => {
         const firebaseArt = allFirebaseArtworks.find(art => art.id === item.artworkId);
         if (!firebaseArt) {
@@ -94,40 +80,36 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
             return null;
         }
 
-        let itemType: ArtType = 'sculpture_base'; // Default fallback
+        let itemType: ArtType = 'sculpture_base';
         let textureUrl: string | undefined = undefined;
-        let aspectRatio: number | undefined = undefined; // Added aspectRatio
-        let artworkData: ArtworkData | undefined = undefined; // NEW: Artwork data for 3D models
-        let isMotionVideo: boolean = false; // NEW: Initialize video flag
-        let isFaultyMotionVideo: boolean = false; // NEW: Initialize faulty video flag
+        let aspectRatio: number | undefined = undefined;
+        let artworkData: ArtworkData | undefined = undefined;
+        let isMotionVideo: boolean = false;
+        let isFaultyMotionVideo: boolean = false;
 
         switch (firebaseArt.artwork_type) {
             case 'painting':
-                itemType = 'canvas_square'; // Default to square if no specific orientation info
-                textureUrl = firebaseArt.artwork_file || firebaseArt.file; // UPDATED: Use artwork_file for painting
-                aspectRatio = 1; // Default to 1:1 for square canvas
+                itemType = 'canvas_square';
+                textureUrl = firebaseArt.artwork_file || firebaseArt.file;
+                aspectRatio = 1;
                 break;
             case 'sculpture':
-                itemType = 'sculpture_base'; // Map to sculpture_base for custom 3D rendering
-                // Always try to get artworkData if it exists
+                itemType = 'sculpture_base';
                 if (firebaseArt.artwork_data) {
-                    artworkData = firebaseArt.artwork_data; // Pass artwork_data
+                    artworkData = firebaseArt.artwork_data;
                 }
 
-                // Check for GLB file, this sets textureUrl
                 if (firebaseArt.artwork_file && firebaseArt.artwork_file.toLowerCase().includes('.glb')) {
                     textureUrl = firebaseArt.artwork_file;
                 }
                 break;
             case 'media':
-            case 'motion': // Handle 'motion' type for video playback
-                itemType = 'canvas_landscape'; // Default to landscape for media/motion
-                // FIX: Use artwork_file for video URLs
+            case 'motion':
+                itemType = 'canvas_landscape';
                 textureUrl = firebaseArt.artwork_file || firebaseArt.file; 
-                aspectRatio = 16 / 9; // Common for video/media
+                aspectRatio = 16 / 9;
                 if (firebaseArt.artwork_type === 'motion') {
-                    isMotionVideo = true; // Set flag for motion video
-                    // NEW: Check if motion video URL contains '.glb'
+                    isMotionVideo = true;
                     if (textureUrl && textureUrl.toLowerCase().includes('.glb')) {
                         isFaultyMotionVideo = true;
                     }
@@ -150,23 +132,21 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
             rotation: item.rotation,
             scale: item.scale,
             textureUrl: textureUrl,
-            aspectRatio: aspectRatio, // Assign aspectRatio
-            artworkData: artworkData, // NEW: Assign artworkData
-            isMotionVideo: isMotionVideo, // NEW: Assign motion video flag
-            isFaultyMotionVideo: isFaultyMotionVideo, // NEW: Assign faulty video flag
+            aspectRatio: aspectRatio,
+            artworkData: artworkData,
+            isMotionVideo: isMotionVideo,
+            isFaultyMotionVideo: isFaultyMotionVideo,
         };
     }).filter((item): item is ExhibitionArtItem => item !== null);
 };
 
 
-const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: FirebaseArtwork[]): ExhibitionArtItem[] => {
+export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: FirebaseArtwork[]): ExhibitionArtItem[] => {
     if (!Array.isArray(artworkIds) || artworkIds.length === 0 || allFirebaseArtworks.length === 0) {
         return [];
     }
 
     const layoutItems: ExhibitionArtItem[] = [];
-    // FIX: The `exhibit_artworks` array in Firestore likely contains document IDs, not custom artworkID fields.
-    // Changed the lookup from `art.artworkID` to `art.id` to correctly find the artwork documents.
     const foundArtworks = artworkIds.map(id => allFirebaseArtworks.find(art => art.id === id)).filter(Boolean) as FirebaseArtwork[];
 
     const totalArtworks = foundArtworks.length;
@@ -176,38 +156,34 @@ const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: Firebas
     foundArtworks.forEach((firebaseArt, index) => {
         let itemType: ArtType = 'canvas_square';
         let textureUrl: string | undefined = undefined;
-        let aspectRatio: number | undefined = undefined; // Added aspectRatio
-        let artworkData: ArtworkData | undefined = undefined; // NEW: Artwork data for 3D models
-        let isMotionVideo: boolean = false; // NEW: Initialize video flag
-        let isFaultyMotionVideo: boolean = false; // NEW: Initialize faulty video flag
+        let aspectRatio: number | undefined = undefined;
+        let artworkData: ArtworkData | undefined = undefined;
+        let isMotionVideo: boolean = false;
+        let isFaultyMotionVideo: boolean = false;
 
         switch (firebaseArt.artwork_type) {
             case 'painting':
-                itemType = 'canvas_square'; // Default to square for paintings
-                textureUrl = firebaseArt.artwork_file || firebaseArt.file; // UPDATED: Use artwork_file for painting
-                aspectRatio = 1; // Default to 1:1 for square canvas
+                itemType = 'canvas_square';
+                textureUrl = firebaseArt.artwork_file || firebaseArt.file;
+                aspectRatio = 1;
                 break;
             case 'sculpture':
-                itemType = 'sculpture_base'; // Map to sculpture_base for custom 3D rendering
-                // Always try to get artworkData if it exists
+                itemType = 'sculpture_base';
                 if (firebaseArt.artwork_data) {
-                    artworkData = firebaseArt.artwork_data; // Pass artwork_data
+                    artworkData = firebaseArt.artwork_data;
                 }
 
-                // Check for GLB file, this sets textureUrl
                 if (firebaseArt.artwork_file && firebaseArt.artwork_file.toLowerCase().includes('.glb')) {
                     textureUrl = firebaseArt.artwork_file;
                 }
                 break;
             case 'media':
-            case 'motion': // Handle 'motion' type for video playback
+            case 'motion':
                 itemType = 'canvas_landscape';
-                // FIX: Use artwork_file for video URLs
                 textureUrl = firebaseArt.artwork_file || firebaseArt.file;
-                aspectRatio = 16 / 9; // Common for video/media
+                aspectRatio = 16 / 9;
                 if (firebaseArt.artwork_type === 'motion') {
-                    isMotionVideo = true; // Set flag for motion video
-                    // NEW: Check if motion video URL contains '.glb'
+                    isMotionVideo = true;
                     if (textureUrl && textureUrl.toLowerCase().includes('.glb')) {
                         isFaultyMotionVideo = true;
                     }
@@ -218,22 +194,22 @@ const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: Firebas
                 break;
             default:
                 console.warn(`[MuseumService] createFirebaseLayout - Unknown Firebase artwork_type: "${firebaseArt.artwork_type}" for artworkID: "${firebaseArt.artworkID}". Using default display.`);
-                itemType = 'sculpture_base'; // Fallback to a visible object instead of a wall
+                itemType = 'sculpture_base';
                 break;
         }
 
         layoutItems.push({
-            id: `firebase_art_${firebaseArt.id}_${index}`, // Use doc ID for unique key
-            artworkId: firebaseArt.id, // FIX: Always use the unique Firestore document ID for consistency.
+            id: `firebase_art_${firebaseArt.id}_${index}`,
+            artworkId: firebaseArt.id,
             type: itemType,
             position: [startX + index * spacing, 0, 0],
             rotation: [0, 0, 0],
             scale: 1,
             textureUrl: textureUrl,
-            aspectRatio: aspectRatio, // Assign aspectRatio
-            artworkData: artworkData, // NEW: Assign artworkData
-            isMotionVideo: isMotionVideo, // NEW: Assign motion video flag
-            isFaultyMotionVideo: isFaultyMotionVideo, // NEW: Assign faulty video flag
+            aspectRatio: aspectRatio,
+            artworkData: artworkData,
+            isMotionVideo: isMotionVideo,
+            isFaultyMotionVideo: isFaultyMotionVideo,
         });
     });
 
@@ -279,8 +255,8 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             admissionLink: data.admissionLink,
             venue: data.venue,
             supportedBy: data.supportedBy,
-            exhibit_artworks: exhibitArtworksList,
-            defaultLayout: createFirebaseLayout(exhibitArtworksList, allFirebaseArtworks),
+            exhibit_artworks: exhibitArtworksList, // Ensure this is always an array
+            defaultLayout: createFirebaseLayout(exhibitArtworksList, allFirebaseArtworks), // Generate defaultLayout here
         };
         return exhibition;
     });
@@ -291,22 +267,20 @@ export const processFirebaseZones = (docs: firebase.firestore.QueryDocumentSnaps
         const data = doc.data();
         const zone: ExhibitionZone = {
             id: doc.id,
-            name: data.name || 'Unnamed Zone',
+            name: data.name || 'Untitled Zone',
             theme: data.theme || 'empty',
             exhibitionId: data.exhibitionId || '',
-            artwork_selected: Array.isArray(data.artwork_selected) ? data.artwork_selected : undefined,
-            lightingDesign: {
-                description: data.lightingDesign?.description || 'Standard lighting.',
+            artwork_selected: data.artwork_selected || [],
+            lightingDesign: data.lightingDesign || {
+                description: 'Default lighting.',
                 defaultConfig: {
-                    lightsOn: data.lightingDesign?.defaultConfig?.lightsOn ?? true,
-                    ambientIntensity: data.lightingDesign?.defaultConfig?.ambientIntensity ?? 0.5,
-                    spotlightMode: data.lightingDesign?.defaultConfig?.spotlightMode ?? 'off',
-                    manualSpotlightColor: data.lightingDesign?.defaultConfig?.manualSpotlightColor ?? '#ffffff',
-                    colorTemperature: data.lightingDesign?.defaultConfig?.colorTemperature ?? 5500,
+                    lightsOn: true,
+                    ambientIntensity: 0.9,
+                    spotlightMode: 'off',
+                    manualSpotlightColor: '#ffffff',
+                    colorTemperature: 5500,
                 },
-                recommendedPresets: Array.isArray(data.lightingDesign?.recommendedPresets) 
-                    ? data.lightingDesign.recommendedPresets 
-                    : [],
+                recommendedPresets: [],
             },
         };
         return zone;

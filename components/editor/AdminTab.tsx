@@ -1,7 +1,6 @@
-// components/editor/AdminTab.tsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition } from '../../types';
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy } from 'lucide-react'; // NEW: Added Copy icon
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy } from 'lucide-react';
 
 interface AdminTabProps {
   theme: {
@@ -15,26 +14,33 @@ interface AdminTabProps {
   onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>;
 }
 
-const DEBOUNCE_DELAY = 700; // ms
+const DEBOUNCE_DELAY = 700;
 
-// Moved InputField component definition outside AdminTab
-interface InputFieldProps {
+// NEW: Utility type to extract keys of properties that are string or string | undefined
+type StringKeys<T> = {
+  [K in keyof T]: T[K] extends string | undefined ? K : never;
+}[keyof T];
+
+type StringExhibitionKeys = StringKeys<Exhibition>;
+
+// FIX: Add generic type TField to constrain the `field` prop
+interface InputFieldProps<TField extends StringExhibitionKeys> {
   label: string;
-  // FIX: Changed 'field' type from `string` to `keyof Exhibition` to resolve 'string is not assignable to never' error
-  field: keyof Exhibition;
+  field: TField; // Use the generic type here
   icon: React.ElementType;
   type?: string;
   isTextArea?: boolean;
   value: string;
   onChange: (value: string) => void;
   statusIcon: React.ReactNode;
-  theme: AdminTabProps['theme']; // Pass theme explicitly
-  className?: string; // Add className prop for layout
+  theme: AdminTabProps['theme'];
+  className?: string;
 }
 
-const InputField: React.FC<InputFieldProps> = React.memo(({
+// FIX: Apply the generic type to the functional component
+const InputField = React.memo(<TField extends StringExhibitionKeys>({
   label, field, icon: Icon, type = 'text', isTextArea = false, value, onChange, statusIcon, theme, className
-}) => {
+}: InputFieldProps<TField>) => { // Use InputFieldProps with the generic type
   const { lightsOn, text, subtext, border, input } = theme;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
 
@@ -68,14 +74,15 @@ const InputField: React.FC<InputFieldProps> = React.memo(({
 
 const AdminTab: React.FC<AdminTabProps> = React.memo(({ theme, activeExhibition, onUpdateExhibition }) => {
   const [localExhibition, setLocalExhibition] = useState<Partial<Exhibition>>({});
-  const [updateStatus, setUpdateStatus] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
-  const timeoutRefs = useRef<Record<string, number>>({});
+  // FIX: Type updateStatus with Partial<Record<keyof Exhibition, ...>>
+  const [updateStatus, setUpdateStatus] = useState<Partial<Record<keyof Exhibition, 'idle' | 'saving' | 'saved' | 'error'>>>({});
+  // FIX: Type timeoutRefs with Partial<Record<keyof Exhibition, number>>
+  const timeoutRefs = useRef<Partial<Record<keyof Exhibition, number>>>({});
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const { lightsOn, text, subtext, border, input } = theme;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
 
-  // Initialize local state when activeExhibition changes
   useEffect(() => {
     setLocalExhibition({
       title: activeExhibition.title,
@@ -87,46 +94,43 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ theme, activeExhibition,
       hours: activeExhibition.hours,
       admissionLink: activeExhibition.admissionLink,
     });
-    setUpdateStatus({}); // Reset status when exhibition changes
-    // Clear any pending debounce timeouts for previous exhibition
+    // FIX: Initialize with an empty object, now allowed by Partial type
+    setUpdateStatus({});
     Object.values(timeoutRefs.current).forEach(clearTimeout);
-    timeoutRefs.current = {};
+    timeoutRefs.current = {}; // FIX: Initialize with an empty object, now allowed by Partial type
   }, [activeExhibition]);
 
-  const handleUpdateStatus = useCallback((field: string, status: 'idle' | 'saving' | 'saved' | 'error', duration: number = 2000) => {
+  const handleUpdateStatus = useCallback((field: keyof Exhibition, status: 'idle' | 'saving' | 'saved' | 'error', duration: number = 2000) => { // FIX: Use keyof Exhibition for field
     setUpdateStatus(prev => ({ ...prev, [field]: status }));
     if (status === 'saved' || status === 'error') {
       setTimeout(() => setUpdateStatus(prev => ({ ...prev, [field]: 'idle' })), duration);
     }
   }, []);
 
-  const handleChange = useCallback((field: keyof Exhibition, value: string) => {
+  const handleChange = useCallback((field: StringExhibitionKeys, value: string) => { // FIX: Restrict field to StringExhibitionKeys
     setLocalExhibition(prev => ({ ...prev, [field]: value }));
-    handleUpdateStatus(field as string, 'idle'); // Reset status to idle when typing
+    handleUpdateStatus(field, 'idle'); // FIX: Use field directly
 
-    // Clear previous debounce timeout for this field
-    if (timeoutRefs.current[field as string]) {
-      clearTimeout(timeoutRefs.current[field as string]);
+    if (timeoutRefs.current[field]) { // FIX: Use field directly
+      clearTimeout(timeoutRefs.current[field]); // FIX: Use field directly
     }
 
-    // Set a new debounce timeout
-    timeoutRefs.current[field as string] = window.setTimeout(async () => {
+    timeoutRefs.current[field] = window.setTimeout(async () => { // FIX: Use field directly
       if (activeExhibition.id) {
-        handleUpdateStatus(field as string, 'saving');
+        handleUpdateStatus(field, 'saving'); // FIX: Use field directly
         try {
-          // Construct partial update object for Firebase
           const updatedField: Partial<Exhibition> = { [field]: value };
           await onUpdateExhibition(activeExhibition.id, updatedField);
-          handleUpdateStatus(field as string, 'saved');
+          handleUpdateStatus(field, 'saved'); // FIX: Use field directly
         } catch (error) {
           console.error(`Failed to update ${field}:`, error);
-          handleUpdateStatus(field as string, 'error', 3000);
+          handleUpdateStatus(field, 'error', 3000); // FIX: Use field directly
         }
       }
     }, DEBOUNCE_DELAY);
   }, [activeExhibition.id, onUpdateExhibition, handleUpdateStatus]);
 
-  const getStatusIcon = (field: string) => {
+  const getStatusIcon = (field: keyof Exhibition) => { // FIX: Use keyof Exhibition for field
     switch (updateStatus[field]) {
       case 'saving':
         return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />;
@@ -169,7 +173,6 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ theme, activeExhibition,
         <InputField label="Subtitle" field="subtitle" icon={Layout} value={localExhibition.subtitle || ''} onChange={(val) => handleChange('subtitle', val)} statusIcon={getStatusIcon('subtitle')} theme={theme} />
         <InputField label="Overview" field="overview" icon={FileText} isTextArea value={localExhibition.overview || ''} onChange={(val) => handleChange('overview', val)} statusIcon={getStatusIcon('overview')} theme={theme} />
         
-        {/* Group Date From and Date To on the same line */}
         <div className="flex gap-4">
           <InputField label="Date From" field="dateFrom" icon={Calendar} type="date" value={localExhibition.dateFrom || ''} onChange={(val) => handleChange('dateFrom', val)} statusIcon={getStatusIcon('dateFrom')} theme={theme} className="flex-1" />
           <InputField label="Date To" field="dateTo" icon={Calendar} type="date" value={localExhibition.dateTo || ''} onChange={(val) => handleChange('dateTo', val)} statusIcon={getStatusIcon('dateTo')} theme={theme} className="flex-1" />
@@ -179,7 +182,6 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ theme, activeExhibition,
         <InputField label="Hours" field="hours" icon={Clock} value={localExhibition.hours || ''} onChange={(val) => handleChange('hours', val)} statusIcon={getStatusIcon('hours')} theme={theme} />
         <InputField label="Purchase Ticket Link" field="admissionLink" icon={Ticket} value={localExhibition.admissionLink || ''} onChange={(val) => handleChange('admissionLink', val)} statusIcon={getStatusIcon('admissionLink')} theme={theme} />
 
-        {/* NEW: Embed Options Section */}
         <div className={`p-4 rounded-xl border ${border} ${controlBgClass} mt-6`}>
             <h4 className="font-bold text-sm mb-4">Embed Exhibition</h4>
             <p className={`text-sm leading-relaxed ${subtext} mb-4`}>

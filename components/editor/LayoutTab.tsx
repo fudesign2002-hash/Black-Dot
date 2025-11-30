@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { ExhibitionArtItem, ArtType } from '../../types'; 
@@ -18,21 +17,16 @@ interface LayoutTabProps {
   selectedArtworkArtist: string;
 }
 
-const PADDING_PERCENT = 3; // 3% padding on each side to prevent clipping
-const SCENE_BOUNDS_X = 24; // Corresponds to the wider dimension (left-right)
-const SCENE_BOUNDS_Z = 12; // Corresponds to the narrower dimension (front-back)
+const PADDING_PERCENT = 3;
+const SCENE_BOUNDS_X = 24;
+const SCENE_BOUNDS_Z = 12;
 
-// NEW: Collision specifications for each ArtType, representing a fixed 2D width and depth in scene units.
-// These values are the effective collision footprint on the 2D map, including a small inherent buffer
-// for visual "closeness" detection. Rotation is ignored for these 2D collision boxes.
 const ARTWORK_DIMENSIONS_2D: Record<ArtType, { width: number; depth: number }> = {
-  // Canvas types (wall-mounted) are thin in depth, but wide. Widths are generous to include visual buffer.
   canvas_portrait: { width: 8.0, depth: 1.0 },
   canvas_landscape: { width: 17.0, depth: 1.0 },
   canvas_square: { width: 7.0, depth: 1.0 },
-  // Sculpture types (podium-based) are typically square footprints. Widths are generous.
-  sculpture_base: { width: 6.0, depth: 6.0 }, // Max podium width (5.0) + buffer (1.0)
-  sphere_exhibit: { width: 3.0, depth: 3.0 }, // Sphere podium width (2.5) + buffer (0.5)
+  sculpture_base: { width: 6.0, depth: 6.0 },
+  sphere_exhibit: { width: 3.0, depth: 3.0 },
 };
 
 interface CollisionBox {
@@ -42,14 +36,10 @@ interface CollisionBox {
   maxZ: number;
 }
 
-// Rewritten: Simplified getArtworkCollisionBox for 2D AABB collision detection.
-// It now only considers currentPosition (x, z) and uses predefined 2D dimensions.
-// It explicitly ignores rotation and any padding, as effective dimensions are built into ARTWORK_DIMENSIONS_2D.
 const getArtworkCollisionBox = (
   art: ExhibitionArtItem,
   currentPosition: [number, number, number],
 ): CollisionBox => {
-  // Fallback to a reasonable default size if art.type is not found
   const { width, depth } = ARTWORK_DIMENSIONS_2D[art.type] || { width: 3, depth: 3 };
 
   const halfWidth = width / 2;
@@ -68,24 +58,21 @@ const checkCollision = (
   potentialPos: [number, number, number],
   staticArts: ExhibitionArtItem[],
 ): { collided: boolean; id: string | null } => {
-  // Use the simplified getArtworkCollisionBox which already incorporates an effective size.
   const movingBox = getArtworkCollisionBox(movingArt, potentialPos);
 
   for (const staticArt of staticArts) {
-    if (movingArt.id === staticArt.id) continue; // Don't check against itself
+    if (movingArt.id === staticArt.id) continue;
 
-    // Use the simplified getArtworkCollisionBox for static art as well.
     const staticBox = getArtworkCollisionBox(staticArt, staticArt.position);
 
-    // AABB (Axis-Aligned Bounding Box) collision check
     if (movingBox.maxX > staticBox.minX &&
         movingBox.minX < staticBox.maxX &&
         movingBox.maxZ > staticBox.minZ &&
         movingBox.minZ < staticBox.maxZ) {
-      return { collided: true, id: staticArt.id }; // Collision detected, return collided artwork's ID
+      return { collided: true, id: staticArt.id };
     }
   }
-  return { collided: false, id: null }; // No collision
+  return { collided: false, id: null };
 };
 
 const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
@@ -99,12 +86,11 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedArtId, setDraggedArtId] = useState<string | null>(null);
-  const [collidingArtworkId, setCollidingArtworkId] = useState<string | null>(null); // New state for collision visualization
+  const [collidingArtworkId, setCollidingArtworkId] = useState<string | null>(null);
 
   const { lightsOn, text, subtext, border } = theme;
 
   const selectedArt = currentLayout.find(art => art.id === selectedArtworkId);
-  // Note: currentRotationDegrees is for display only, actual 2D collision ignores rotation.
   const currentRotationDegrees = selectedArt ? Math.round(selectedArt.rotation[1] * (180 / Math.PI)) : 0;
 
   const mapRange = useCallback((value: number, in_min: number, in_max: number, out_min: number, out_max: number) => {
@@ -112,37 +98,33 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     return ((clampedValue - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
   }, []);
 
-  // Renamed: getCanvasVisualDimensions to getArtworkMapDisplayDimensions
-  // This is purely for the visual representation in the editor, not for collision.
   const getArtworkMapDisplayDimensions = useCallback((artType: ArtType) => {
     switch (artType) {
         case 'canvas_square':
             return { widthClass: 'w-4', heightClass: 'h-[6px]' };
         case 'canvas_portrait':
             return { widthClass: 'w-6', heightClass: 'h-[6px]' };
-        case 'canvas_landscape': // Motion artwork
+        case 'canvas_landscape':
             return { widthClass: 'w-24', heightClass: 'h-[6px]' };
-        case 'sculpture_base': // Generic sculpture base indicator
+        case 'sculpture_base':
             return { widthClass: 'w-4', heightClass: 'h-4' };
-        case 'sphere_exhibit': // Generic sphere indicator
+        case 'sphere_exhibit':
             return { widthClass: 'w-3', heightClass: 'h-3' };
         default:
             return { widthClass: 'w-4', heightClass: 'h-[6px]' };
     }
   }, []);
 
-  // NEW: handleArtworkPointerDown to directly select and start drag
   const handleArtworkPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, artId: string) => {
     e.stopPropagation();
-    onSelectArtwork(artId);      // Immediately select the artwork
-    setDraggedArtId(artId);      // Set the artwork as being dragged
+    onSelectArtwork(artId);      
+    setDraggedArtId(artId);      
   }, [onSelectArtwork]);
 
 
-  // Existing useEffect for continuous dragging, now triggered when draggedArtId is set (after threshold)
   useEffect(() => {
     if (!draggedArtId) {
-      setCollidingArtworkId(null); // Clear collision on drag end
+      setCollidingArtworkId(null);
       return;
     }
 
@@ -165,12 +147,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
       if (!movingArt) return;
 
       const potentialPosition: [number, number, number] = [newPosX, movingArt.position[1], newPosZ];
-      // Note: potentialRotationY is not used for 2D collision box calculation
-      // const potentialRotationY = movingArt.rotation[1]; // Kept commented as it's not used in current logic
-
-
-      // Check global scene boundaries first, using the simplified 2D collision box.
-      // This will ensure the art does not go outside the map.
+      
       const tempMovingArtForBounds: ExhibitionArtItem = { ...movingArt, position: potentialPosition };
       const potentialMovingBoxForBounds = getArtworkCollisionBox(tempMovingArtForBounds, potentialPosition);
 
@@ -183,10 +160,8 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
       const otherArts = currentLayout.filter(art => art.id !== draggedArtId);
       const collisionResult = checkCollision(movingArt, potentialPosition, otherArts); 
 
-      setCollidingArtworkId(collisionResult.id); // Update state for visual feedback (red circle)
+      setCollidingArtworkId(collisionResult.id);
 
-      // Only restrict movement if out of global bounds.
-      // Collision between artworks is now *only* a visual warning, not a movement restriction.
       if (!outOfGlobalBounds) { 
         onEditorLayoutChange(prevLayout =>
           prevLayout.map(art =>
@@ -200,7 +175,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     
     const handlePointerUp = () => {
       setDraggedArtId(null);
-      setCollidingArtworkId(null); // Clear collision on drag end
+      setCollidingArtworkId(null);
     };
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -227,7 +202,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
       rotation: [movingArt.rotation[0], potentialRotationY, movingArt.rotation[2]] as [number, number, number],
     };
 
-    // Use simplified 2D collision box, which ignores rotation for the bounding box.
     const potentialMovingBoxForBounds = getArtworkCollisionBox(tempMovingArtForBounds, potentialPosition);
 
     const outOfGlobalBounds =
@@ -238,10 +212,8 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
     const otherArts = currentLayout.filter(art => art.id !== selectedArtworkId);
     const collisionResult = checkCollision(movingArt, potentialPosition, otherArts); 
-    setCollidingArtworkId(collisionResult.id); // Update state for visual feedback
+    setCollidingArtworkId(collisionResult.id);
 
-    // Only restrict rotation if it causes the simple 2D AABB to go out of global bounds.
-    // Collision between artworks is now *only* a visual warning, not a movement restriction.
     if (!outOfGlobalBounds) { 
       onEditorLayoutChange(prevLayout => prevLayout.map(art =>
         art.id === selectedArtworkId ? { ...art, rotation: [art.rotation[0], radians, art.rotation[2]] as [number, number, number] } : art
@@ -254,14 +226,13 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
     const movingArt = selectedArt;
     const potentialPosition = movingArt.position;
-    const potentialRotationY = 0; // Reset to 0 radians
+    const potentialRotationY = 0; 
 
     const tempMovingArtForBounds: ExhibitionArtItem = {
       ...movingArt,
       rotation: [movingArt.rotation[0], potentialRotationY, movingArt.rotation[2]] as [number, number, number],
     };
 
-    // Use simplified 2D collision box, which ignores rotation for the bounding box.
     const potentialMovingBoxForBounds = getArtworkCollisionBox(tempMovingArtForBounds, potentialPosition);
 
     const outOfGlobalBounds =
@@ -272,10 +243,8 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
     const otherArts = currentLayout.filter(art => art.id !== selectedArtworkId);
     const collisionResult = checkCollision(movingArt, potentialPosition, otherArts); 
-    setCollidingArtworkId(collisionResult.id); // Update state for visual feedback
+    setCollidingArtworkId(collisionResult.id);
 
-    // Only restrict rotation if it causes the simple 2D AABB to go out of global bounds.
-    // Collision between artworks is now *only* a visual warning, not a movement restriction.
     if (!outOfGlobalBounds) { 
       onEditorLayoutChange(prevLayout => prevLayout.map(art =>
         art.id === selectedArtworkId ? { ...art, rotation: [art.rotation[0], 0, art.rotation[2]] as [number, number, number] } : art
@@ -283,8 +252,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     }
   }, [selectedArt, selectedArtworkId, onEditorLayoutChange, currentLayout]);
 
-  // Theme-dependent classes to match new reference image
-  // Removed panelBgClass to use semi-transparent parent background
   const mapBgClass = lightsOn ? 'bg-white' : 'bg-[#212121]';
   const mapBorderClass = lightsOn ? 'border-neutral-200' : 'border-neutral-700/50';
   const innerBorderClass = lightsOn ? 'border-neutral-200/80' : 'border-neutral-700/30';
@@ -294,7 +261,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   const buttonHoverClass = lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700';
 
   return (
-    // Changed from panelBgClass to bg-neutral-500/5 to match other tabs and allow transparency
     <div className={`flex-1 flex flex-col p-4 overflow-hidden bg-neutral-500/5 ${text}`}>
       <div
         ref={containerRef}
@@ -309,7 +275,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
           const top = mapRange(art.position[2], -SCENE_BOUNDS_Z, SCENE_BOUNDS_Z, PADDING_PERCENT, 100 - PADDING_PERCENT);
           const isSelected = art.id === selectedArtworkId;
           const isDragged = art.id === draggedArtId;
-          const isColliding = art.id === collidingArtworkId; // New flag for collision visualization
+          const isColliding = art.id === collidingArtworkId;
           const isCanvas = art.type.startsWith('canvas_');
 
           return (
@@ -321,8 +287,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
             >
               <div 
                 className="w-full h-full flex items-center justify-center"
-                // For 2D map visualization, still show rotation for canvas types.
-                // Note: The collision detection itself ignores this rotation for simplicity.
                 style={{ transform: isCanvas ? `rotate(${-art.rotation[1]}rad)` : 'none' }}
               >
                 {isCanvas ? (
@@ -336,7 +300,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
               </div>
               
               {isSelected && <div className={`absolute w-5 h-5 rounded-full ring-2 ring-cyan-500 ring-offset-2 ${ringOffsetClass}`} />}
-              {isColliding && <div className={`absolute w-5 h-5 rounded-full ring-2 ring-red-500 ring-offset-2 ${ringOffsetClass} colliding-ring`} />} {/* Collision ring */}
+              {isColliding && <div className={`absolute w-5 h-5 rounded-full ring-2 ring-red-500 ring-offset-2 ${ringOffsetClass} colliding-ring`} />}
             </div>
           );
         })}

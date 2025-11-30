@@ -1,8 +1,7 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './r3f-declarations'; // NEW: Import this early to register R3F elements
+import './r3f-declarations';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

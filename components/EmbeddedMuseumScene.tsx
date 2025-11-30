@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react'; // NEW: Import useEffect
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Sun, Moon, RefreshCw } from 'lucide-react';
 
 import Scene from './scene/Scene';
@@ -16,7 +16,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
   showResetCamera = true,
 }) => {
   const [resetTrigger, setResetTrigger] = useState(0);
-  const [fps, setFps] = useState(0); // For potential dev tools or debugging in embed
+  const [fps, setFps] = useState(0);
 
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const initialExhibitionId = urlParams.get('exhibitionId');
@@ -29,10 +29,9 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
     lightingConfig,
     setLightingOverride,
     exhibitions, 
-    handleNavigate, // NEW: Import handleNavigate from useMuseumState
+    handleNavigate,
   } = useMuseumState();
 
-  // NEW: Effect to navigate to the specified exhibitionId on mount if available
   useEffect(() => {
     if (initialExhibitionId && exhibitions.length > 0) {
       const targetIndex = exhibitions.findIndex(ex => ex.id === initialExhibitionId);
@@ -76,7 +75,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
 
   return (
     <div className={`w-full h-full relative transition-colors duration-1000 ${theme.bg} overflow-hidden font-sans`}>
-      <TransitionOverlay isTransitioning={isLoading} /> {/* Use isLoading for embed transition */}
+      <TransitionOverlay isTransitioning={isLoading} />
 
       <div className="absolute inset-0 z-0">
         <Scene
@@ -84,14 +83,14 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
           resetTrigger={resetTrigger}
           currentZoneTheme={activeZone.theme}
           artworks={currentLayout}
-          isEditorOpen={false} // Always false in embed mode
-          isEditorMode={false} // Always false in embed mode
-          selectedArtworkId={null} // No selection in embed mode
-          onSelectArtwork={() => {}} // No selection in embed mode
-          focusedIndex={0} // No explicit focus for now in embed
-          onFocusChange={() => {}} // No explicit focus for now in embed
-          activeEditorTab={'lighting'} // Default, not used
-          focusedArtworkInstanceId={null} // Not used in embed
+          isEditorOpen={false}
+          isEditorMode={false}
+          selectedArtworkId={null}
+          onSelectArtwork={() => {}}
+          focusedIndex={0}
+          onFocusChange={() => {}}
+          activeEditorTab={'lighting'}
+          focusedArtworkInstanceId={null}
           setFps={setFps}
         />
       </div>

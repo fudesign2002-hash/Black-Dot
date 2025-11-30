@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Database, Cpu, ChevronLeft, ChevronRight } from 'lucide-react'; // NEW: Import Cpu icon, ChevronLeft, ChevronRight
-import { Exhibition } from '../../types'; // NEW: Import Exhibition type
+import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Database, Cpu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Exhibition } from '../../types';
 
 interface MainControlsProps {
   theme: any;
@@ -14,15 +13,14 @@ interface MainControlsProps {
   setIsFirebaseViewerOpen: (open: boolean) => void;
   setIsSearchOpen: (open: boolean) => void;
   setResetTrigger: React.Dispatch<React.SetStateAction<number>>;
-  // FIX: Corrected setIsDevToolsOpen to accept a state updater function
   setIsDevToolsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  isSmallScreen: boolean; // NEW: Add isSmallScreen prop
-  onPrev: () => void; // NEW: Add onPrev prop
-  onNext: () => void; // NEW: Add onNext prop
-  prevItem: Exhibition | null; // NEW: Add prevItem prop
-  nextItem: Exhibition | null; // NEW: Add nextItem prop
-  isFirstItem: boolean; // NEW: Add isFirstItem prop
-  isLastItem: boolean; // NEW: Add isLastItem prop
+  isSmallScreen: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  prevItem: Exhibition | null;
+  nextItem: Exhibition | null;
+  isFirstItem: boolean;
+  isLastItem: boolean;
 }
 
 const MainControls: React.FC<MainControlsProps> = React.memo(({
@@ -37,8 +35,8 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   setIsSearchOpen,
   setResetTrigger,
   setIsDevToolsOpen,
-  isSmallScreen, // NEW: Destructure isSmallScreen
-  onPrev, // NEW: Destructure navigation handlers and items
+  isSmallScreen,
+  onPrev,
   onNext,
   prevItem,
   nextItem,
@@ -47,7 +45,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
 }) => (
     <div className={`absolute z-40 flex gap-4 transition-all duration-500 ${isInfoOpen ? 'translate-y-24 opacity-0' : 'translate-y-0 opacity-100'} bottom-8 left-1/2 -translate-x-1/2`}>
         <div className={`backdrop-blur-xl border p-1.5 rounded-full flex gap-2 shadow-2xl transition-colors duration-700 ${lightsOn ? 'bg-white/80 border-white/60' : 'bg-black/50 border-white/10'}`}>
-            {!isEditorMode && ( // Hide light toggle button when in editor mode
+            {!isEditorMode && (
               <button onClick={onLightToggle} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${!lightsOn ? theme.glassActive : theme.glass}`} title="Toggle Lights">
                   <div className={!lightsOn ? "text-amber-400" : ""}>{lightsOn ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}</div>
               </button>
@@ -72,8 +70,6 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
             </button>
             <div className={`w-px my-3 transition-colors duration-700 ${lightsOn ? 'bg-neutral-300' : 'bg-white/10'}`} />
             
-            {/* DevToolsPanel Toggle Button */}
-            {/* FIX: Call setIsDevToolsOpen with a state updater function */}
             <button onClick={() => setIsDevToolsOpen(prev => !prev)} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${theme.glass}`} title="Toggle Dev Tools">
                 <Cpu className="w-4 h-4" />
             </button>
@@ -81,8 +77,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 <RefreshCw className="w-4 h-4" />
             </button>
 
-            {/* NEW POSITION FOR BOTH MOBILE NAVIGATION BUTTONS */}
-            {isSmallScreen && !isEditorMode && ( // Group both prev/next buttons
+            {isSmallScreen && !isEditorMode && (
                 <>
                     {!isFirstItem && prevItem && (
                         <button onClick={onPrev} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${theme.glass}`} title="Previous Exhibition">

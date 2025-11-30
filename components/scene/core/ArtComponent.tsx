@@ -1,9 +1,5 @@
-
-
-
 import React, { Suspense } from 'react';
 
-// Import all art components that are still actively used
 import CanvasExhibit from '../art/CanvasExhibit';
 import SphereExhibit from '../art/SphereExhibit';
 import SculptureExhibit from '../art/SculptureExhibit';
@@ -16,14 +12,13 @@ interface ArtComponentProps {
     isFocused: boolean;
     textureUrl?: string;
     artworkData?: ArtworkData;
-    isMotionVideo?: boolean; // NEW: Pass motion video flag
-    isFaultyMotionVideo?: boolean; // NEW: Pass faulty motion video flag
-    aspectRatio?: number; // NEW: Pass aspectRatio for better texture dimension calculation
-    lightsOn?: boolean; // FIX: Added missing lightsOn prop
+    isMotionVideo?: boolean;
+    isFaultyMotionVideo?: boolean;
+    aspectRatio?: number;
+    lightsOn?: boolean;
 }
 
 const ArtComponent: React.FC<ArtComponentProps> = ({ type, zone, isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn }) => {
-    // Determine if the artwork is a painting for conditional rendering in CanvasExhibit/TexturedWallDisplay
     const isPainting = type.startsWith('canvas_');
 
     const componentMap: { [key: string]: React.ReactNode } = {

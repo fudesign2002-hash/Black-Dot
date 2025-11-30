@@ -1,14 +1,12 @@
-// components/editor/ArtworkTab.tsx
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Video, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2, FileSize } from 'lucide-react'; // NEW: Added FileSize icon
+import { Image as ImageIcon, Video, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2 } from 'lucide-react';
 import { FirebaseArtwork, ExhibitionArtItem, ArtworkData, ArtworkMaterialConfig, MaterialPreset } from '../../types';
 import { storage } from '../../firebase';
 import { getVideoEmbedUrl } from '../../services/utils/videoUtils';
 
-// Define constants for image compression
-const MAX_IMAGE_WIDTH = 1200; // Max width for image compression (pixels)
-const MAX_IMAGE_HEIGHT = 1200; // Max height for image compression (pixels)
-const JPEG_QUALITY = 0.8; // JPEG compression quality (0.0 to 1.0, where 1.0 is highest quality/least compression)
+const MAX_IMAGE_WIDTH = 1200;
+const MAX_IMAGE_HEIGHT = 1200;
+const JPEG_QUALITY = 0.8;
 
 interface ArtworkTabProps {
   theme: {
@@ -24,15 +22,15 @@ interface ArtworkTabProps {
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
     onFocusArtwork: (artworkInstanceId: string | null) => void;
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>;
-  onOpenConfirmationDialog: (artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => void; // NEW: Add onOpenConfirmationDialog prop
+  onOpenConfirmationDialog: (artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => void;
 }
 
 const MATERIAL_PRESETS: MaterialPreset[] = [
   {
     id: 'original',
     name: 'Original GLB Material',
-    iconColor: '#A0A0A0', // Grey for original
-    config: null, // Signals to revert to GLB's intrinsic material (with base adjustments)
+    iconColor: '#A0A0A0',
+    config: null,
   },
   {
     id: 'matte_black',
@@ -61,8 +59,8 @@ const MATERIAL_PRESETS: MaterialPreset[] = [
   {
     id: 'frosted_glass',
     name: 'Frosted Glass',
-    iconColor: '#ADD8E6', // LightBlue
-    config: { color: '#ADD8E6', roughness: 0.3, metalness: 0, transmission: 0.95, thickness: 1.5, clearcoat: 1, clearcoatRoughness: 0, transparent: true, opacity: 1 },
+    iconColor: '#ADD8E6',
+    config: { color: '#ADD8E6', roughness: 0.8, metalness: 0, transmission: 0.99, thickness: 1, clearcoat: 1, clearcoatRoughness: 0, transparent: true, opacity: 0.5 },
   },
 ];
 
@@ -78,7 +76,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewMediaError, setPreviewMediaError] = useState<Record<string, boolean>>({});
   const [glbPreviewRotation, setGlbPreviewRotation] = useState<[number, number, number]>([0, 0, 0]);
-  const [selectedMaterialPresetId, setSelectedMaterialPresetId] = useState<string | null>(null); // NEW: State for selected material preset
+  const [selectedMaterialPresetId, setSelectedMaterialPresetId] = useState<string | null>(null);
 
   const { lightsOn, text, subtext, border, input } = theme;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
@@ -131,8 +129,8 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
     try {
         const rotationOffsetRadians: [number, number, number] = [
             newRotationDegrees[0] * (Math.PI / 180),
-            newRotationDegrees[1] * (Math.PI / 180),
-            newRotationDegrees[2] * (Math.PI / 180),
+            newRotationDegrees[1] * (180 / Math.PI),
+            newRotationDegrees[2] * (180 / Math.PI),
         ];
         await onUpdateArtworkData(artworkId, { rotation_offset: rotationOffsetRadians });
         handleUpdateStatus(artworkId, 'saved');
@@ -142,11 +140,10 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
     }
   }, [glbPreviewRotation, onUpdateArtworkData, handleUpdateStatus]);
 
-  // NEW: handleSaveMaterial function
   const handleSaveMaterial = useCallback(async (artworkId: string, presetId: string, materialConfig: ArtworkMaterialConfig | null) => {
     handleUpdateStatus(artworkId, 'saving');
     try {
-        setSelectedMaterialPresetId(presetId); // Update local UI state
+        setSelectedMaterialPresetId(presetId);
         await onUpdateArtworkData(artworkId, { material: materialConfig });
         handleUpdateStatus(artworkId, 'saved');
     } catch (error) {
@@ -174,22 +171,18 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
             rotationOffset[2] * (180 / Math.PI),
         ]);
 
-        // NEW: Determine selected material preset based on saved artwork_data.material
         const savedMaterial = artwork.artwork_data?.material;
-        let presetIdFound: string | null = 'original'; // Default to original
+        let presetIdFound: string | null = 'original';
         if (savedMaterial) {
             const matchedPreset = MATERIAL_PRESETS.find(preset => {
-                if (!preset.config) return false; // Skip 'original' preset for config comparison
-                // FIX: Removed 'ior' from the keys array as it is not part of ArtworkMaterialConfig
+                if (!preset.config) return false;
                 const keys: Array<keyof ArtworkMaterialConfig> = ['color', 'roughness', 'metalness', 'emissive', 'emissiveIntensity', 'transmission', 'thickness', 'clearcoat', 'clearcoatRoughness', 'transparent', 'opacity', 'side'];
                 return keys.every(key => preset.config?.[key] === savedMaterial[key]);
             });
             if (matchedPreset) {
                 presetIdFound = matchedPreset.id;
             } else {
-                // If a material config exists but doesn't match a predefined preset, consider it 'original' for UI purposes.
-                // This means the user saved *some* custom material, but not one of our presets.
-                // To allow reverting to GLB default, 'original' refers to the state without artwork_data.material override.
+                
                 presetIdFound = 'original'; 
             }
         }
@@ -201,12 +194,11 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
         }
     } else {
         setGlbPreviewRotation([0, 0, 0]);
-        setSelectedMaterialPresetId(null); // Clear material selection for non-GLB
+        setSelectedMaterialPresetId(null);
         onFocusArtwork(null);
     }
-  }, [setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks]); // Added firebaseArtworks to deps
+  }, [setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks]);
 
-  // NEW: Handle removal of artwork from layout using custom confirmation dialog
   const handleRemoveClick = useCallback(async (artworkId: string, artworkTitle: string) => {
     const onConfirmRemoval = async () => {
       handleUpdateStatus(artworkId, 'saving');
@@ -220,7 +212,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
       } catch (error) {
         console.error("Failed to remove artwork from layout:", error);
         handleUpdateStatus(artworkId, 'error', 3000);
-        throw error; // Re-throw to be caught by the App component's confirmation dialog error handling
+        throw error;
       }
     };
 
@@ -252,7 +244,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
     }
 
     const uploadAndSave = async (blobToUpload: Blob, originalFileName: string) => {
-        let subfolder = 'other'; // Default fallback
+        let subfolder = 'other';
         switch (artwork.artwork_type) {
             case 'painting':
                 subfolder = 'painting';
@@ -268,7 +260,6 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
 
         try {
             const fileName = blobToUpload.type.startsWith('image/') ? `compressed_${originalFileName}` : originalFileName;
-            // NEW: Include artworkId in the storage path for better traceability
             const storageRef = storage.ref().child(`artwork_files/${subfolder}/${artworkId}-${Date.now()}_${fileName}`);
             const uploadTask = storageRef.put(blobToUpload);
 
@@ -293,7 +284,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                     setUploadProgress(100);
                     if (fileInputRef.current) fileInputRef.current.value = "";
 
-                    await handleSaveUrl(artwork.id, downloadURL); // Use artwork.id for consistency
+                    await handleSaveUrl(artwork.id, downloadURL);
                     setUploadMessage('Saved!');
                 }
             );
@@ -309,12 +300,12 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
     if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onloadend = () => {
-            const img = new Image(); // Use global Image constructor
+            const img = new Image();
             img.onload = () => {
                 let width = img.width;
                 let height = img.height;
 
-                // Calculate new dimensions to fit within MAX_IMAGE_WIDTH/HEIGHT while maintaining aspect ratio
+                
                 if (width > height) {
                     if (width > MAX_IMAGE_WIDTH) {
                         height *= MAX_IMAGE_WIDTH / width;
@@ -351,14 +342,14 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                         setUploadProgress(0);
                         setPreviewMediaError(prev => ({ ...prev, [artworkId]: true }));
                     }
-                }, 'image/jpeg', JPEG_QUALITY); // Specify JPEG quality
+                }, 'image/jpeg', JPEG_QUALITY);
 
             };
             img.src = reader.result as string;
         };
         reader.readAsDataURL(file);
     } else {
-        // Not an image, upload directly
+        
         uploadAndSave(file, file.name);
     }
 }, [handleSaveUrl, firebaseArtworks]);
@@ -485,7 +476,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                   <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${lightsOn ? 'bg-neutral-200 text-neutral-600' : 'bg-neutral-700 text-neutral-300'}`}>
                     {artwork.artwork_type}
                   </span>
-                  {artwork.fileSizeMB !== undefined && ( // NEW: Display file size
+                  {artwork.fileSizeMB !== undefined && (
                     <span className={`text-[10px] font-mono tracking-wider px-2 py-0.5 rounded-full ${lightsOn ? 'bg-neutral-100 text-neutral-500' : 'bg-neutral-800 text-neutral-400'}`}>
                       {artwork.fileSizeMB.toFixed(2)} MB
                     </span>
@@ -493,7 +484,6 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                   <div className="w-4 h-4 flex items-center justify-center ml-auto">
                     {getStatusIcon(updateStatus[artwork.id] || 'idle', artwork.id)}
                   </div>
-                  {/* NEW: Remove button */}
                   <button
                     onClick={() => handleRemoveClick(artwork.id, artwork.title)}
                     className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-red-100 text-red-600' : 'hover:bg-red-900/50 text-red-400'}`}
@@ -551,7 +541,6 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                                 ))}
                             </div>
 
-                            {/* NEW: Material Presets Section */}
                             <div className="mt-4 border-t pt-4">
                                 <p className={`text-xs font-bold uppercase mb-2 ${subtext}`}>GLB Material Presets</p>
                                 <div className="flex flex-wrap gap-2 mb-4">
@@ -563,7 +552,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                                                 ${selectedMaterialPresetId === preset.id ? (lightsOn ? 'bg-neutral-200' : 'bg-neutral-700') : (lightsOn ? 'hover:bg-neutral-100' : 'hover:bg-neutral-800')}
                                                 {(isUploading || updateStatus[artwork.id] === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}
                                             `}
-                                            title={preset.name} // Tooltip
+                                            title={preset.name}
                                             disabled={isUploading || updateStatus[artwork.id] === 'saving'}
                                         >
                                             <div

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { db } from './firebase';
-import firebase from 'firebase/compat/app'; // NEW: Import firebase for FieldValue.arrayRemove
+import firebase from 'firebase/compat/app';
 
 import Scene from './components/scene/Scene';
 import Header from './components/layout/Header';
@@ -12,14 +12,13 @@ import FirebaseViewer from './components/FirebaseViewer';
 import FloorPlanEditor from './components/editor/FloorPlanEditor';
 import TransitionOverlay from './components/ui/TransitionOverlay';
 import CurrentExhibitionInfo from './components/info/CurrentExhibitionInfo';
-import ConfirmationDialog from './components/ui/ConfirmationDialog'; // NEW: Import ConfirmationDialog
-import DevToolsPanel from './components/ui/DevToolsPanel'; // NEW: Import DevToolsPanel
-import EmbeddedMuseumScene from './components/EmbeddedMuseumScene'; // NEW: Import EmbeddedMuseumScene
+import ConfirmationDialog from './components/ui/ConfirmationDialog';
+import DevToolsPanel from './components/ui/DevToolsPanel';
+import EmbeddedMuseumScene from './components/EmbeddedMuseumScene';
 
 import { useMuseumState } from './hooks/useMuseumState';
-import { ExhibitionArtItem, SimplifiedLightingConfig, ZoneArtworkItem, Exhibition, SimplifiedLightingPreset, FirebaseArtwork, ArtworkData } from './types';
+import { ExhibitionArtItem, SimplifiedLightingConfig, ZoneArtworkItem, Exhibition, FirebaseArtwork, ArtworkData } from './types';
 
-// New component for the full museum application experience
 function MuseumApp() {
   const [resetTrigger, setResetTrigger] = useState(0);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -28,24 +27,21 @@ function MuseumApp() {
   const [isEditorMode, setIsEditorMode] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isFirebaseViewerOpen, setIsFirebaseViewerOpen] = useState(false);
-  const [isDevToolsOpen, setIsDevToolsOpen] = useState(false); // NEW: State for DevToolsPanel
-  const [isSmallScreen, setIsSmallScreen] = useState(false); // NEW: State for small screen detection
+  const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
-  // --- Editor and Focus State ---
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [editorLayout, setEditorLayout] = useState<ExhibitionArtItem[] | null>(null);
   const [selectedArtworkId, setSelectedArtworkId] = useState<string | null>(null);
-  const [activeEditorTab, setActiveEditorTab] = useState<'lighting' | 'layout' | 'artworks' | 'admin'>('lighting'); // NEW: State for active editor tab, added 'admin'
-  const [focusedArtworkInstanceId, setFocusedArtworkInstanceId] = useState<string | null>(null); // NEW: State for camera focus
+  const [activeEditorTab, setActiveEditorTab] = useState<'lighting' | 'layout' | 'artworks' | 'admin'>('lighting');
+  const [focusedArtworkInstanceId, setFocusedArtworkInstanceId] = useState<string | null>(null);
 
-  // --- Confirmation Dialog State --- NEW
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState('');
   const [confirmationArtworkId, setConfirmationArtworkId] = useState<string | null>(null);
   const [confirmationArtworkTitle, setConfirmationArtworkTitle] = useState<string | null>(null);
   const [confirmationConfirmCallback, setConfirmationConfirmCallback] = useState<(() => Promise<void>) | null>(null);
 
-  // --- FPS State --- NEW
   const [fps, setFps] = useState(0);
 
   const {
@@ -62,38 +58,32 @@ function MuseumApp() {
     setLightingOverride,
   } = useMuseumState();
 
-  // NEW: Effect for small screen detection
   useEffect(() => {
     const checkScreenSize = () => {
-      // Tailwind's 'md' breakpoint is 768px, so less than 768px is considered small
+      
       setIsSmallScreen(window.innerWidth < 768); 
     };
 
-    checkScreenSize(); // Check on mount
+    checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
 
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Sync editor layout when editor mode is toggled or the base layout changes
   useEffect(() => {
     if (isEditorMode) {
-      setEditorLayout(JSON.parse(JSON.stringify(currentLayout))); // Deep copy
-      // FIX: When entering editor mode, do NOT pre-select any artwork based on focusedIndex.
-      // The user wants no default selection in the 2D map.
+      setEditorLayout(JSON.parse(JSON.stringify(currentLayout))); 
       setSelectedArtworkId(null);
       setFocusedArtworkInstanceId(null); 
     } else {
       setEditorLayout(null);
       setSelectedArtworkId(null);
-      setFocusedArtworkInstanceId(null); // NEW: Clear camera focus when exiting editor mode
+      setFocusedArtworkInstanceId(null);
     }
   }, [isEditorMode, currentLayout, focusedIndex]);
 
-  // NEW: Callback for selecting artwork and potentially focusing camera
   const handleSelectArtwork = useCallback((id: string | null) => {
     setSelectedArtworkId(id);
-    // Clear camera focus when a layout artwork is selected (or deselected)
     setFocusedArtworkInstanceId(null); 
   }, []);
 
@@ -101,9 +91,8 @@ function MuseumApp() {
     setFocusedArtworkInstanceId(instanceId);
   }, []);
 
-  // NEW: Effect to clear camera focus when not in artworks tab or editor mode
   useEffect(() => {
-    if (!isEditorMode || (activeEditorTab !== 'artworks' && activeEditorTab !== 'admin')) { // Also clear for admin tab
+    if (!isEditorMode || (activeEditorTab !== 'artworks' && activeEditorTab !== 'admin')) {
         setFocusedArtworkInstanceId(null);
     }
   }, [isEditorMode, activeEditorTab]);
@@ -124,12 +113,11 @@ function MuseumApp() {
     }
   }, [activeZone.id]);
 
-  // NEW: Debounced auto-save effect for layout changes
   useEffect(() => {
     if (!editorLayout || !isEditorMode) return;
     const handler = setTimeout(() => {
         handleSaveLayout(editorLayout);
-    }, 1000); // Debounce for 1 second
+    }, 1000); 
     return () => clearTimeout(handler);
   }, [editorLayout, isEditorMode, handleSaveLayout]);
   
@@ -142,12 +130,11 @@ function MuseumApp() {
       });
   }, []);
 
-  // FIX: This callback is meant to update the App's activeEditorTab state, not call internal FloorPlanEditor functions.
   const handleActiveEditorTabChange = useCallback((tab: 'lighting' | 'layout' | 'artworks' | 'admin') => {
     setActiveEditorTab(tab); 
   }, []);
 
-  const version = "3.3.9"; // Updated version number
+  const version = "3.3.9"; 
   const { lightsOn } = lightingConfig;
 
   const handleLightToggle = useCallback(() => {
@@ -197,11 +184,9 @@ function MuseumApp() {
     }
   }, []);
 
-  // NEW: Callback to update artwork_data for a specific artwork
   const handleUpdateArtworkData = useCallback(async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {
     try {
       const artworkDocRef = db.collection('artworks').doc(artworkId);
-      // Retrieve current artwork_data, merge with updated, then save
       const doc = await artworkDocRef.get();
       const currentArtworkData = doc.data()?.artwork_data || {};
       const mergedArtworkData = { ...currentArtworkData, ...updatedArtworkData };
@@ -212,7 +197,6 @@ function MuseumApp() {
     }
   }, []);
 
-  // NEW: Callback to update exhibition details
   const handleUpdateExhibition = useCallback(async (exhibitionId: string, updatedFields: Partial<Exhibition>) => {
     if (!exhibitionId || exhibitionId === 'fallback_id') {
       console.error("Cannot update exhibition: Invalid Exhibition ID.");
@@ -228,7 +212,6 @@ function MuseumApp() {
     }
   }, []);
 
-  // NEW: Callback to remove artwork from exhibition and zone layout (this function is called AFTER confirmation)
   const handleRemoveArtworkFromLayout = useCallback(async (artworkIdToRemove: string) => {
     if (!activeExhibition?.id || activeExhibition.id === 'fallback_id') {
       console.error("Cannot remove artwork: Active exhibition ID is invalid.");
@@ -240,19 +223,16 @@ function MuseumApp() {
     }
 
     try {
-      // 1. Update the 'exhibitions' document
       const exhibitionDocRef = db.collection('exhibitions').doc(activeExhibition.id);
       await exhibitionDocRef.update({
         exhibit_artworks: firebase.firestore.FieldValue.arrayRemove(artworkIdToRemove)
       });
       console.log(`Removed artwork ${artworkIdToRemove} from exhibition ${activeExhibition.id}.`);
 
-      // 2. Update the 'zones' document
       const zoneDocRef = db.collection('zones').doc(activeZone.id);
       const zoneDoc = await zoneDocRef.get();
       const currentArtworkSelected = zoneDoc.data()?.artwork_selected as ZoneArtworkItem[] || [];
 
-      // Filter out all entries for the artworkIdToRemove
       const newArtworkSelected = currentArtworkSelected.filter(item => item.artworkId !== artworkIdToRemove);
 
       await zoneDocRef.update({
@@ -260,25 +240,21 @@ function MuseumApp() {
       });
       console.log(`Removed artwork ${artworkIdToRemove} from zone layout ${activeZone.id}.`);
 
-      // After successful Firebase updates, the `useMuseumState` hook will automatically
-      // re-evaluate `currentLayout` and trigger `editorLayout`'s useEffect to update.
-      // So no explicit local state update for `editorLayout` is needed here.
+      
     } catch (error) {
       console.error("Failed to remove artwork from layout in Firebase:", error);
-      throw error; // Re-throw to be caught by the ArtworkTab's error handling
+      throw error; 
     }
   }, [activeExhibition.id, activeZone.id]);
 
-  // NEW: Callback to open the custom confirmation dialog
   const openConfirmationDialog = useCallback((artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => {
     setConfirmationArtworkId(artworkId);
     setConfirmationArtworkTitle(artworkTitle);
     setConfirmationMessage(`Are you sure you want to remove "${artworkTitle}" from this exhibition and zone layout? This will NOT delete the artwork from the master artworks collection.`);
-    setConfirmationConfirmCallback(() => onConfirm); // Store the callback to be executed on confirmation
+    setConfirmationConfirmCallback(() => onConfirm); 
     setShowConfirmation(true);
   }, []);
 
-  // NEW: Handler for when the user confirms the action in the custom dialog
   const handleConfirmAction = useCallback(async () => {
     setShowConfirmation(false);
     if (confirmationConfirmCallback) {
@@ -286,20 +262,17 @@ function MuseumApp() {
         await confirmationConfirmCallback();
       } catch (error) {
         console.error("Error during confirmed action:", error);
-        // Handle error, e.g., show a toast notification
+        
       }
     }
-    // Clear confirmation state
     setConfirmationArtworkId(null);
     setConfirmationArtworkTitle(null);
     setConfirmationMessage('');
     setConfirmationConfirmCallback(null);
   }, [confirmationConfirmCallback]);
 
-  // NEW: Handler for when the user cancels the action in the custom dialog
   const handleCancelAction = useCallback(() => {
     setShowConfirmation(false);
-    // Clear confirmation state
     setConfirmationArtworkId(null);
     setConfirmationArtworkTitle(null);
     setConfirmationMessage('');
@@ -349,7 +322,7 @@ function MuseumApp() {
     const artItem = editorLayout.find(item => item.id === selectedArtworkId);
     if (!artItem) return null;
     const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
-    return firebaseArt?.artist || 'Unknown Artist'; // NEW: Retrieve artist from individual artwork
+    return firebaseArt?.artist || 'Unknown Artist'; 
   }, [selectedArtworkId, editorLayout, firebaseArtworks]);
 
   const focusedArtwork = useMemo(() => {
@@ -375,9 +348,9 @@ function MuseumApp() {
           onSelectArtwork={handleSelectArtwork}
           focusedIndex={focusedIndex}
           onFocusChange={setFocusedIndex}
-          activeEditorTab={activeEditorTab} // NEW: Pass activeEditorTab to Scene
-          focusedArtworkInstanceId={focusedArtworkInstanceId} // NEW: Pass focused artwork instance ID
-          setFps={setFps} // NEW: Pass setFps to Scene
+          activeEditorTab={activeEditorTab}
+          focusedArtworkInstanceId={focusedArtworkInstanceId}
+          setFps={setFps}
         />
       </div>
 
@@ -413,9 +386,9 @@ function MuseumApp() {
         setIsFirebaseViewerOpen={setIsFirebaseViewerOpen} 
         setIsSearchOpen={setIsSearchOpen} 
         setResetTrigger={setResetTrigger} 
-        setIsDevToolsOpen={setIsDevToolsOpen} // NEW: Pass setIsDevToolsOpen
-        isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
-        onPrev={() => handleExhibitionChange('prev')} // NEW: Pass navigation handlers
+        setIsDevToolsOpen={setIsDevToolsOpen}
+        isSmallScreen={isSmallScreen}
+        onPrev={() => handleExhibitionChange('prev')}
         onNext={() => handleExhibitionChange('next')}
         prevItem={prevItem}
         nextItem={nextItem}
@@ -439,14 +412,14 @@ function MuseumApp() {
             currentZoneNameForEditor={activeZone.name}
             firebaseArtworks={firebaseArtworks}
             onUpdateArtworkFile={handleUpdateArtworkFile}
-            onUpdateArtworkData={handleUpdateArtworkData} // NEW: Pass down the new callback
-            onUpdateExhibition={handleUpdateExhibition} // NEW: Pass update exhibition callback
-            activeExhibition={activeExhibition} // NEW: Pass active exhibition
+            onUpdateArtworkData={handleUpdateArtworkData}
+            onUpdateExhibition={handleUpdateExhibition}
+            activeExhibition={activeExhibition}
             theme={theme}
-            onActiveTabChange={handleActiveEditorTabChange} // NEW: Pass tab change handler
-            onFocusArtwork={handleFocusArtworkInstance} // NEW: Pass focus artwork callback
+            onActiveTabChange={handleActiveEditorTabChange}
+            onFocusArtwork={handleFocusArtworkInstance}
             onRemoveArtworkFromLayout={handleRemoveArtworkFromLayout} 
-            onOpenConfirmationDialog={openConfirmationDialog} // NEW: Pass the confirmation dialog opener
+            onOpenConfirmationDialog={openConfirmationDialog}
           />
       )}
 
@@ -476,7 +449,6 @@ function MuseumApp() {
         isLoading={isLoading}
       />
 
-      {/* NEW: Confirmation Dialog */}
       <ConfirmationDialog
         isOpen={showConfirmation}
         title="Confirm Removal"
@@ -488,7 +460,6 @@ function MuseumApp() {
         theme={theme}
       />
 
-      {/* NEW: DevTools Panel */}
       <DevToolsPanel
         isOpen={isDevToolsOpen}
         onClose={() => setIsDevToolsOpen(false)}
@@ -498,7 +469,7 @@ function MuseumApp() {
         activeZoneName={activeZone.name}
         focusedArtwork={focusedArtwork}
         isEditorMode={isEditorMode}
-        activeEditorTab={activeEditorTab as 'lighting' | 'layout' | 'artworks' | 'admin'} // FIX: Cast activeEditorTab to include 'admin'
+        activeEditorTab={activeEditorTab}
         selectedArtworkTitle={selectedArtworkTitle}
         fps={fps}
       />
@@ -510,9 +481,9 @@ function App() {
   const isEmbedMode = new URLSearchParams(window.location.search).get('embed') === 'true';
 
   if (isEmbedMode) {
-    return <EmbeddedMuseumScene showLightToggle showResetCamera />; // Render the embedded scene
+    return <EmbeddedMuseumScene showLightToggle showResetCamera />;
   } else {
-    return <MuseumApp />; // Render the full application
+    return <MuseumApp />;
   }
 }
 

@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 
 interface ConfirmationDialogProps {
   isOpen: boolean;
-  onClose?: () => void; // Optional if `onCancel` handles closing
+  onClose?: () => void;
   title: string;
   message: string;
   confirmText?: string;
@@ -35,9 +35,9 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   const { lightsOn } = theme;
 
   const handleWrapperClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only close if clicking on the backdrop, not on the dialog itself
+    
     if (e.target === e.currentTarget) {
-      onCancel(); // Use onCancel to close the dialog
+      onCancel();
     }
   };
 
@@ -52,7 +52,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
     >
       <div
         className={`w-full max-w-sm flex flex-col rounded-2xl shadow-2xl overflow-hidden ${theme.panelBg} border ${theme.border}`}
-        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the dialog
+        onClick={(e) => e.stopPropagation()}
       >
         <div className={`p-6 border-b flex items-center justify-between ${theme.border}`}>
           <h3 id="confirmation-dialog-title" className={`text-xl font-serif font-bold ${theme.text}`}>{title}</h3>

@@ -1,9 +1,8 @@
-
-// r3f-declarations.ts
 import * as THREE from 'three';
 import { extend } from '@react-three/fiber';
-import type React from 'react'; // FIX: Import React types for global JSX declarations
-import type { Object3DNode } from '@react-three/fiber'; // NEW: Import Object3DNode for primitive
+import type React from 'react';
+// FIX: Removed Object3DNode as it's typically inferred or not directly imported like this.
+// If primitive needs specific typing, it's usually handled by extend or by using `JSX.IntrinsicElements` directly.
 
 declare global {
   namespace JSX {
@@ -31,7 +30,6 @@ declare global {
       label: React.DetailedHTMLProps<React.LabelHTMLAttributes<HTMLLabelElement>, HTMLLabelElement>;
       img: React.DetailedHTMLProps<React.ImgHTMLAttributes<HTMLImageElement>, HTMLImageElement>;
       video: React.DetailedHTMLProps<React.VideoHTMLAttributes<HTMLVideoElement>, HTMLVideoElement>;
-      // FIX: Corrected HTMLIframeElement type to reference the global DOM type.
       iframe: React.DetailedHTMLProps<React.IframeHTMLAttributes<HTMLIFrameElement>, HTMLIFrameElement>; 
       a: React.DetailedHTMLProps<React.AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>;
       h1: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
@@ -43,11 +41,10 @@ declare global {
       code: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
       svg: React.DetailedHTMLProps<React.SVGAttributes<SVGSVGElement>, SVGSVGElement>;
       rect: React.DetailedHTMLProps<React.SVGAttributes<SVGRectElement>, SVGRectElement>;
-      // FIX: Corrected type for 'line' from SVGRectElement to SVGLineElement.
       line: React.DetailedHTMLProps<React.SVGAttributes<SVGLineElement>, SVGLineElement>; 
       g: React.DetailedHTMLProps<React.SVGAttributes<SVGGElement>, SVGGElement>;
       circle: React.DetailedHTMLProps<React.SVGAttributes<SVGCircleElement>, SVGCircleElement>;
-      textarea: React.DetailedHTMLProps<React.TextareaHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>; // NEW: Added textarea
+      textarea: React.DetailedHTMLProps<React.TextareaHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>;
 
       group: React.PropsWithChildren<Partial<import('three').Group>>;
       mesh: React.PropsWithChildren<Partial<import('three').Mesh>>;
@@ -70,12 +67,12 @@ declare global {
       meshBasicMaterial: React.PropsWithChildren<Partial<import('three').MeshBasicMaterial>>;
       color: React.PropsWithChildren<any>;
       fog: React.PropsWithChildren<any>;
-      primitive: Object3DNode<any, typeof import('three').Object3D>; // NEW: Added primitive
+      // FIX: Use `Object3D` for primitive as it's the base class for all scene objects.
+      primitive: React.PropsWithChildren<Partial<import('three').Object3D>>;
     }
   }
 }
 
-// Explicitly extend core Three.js components for React Three Fiber JSX elements.
 extend({
   AmbientLight: THREE.AmbientLight,
   DirectionalLight: THREE.DirectionalLight,
@@ -97,5 +94,4 @@ extend({
   MeshBasicMaterial: THREE.MeshBasicMaterial,
 });
 
-// NEW: Explicitly mark the file as a module to ensure global type augmentations are processed.
 export {};
