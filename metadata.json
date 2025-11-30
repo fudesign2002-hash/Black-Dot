@@ -1,0 +1,5 @@
+{
+  "name": "Block Dot",
+  "description": "A photorealistic 3D recreation of a geometric sculpture using React Three Fiber.",
+  "requestFramePermissions": []
+}
