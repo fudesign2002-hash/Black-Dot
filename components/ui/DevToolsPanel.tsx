@@ -123,7 +123,7 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
           {/* NEW: AI Studio Link */}
           <div className="border-t pt-2 mt-2 space-y-1 ${theme.border}">
             <p className={`${theme.subtext} flex items-center gap-2`}><Info className="w-4 h-4" /> Resources</p>
-            <div className="ml-4">
+            <div className="ml-4 space-y-1">
               <a
                 href="https://aistudio.google.com/apps/drive/1Uqc_LDgzoFJilBq--qzBfHFoVFW9_79_?showPreview=true&showAssistant=true"
                 target="_blank"
@@ -131,6 +131,14 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
                 className={`text-xs ${theme.text} hover:underline block`}
               >
                 AI Studio Link
+              </a>
+              <a
+                href="https://black-dot-backend-105253944152.us-west1.run.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`text-xs ${theme.text} hover:underline block`}
+              >
+                CMS Link
               </a>
             </div>
           </div>
