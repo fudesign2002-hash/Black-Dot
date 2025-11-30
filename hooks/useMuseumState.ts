@@ -25,6 +25,7 @@ const DEFAULT_FALLBACK_EXHIBITION: Exhibition = {
   posterColor: 'bg-gray-700',
   defaultLayout: [],
   exhibit_artworks: [],
+  isActive: false, // Ensure fallback has isActive property
 };
 
 const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
@@ -102,8 +103,21 @@ export const useMuseumState = () => {
 
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];
-    return processFirebaseExhibitions(rawExhibitionDocs, firebaseArtworks);
+    const processedAllExhibitions = processFirebaseExhibitions(rawExhibitionDocs, firebaseArtworks);
+    // Filter to only include active exhibitions
+    return processedAllExhibitions.filter(ex => ex.isActive === true); // CHANGED: Filter by isActive
   }, [rawExhibitionDocs, firebaseArtworks]);
+
+  // Effect to ensure currentIndex is always valid for the filtered exhibitions list
+  useEffect(() => {
+    if (exhibitions.length === 0) {
+      if (currentIndex !== 0) {
+        setCurrentIndex(0); // If no active exhibitions, ensure index is 0 for fallback display
+      }
+    } else if (currentIndex >= exhibitions.length) {
+      setCurrentIndex(0); // If current index is out of bounds for the filtered list, reset to 0
+    }
+  }, [exhibitions, currentIndex]);
 
   const { activeExhibition, activeZone } = useMemo(() => {
     if (isLoading || exhibitions.length === 0) {

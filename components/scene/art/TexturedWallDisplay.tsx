@@ -17,16 +17,18 @@ interface TexturedWallDisplayProps {
 const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, maxDimension = 5.0, orientation, aspectRatio, isPainting, onDimensionsCalculated, isFocused, lightsOn }) => {
   const [isLoadingError, setIsLoadingError] = useState(false);
   
-
-  const loadedTexture = useLoader(THREE.TextureLoader, textureUrl || '', 
-    (loader) => {
-      loader.crossOrigin = 'anonymous';
-    },
-    (errorEvent) => {
-      console.error(`[TexturedWallDisplay] Texture loading error for URL: ${textureUrl}`, errorEvent);
-      setIsLoadingError(true);
-    }
-  );
+  // Conditionally call useLoader only if textureUrl is present
+  const loadedTexture = textureUrl
+    ? useLoader(THREE.TextureLoader, textureUrl, 
+        (loader) => {
+          loader.crossOrigin = 'anonymous';
+        },
+        (errorEvent) => {
+          console.error(`[TexturedWallDisplay] Texture loading error for URL: ${textureUrl}`, errorEvent);
+          setIsLoadingError(true);
+        }
+      )
+    : null; // If no textureUrl, set loadedTexture to null
 
   useEffect(() => {
     setIsLoadingError(false);
@@ -48,7 +50,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     if (aspectRatio !== undefined && aspectRatio !== null) {
       calculatedAspect = aspectRatio;
     } 
-    else if (textureUrl && loadedTexture && (loadedTexture.image as HTMLImageElement)?.width && (loadedTexture.image as HTMLImageElement)?.height) {
+    else if (loadedTexture && (loadedTexture.image as HTMLImageElement)?.width && (loadedTexture.image as HTMLImageElement)?.height) {
       calculatedAspect = (loadedTexture.image as HTMLImageElement).width / (loadedTexture.image as HTMLImageElement).height;
     } 
     else if (orientation) {
@@ -93,7 +95,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         [artWidth, artHeight],
         [finalWallWidth, finalWallHeight]
     ];
-  }, [aspectRatio, loadedTexture, MAX_ART_DIMENSION, orientation, textureUrl, isPainting, onDimensionsCalculated]);
+  }, [aspectRatio, loadedTexture, MAX_ART_DIMENSION, orientation, isPainting, onDimensionsCalculated]); // Removed textureUrl from dependencies as it's now handled by loadedTexture check
 
   const [artWidth, artHeight] = artDims;
   const [wallWidth, wallHeight] = wallDims;
@@ -118,7 +120,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     return [rpWidth, rpHeight, fWidth, fHeight];
   }, [wallWidth, wallHeight]);
 
-  if (isLoadingError || !textureUrl) {
+  if (isLoadingError || !textureUrl || !loadedTexture) { // Added !loadedTexture to condition
     return (
       <group>
         <mesh receiveShadow position={[0, wallHeight / 2, wallBackingDepth / 2]}>

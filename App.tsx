@@ -134,7 +134,7 @@ function MuseumApp() {
     setActiveEditorTab(tab); 
   }, []);
 
-  const version = "3.3.9"; 
+  const version = "3.3.10"; 
   const { lightsOn } = lightingConfig;
 
   const handleLightToggle = useCallback(() => {

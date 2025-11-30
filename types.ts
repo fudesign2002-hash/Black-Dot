@@ -1,4 +1,5 @@
 
+
 export type ArtType = 
   | 'canvas_portrait'
   | 'canvas_landscape'
@@ -97,6 +98,7 @@ export interface Exhibition {
   venue?: string; 
   supportedBy?: string; 
   exhibit_artworks?: string[];
+  isActive?: boolean; // NEW: Added isActive to Exhibition interface
 }
 
 export interface ZoneArtworkItem {

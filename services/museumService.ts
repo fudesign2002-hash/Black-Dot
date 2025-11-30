@@ -38,7 +38,8 @@ export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocu
         const data = doc.data();
         let fileSizeMB: number | undefined;
 
-        if (data.artwork_file) {
+        // Check if artwork_file is a Firebase Storage URL before trying to get metadata
+        if (data.artwork_file && typeof data.artwork_file === 'string' && data.artwork_file.includes('firebasestorage.app')) {
             try {
                 const fileRef = storage.refFromURL(data.artwork_file);
                 const metadata = await fileRef.getMetadata();
@@ -47,7 +48,11 @@ export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocu
                 console.warn(`Failed to get metadata for artwork file: ${data.artwork_file}`, error);
                 fileSizeMB = undefined;
             }
+        } else if (data.artwork_file) {
+            console.warn(`Artwork file is not a Firebase Storage URL, skipping metadata fetch: ${data.artwork_file}`);
+            fileSizeMB = undefined;
         }
+
 
         return {
             id: doc.id,
@@ -91,6 +96,7 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
             case 'painting':
                 itemType = 'canvas_square';
                 textureUrl = firebaseArt.artwork_file || firebaseArt.file;
+                // Removed the check for image extensions here. TexturedWallDisplay will handle loading errors.
                 aspectRatio = 1;
                 break;
             case 'sculpture':
@@ -110,6 +116,7 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
                 aspectRatio = 16 / 9;
                 if (firebaseArt.artwork_type === 'motion') {
                     isMotionVideo = true;
+                    // Check if it's a GLB file used for motion, which is faulty for video display
                     if (textureUrl && textureUrl.toLowerCase().includes('.glb')) {
                         isFaultyMotionVideo = true;
                     }
@@ -165,6 +172,7 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
             case 'painting':
                 itemType = 'canvas_square';
                 textureUrl = firebaseArt.artwork_file || firebaseArt.file;
+                // Removed the check for image extensions here. TexturedWallDisplay will handle loading errors.
                 aspectRatio = 1;
                 break;
             case 'sculpture':
@@ -257,6 +265,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             supportedBy: data.supportedBy,
             exhibit_artworks: exhibitArtworksList, // Ensure this is always an array
             defaultLayout: createFirebaseLayout(exhibitArtworksList, allFirebaseArtworks), // Generate defaultLayout here
+            isActive: typeof data.isActive === 'boolean' ? data.isActive : false, // NEW: Read isActive field
         };
         return exhibition;
     });
