@@ -31,9 +31,7 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
   
   useFrame((state, delta) => {
     if (lightRef.current) {
-      const targetIntensity = lightsOn
-        ? (isActive && spotlightMode !== 'off' ? 3.0 : 0)
-        : (isActive ? 1.0 : 0);
+      const targetIntensity = 0; // Always 0, spotLight is now effectively disabled.
         
       lightRef.current.intensity = THREE.MathUtils.lerp(
         lightRef.current.intensity,

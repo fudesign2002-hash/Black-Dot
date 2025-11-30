@@ -37,10 +37,10 @@ interface InputFieldProps<TField extends StringExhibitionKeys> {
   className?: string;
 }
 
-// FIX: Apply the generic type to the functional component
-const InputField = React.memo(<TField extends StringExhibitionKeys>({
+// FIX: Define the functional component without memo first
+const InputFieldComponent = <TField extends StringExhibitionKeys>({
   label, field, icon: Icon, type = 'text', isTextArea = false, value, onChange, statusIcon, theme, className
-}: InputFieldProps<TField>) => { // Use InputFieldProps with the generic type
+}: InputFieldProps<TField>) => {
   const { lightsOn, text, subtext, border, input } = theme;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
 
@@ -70,7 +70,10 @@ const InputField = React.memo(<TField extends StringExhibitionKeys>({
       )}
     </div>
   );
-});
+};
+
+// FIX: Then apply React.memo, ensuring the generic type is preserved
+const InputField = React.memo(InputFieldComponent) as typeof InputFieldComponent;
 
 const AdminTab: React.FC<AdminTabProps> = React.memo(({ theme, activeExhibition, onUpdateExhibition }) => {
   const [localExhibition, setLocalExhibition] = useState<Partial<Exhibition>>({});
