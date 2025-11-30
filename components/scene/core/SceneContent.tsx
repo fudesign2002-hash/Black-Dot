@@ -44,7 +44,7 @@ const SceneContent: React.FC<SceneProps> = ({
   useFrame((state, delta) => {
     const lerpSpeed = delta * 1.5;
 
-    const targetAmbientIntensity = lightsOn ? lightingConfig.ambientIntensity : 0.1;
+    const targetAmbientIntensity = lightsOn ? lightingConfig.ambientIntensity : 0;
     
     const targetBgColor = lightsOn ? lightBgColor : darkBgColor;
     const targetFloorColor = lightsOn ? lightFloorColor : darkFloorColor;
@@ -98,7 +98,7 @@ const SceneContent: React.FC<SceneProps> = ({
         <ambientLight 
           ref={ambientRef}
           color={ambientLightColor}
-          intensity={lightsOn ? lightingConfig.ambientIntensity : 0.0.05}
+          intensity={lightsOn ? lightingConfig.ambientIntensity : 0.05}
         />
         
         {lightsOn && (
@@ -118,7 +118,7 @@ const SceneContent: React.FC<SceneProps> = ({
              />
              <directionalLight 
                 position={[10, 5, -5]} 
-                intensity={0.8}
+                intensity={0.9}
                 color="#dbeafe" 
             />
            </group>

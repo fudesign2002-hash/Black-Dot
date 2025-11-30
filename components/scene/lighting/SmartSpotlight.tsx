@@ -57,9 +57,9 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
         color={color}
         shadow-bias={-0.0001}
         shadow-normalBias={0.03}
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[512, 512]}
       />
-      {!lightsOn && <pointLight position={[0, 8, 2]} intensity={isActive ? 4.0 : 0} distance={10} decay={0} color={color} />}
+      {!lightsOn && <pointLight position={[0, 5, 2]} intensity={isActive ? 6 : 0} distance={6} decay={0.7} color={color} />}
       {!lightsOn && <GodRay isActive={isActive} color={color} artworkType={artworkType} />}
     </group>
   );
