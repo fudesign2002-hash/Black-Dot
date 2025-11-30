@@ -1,6 +1,7 @@
+
 // components/editor/ArtworkTab.tsx
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Video, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Video, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2, FileSize } from 'lucide-react'; // NEW: Added FileSize icon
 import { FirebaseArtwork, ExhibitionArtItem, ArtworkData } from '../../types';
 import { storage } from '../../firebase';
 import { getVideoEmbedUrl } from '../../services/utils/videoUtils';
@@ -22,7 +23,7 @@ interface ArtworkTabProps {
   currentLayout: ExhibitionArtItem[];
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
-  onFocusArtwork: (artworkInstanceId: string | null) => void;
+    onFocusArtwork: (artworkInstanceId: string | null) => void;
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>;
   onOpenConfirmationDialog: (artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => void; // NEW: Add onOpenConfirmationDialog prop
 }
@@ -191,8 +192,8 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
 
         try {
             const fileName = blobToUpload.type.startsWith('image/') ? `compressed_${originalFileName}` : originalFileName;
-            // FIX: Removed artworkId subfolder from the storage path
-            const storageRef = storage.ref().child(`artwork_files/${subfolder}/${Date.now()}_${fileName}`);
+            // NEW: Include artworkId in the storage path for better traceability
+            const storageRef = storage.ref().child(`artwork_files/${subfolder}/${artworkId}-${Date.now()}_${fileName}`);
             const uploadTask = storageRef.put(blobToUpload);
 
             uploadTask.on(
@@ -408,6 +409,11 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
                   <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${lightsOn ? 'bg-neutral-200 text-neutral-600' : 'bg-neutral-700 text-neutral-300'}`}>
                     {artwork.artwork_type}
                   </span>
+                  {artwork.fileSizeMB !== undefined && ( // NEW: Display file size
+                    <span className={`text-[10px] font-mono tracking-wider px-2 py-0.5 rounded-full ${lightsOn ? 'bg-neutral-100 text-neutral-500' : 'bg-neutral-800 text-neutral-400'}`}>
+                      {artwork.fileSizeMB.toFixed(2)} MB
+                    </span>
+                  )}
                   <div className="w-4 h-4 flex items-center justify-center ml-auto">
                     {getStatusIcon(updateStatus[artwork.id] || 'idle', artwork.id)}
                   </div>

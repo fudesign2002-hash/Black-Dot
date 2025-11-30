@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import firebase from 'firebase/compat/app';
 import { db } from '../firebase';
@@ -48,6 +49,9 @@ export const useMuseumState = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [lightingOverrides, setLightingOverrides] = useState<Record<string, SimplifiedLightingConfig>>({});
 
+  // NEW: State for processed FirebaseArtworks with file sizes
+  const [firebaseArtworks, setFirebaseArtworks] = useState<FirebaseArtwork[]>([]);
+
   useEffect(() => {
     setIsLoading(true);
     let loadedFlags = { exhibitions: false, zones: false, artworks: false };
@@ -79,8 +83,11 @@ export const useMuseumState = () => {
         setIsLoading(false);
     });
 
-    const unsubscribeArtworks = artworksColRef.onSnapshot((snapshot) => {
-        setRawArtworkDocs(snapshot.docs);
+    const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
+        // Process artworks to fetch file sizes asynchronously
+        const processedArtworks = await processFirebaseArtworks(snapshot.docs);
+        setFirebaseArtworks(processedArtworks);
+        setRawArtworkDocs(snapshot.docs); // Keep raw docs for other deps
         loadedFlags.artworks = true;
         checkAllLoaded();
     }, (error) => {
@@ -95,7 +102,8 @@ export const useMuseumState = () => {
     };
   }, []);
 
-  const firebaseArtworks = useMemo(() => processFirebaseArtworks(rawArtworkDocs), [rawArtworkDocs]);
+  // Removed useMemo for firebaseArtworks as it's now managed by state within useEffect
+  // const firebaseArtworks = useMemo(() => processFirebaseArtworks(rawArtworkDocs), [rawArtworkDocs]);
 
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];

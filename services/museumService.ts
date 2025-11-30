@@ -1,8 +1,10 @@
 
 
 
+
 import firebase from 'firebase/compat/app';
 import { Exhibition, ExhibitionZone, FirebaseArtwork, ExhibitionArtItem, ArtType, ZoneArtworkItem, ArtworkData } from '../types';
+import { storage } from '../firebase'; // Import storage
 
 /**
  * Safely parses the artwork_data field from Firebase.
@@ -39,9 +41,23 @@ const parseArtworkData = (rawData: any): ArtworkData | undefined => {
 };
 
 
-export const processFirebaseArtworks = (docs: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]): FirebaseArtwork[] => {
-    return docs.map(doc => {
+export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]): Promise<FirebaseArtwork[]> => {
+    const artworksPromises = docs.map(async doc => {
         const data = doc.data();
+        let fileSizeMB: number | undefined;
+
+        // Fetch file size if artwork_file exists
+        if (data.artwork_file) {
+            try {
+                const fileRef = storage.refFromURL(data.artwork_file);
+                const metadata = await fileRef.getMetadata();
+                fileSizeMB = metadata.size / (1024 * 1024); // Convert bytes to MB
+            } catch (error) {
+                console.warn(`Failed to get metadata for artwork file: ${data.artwork_file}`, error);
+                fileSizeMB = undefined;
+            }
+        }
+
         return {
             id: doc.id,
             artworkID: data.artworkID || '',
@@ -54,8 +70,11 @@ export const processFirebaseArtworks = (docs: firebase.firestore.QueryDocumentSn
             materials: data.materials,
             size: data.size,
             artwork_data: parseArtworkData(data.artwork_data), // UPDATED: Use parseArtworkData helper
+            fileSizeMB: fileSizeMB, // NEW: Assign the calculated file size
         };
     });
+
+    return Promise.all(artworksPromises);
 };
 
 // --- NEW ---

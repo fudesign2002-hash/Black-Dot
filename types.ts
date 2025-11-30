@@ -58,6 +58,7 @@ export interface FirebaseArtwork {
   materials?: string;
   size?: string;
   artwork_data?: ArtworkData; // NEW: Added artwork_data field for custom 3D models
+  fileSizeMB?: number; // NEW: Added fileSizeMB to store the file size in MB
 }
 
 
