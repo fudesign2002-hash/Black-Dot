@@ -13,12 +13,20 @@ interface CanvasExhibitProps {
   aspectRatio?: number,
   isMotionVideo?: boolean;
   isFaultyMotionVideo?: boolean;
+  isDirectVideoFile?: boolean; // NEW: Add isDirectVideoFile prop
   isPainting?: boolean;
   isFocused: boolean;
   lightsOn: boolean;
 }
 
-const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn }) => {
+// Utility to check if a URL is likely an image
+const isImageUrl = (url: string | undefined): boolean => {
+  if (!url) return false;
+  // Use .split('?')[0] to ignore query parameters in extension check
+  return /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(url.split('?')[0]); 
+};
+
+const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isDirectVideoFile, isPainting, isFocused, lightsOn }) => {
   let maxDimension = 3.0; 
   
   if (orientation === 'square') {
@@ -30,7 +38,8 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
   const wallRef = useRef<THREE.Mesh>(null);
 
   const embedUrl = useMemo(() => {
-    if (!isMotionVideo || isFaultyMotionVideo || !textureUrl) {
+    // Only generate embed URL if it's an embeddable video platform (not direct file)
+    if (!isMotionVideo || isDirectVideoFile || isFaultyMotionVideo || !textureUrl) { // NEW: Add isDirectVideoFile check
       return null;
     }
 
@@ -39,7 +48,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
       
     }
     return url;
-  }, [isMotionVideo, isFaultyMotionVideo, textureUrl]);
+  }, [isMotionVideo, isDirectVideoFile, isFaultyMotionVideo, textureUrl]); // NEW: Add isDirectVideoFile to dependencies
 
   const WALL_DEPTH = 0.4;
 
@@ -60,12 +69,21 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     }
   }, []);
 
-  const stampSourceUrl = isPainting && textureUrl
+  // Conditionally set stampSourceUrl to textureUrl only if it's a painting AND a valid image URL
+  const stampSourceUrl = isPainting && isImageUrl(textureUrl)
     ? textureUrl
     : "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+  
+  // Only load stampTexture if stampSourceUrl is not the default fallback (which is always an image)
+  // or if stampSourceUrl is provided and is a valid image URL, which is guaranteed by the above logic.
   const stampTexture = useLoader(THREE.TextureLoader, stampSourceUrl,
     (loader) => {
       loader.crossOrigin = 'anonymous';
+    },
+    (errorEvent) => {
+      console.error(`[CanvasExhibit] Stamp texture loading error for URL: ${stampSourceUrl}`, errorEvent);
+      // Fallback to default if stamp fails to load, even after validation
+      // This is a last resort, as isImageUrl should prevent most issues
     }
   );
 
@@ -100,6 +118,25 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     );
   }
 
+  // NEW: Handle direct video files as textures
+  if (isMotionVideo && isDirectVideoFile) {
+    return (
+      <TexturedWallDisplay
+        textureUrl={textureUrl}
+        maxDimension={maxDimension}
+        orientation={orientation}
+        aspectRatio={aspectRatio}
+        isPainting={isPainting} // Should be false for motion video
+        isMotionVideo={isMotionVideo} // NEW: Pass isMotionVideo
+        isDirectVideoFile={isDirectVideoFile} // NEW: Pass isDirectVideoFile
+        onDimensionsCalculated={handleArtworkDimensions}
+        isFocused={isFocused}
+        lightsOn={lightsOn}
+      />
+    );
+  }
+
+  // Existing: Handle embeddable videos via iframe
   if (isMotionVideo && embedUrl) {
     
 
@@ -139,26 +176,30 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
             width={iframeWidthPx}
             height={iframeHeightPx}
             frameBorder="0"
-            allow="autoplay; fullscreen; picture-in-picture"
+            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
             allowFullScreen
             sandbox="allow-scripts allow-same-origin allow-popups"
             style={{ display: 'block' }}
             title="Vimeo video player"
             aria-label="Vimeo video player"
+            referrerPolicy="strict-origin-when-cross-origin"
           />
         </Html>
       </group>
     );
   }
 
+  // Existing: Handle regular images/paintings
   return (
     <>
       <TexturedWallDisplay 
         textureUrl={textureUrl} 
         maxDimension={maxDimension} 
         orientation={orientation} 
-        aspectRatio={aspectRatio}
+        aspectRatio={aspectRatio} 
         isPainting={isPainting}
+        isMotionVideo={false} // NEW: Explicitly false for non-motion
+        isDirectVideoFile={false} // NEW: Explicitly false for non-motion
         onDimensionsCalculated={handleArtworkDimensions}
         isFocused={isFocused}
         lightsOn={lightsOn}

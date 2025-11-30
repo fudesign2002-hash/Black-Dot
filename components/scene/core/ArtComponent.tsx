@@ -14,17 +14,18 @@ interface ArtComponentProps {
     artworkData?: ArtworkData;
     isMotionVideo?: boolean;
     isFaultyMotionVideo?: boolean;
+    isDirectVideoFile?: boolean; // NEW: Add isDirectVideoFile prop
     aspectRatio?: number;
     lightsOn?: boolean;
 }
 
-const ArtComponent: React.FC<ArtComponentProps> = ({ type, zone, isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn }) => {
+const ArtComponent: React.FC<ArtComponentProps> = ({ type, zone, isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, isDirectVideoFile, aspectRatio, lightsOn }) => {
     const isPainting = type.startsWith('canvas_');
 
     const componentMap: { [key: string]: React.ReactNode } = {
-        'canvas_portrait': <CanvasExhibit orientation="portrait" textureUrl={textureUrl} isMotionVideo={isMotionVideo} isFaultyMotionVideo={isFaultyMotionVideo} isPainting={isPainting} aspectRatio={aspectRatio} isFocused={isFocused} lightsOn={lightsOn} />,
-        'canvas_landscape': <CanvasExhibit orientation="landscape" textureUrl={textureUrl} isMotionVideo={isMotionVideo} isFaultyMotionVideo={isFaultyMotionVideo} isPainting={isPainting} aspectRatio={aspectRatio} isFocused={isFocused} lightsOn={lightsOn} />,
-        'canvas_square': <CanvasExhibit orientation="square" textureUrl={textureUrl} isMotionVideo={isMotionVideo} isFaultyMotionVideo={isFaultyMotionVideo} isPainting={isPainting} aspectRatio={aspectRatio} isFocused={isFocused} lightsOn={lightsOn} />,
+        'canvas_portrait': <CanvasExhibit orientation="portrait" textureUrl={textureUrl} isMotionVideo={isMotionVideo} isFaultyMotionVideo={isFaultyMotionVideo} isPainting={isPainting} isDirectVideoFile={isDirectVideoFile} aspectRatio={aspectRatio} isFocused={isFocused} lightsOn={lightsOn} />,
+        'canvas_landscape': <CanvasExhibit orientation="landscape" textureUrl={textureUrl} isMotionVideo={isMotionVideo} isFaultyMotionVideo={isFaultyMotionVideo} isPainting={isPainting} isDirectVideoFile={isDirectVideoFile} aspectRatio={aspectRatio} isFocused={isFocused} lightsOn={lightsOn} />,
+        'canvas_square': <CanvasExhibit orientation="square" textureUrl={textureUrl} isMotionVideo={isMotionVideo} isFaultyMotionVideo={isFaultyMotionVideo} isPainting={isPainting} isDirectVideoFile={isDirectVideoFile} aspectRatio={aspectRatio} isFocused={isFocused} lightsOn={lightsOn} />,
         'sculpture_base': <SculptureExhibit artworkData={artworkData} zone={zone} textureUrl={textureUrl} />,
         'sphere_exhibit': <SphereExhibit />,
     };

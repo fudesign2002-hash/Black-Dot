@@ -98,7 +98,7 @@ export interface Exhibition {
   venue?: string; 
   supportedBy?: string; 
   exhibit_artworks?: string[];
-  isActive?: boolean; // NEW: Added isActive to Exhibition interface
+  isActive?: boolean;
 }
 
 export interface ZoneArtworkItem {
@@ -129,6 +129,7 @@ export interface ExhibitionArtItem {
   artworkData?: ArtworkData;
   isMotionVideo?: boolean;
   isFaultyMotionVideo?: boolean;
+  isDirectVideoFile?: boolean; // NEW: Add isDirectVideoFile
 }
 
 export interface ArtworkDimensions {

@@ -32,6 +32,13 @@ const parseArtworkData = (rawData: any): ArtworkData | undefined => {
   return undefined;
 };
 
+// Helper function to check if a URL is a direct video file (not embeddable platform)
+const isDirectVideoFileUrl = (url: string | undefined): boolean => {
+    if (!url) return false;
+    const cleanUrl = url.split('?')[0].toLowerCase();
+    return /\.(mp4|webm|ogg|mov)$/i.test(cleanUrl);
+};
+
 
 export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]): Promise<FirebaseArtwork[]> => {
     const artworksPromises = docs.map(async doc => {
@@ -91,13 +98,33 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
         let artworkData: ArtworkData | undefined = undefined;
         let isMotionVideo: boolean = false;
         let isFaultyMotionVideo: boolean = false;
+        let isDirectVideoFile: boolean = false; // NEW: Initialize isDirectVideoFile
+
+        const fileUrl = firebaseArt.artwork_file || firebaseArt.file;
+        const isVideoPlatform = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com')); // Vimeo or YouTube
+        const isDirectVideo = isDirectVideoFileUrl(fileUrl); // Direct MP4, WebM etc.
+        const isVideoFile = isVideoPlatform || isDirectVideo; // Overall video check
+        const isImageFile = fileUrl && (/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(fileUrl.split('?')[0]));
+        const isGlbFile = fileUrl && fileUrl.toLowerCase().includes('.glb');
 
         switch (firebaseArt.artwork_type) {
             case 'painting':
                 itemType = 'canvas_square';
-                textureUrl = firebaseArt.artwork_file || firebaseArt.file;
-                // Removed the check for image extensions here. TexturedWallDisplay will handle loading errors.
-                aspectRatio = 1;
+                if (isImageFile) {
+                    textureUrl = fileUrl;
+                } else if (isVideoFile) {
+                    // Data inconsistency: a painting has a video file. Treat as motion.
+                    itemType = 'canvas_landscape';
+                    textureUrl = fileUrl;
+                    isMotionVideo = true;
+                    isDirectVideoFile = isDirectVideo; // NEW: Set direct video flag
+                    console.warn(`[MuseumService] Painting artwork "${firebaseArt.title}" has a video file. Treating as motion video.`);
+                } else {
+                    // Not image, not video, potentially faulty file for painting
+                    textureUrl = fileUrl; // Still pass the URL for TexturedWallDisplay to potentially error out
+                    console.warn(`[MuseumService] Painting artwork "${firebaseArt.title}" has a non-image/non-video file. Display may be broken.`);
+                }
+                aspectRatio = isMotionVideo ? (16 / 9) : 1; // Adjust aspect ratio if it became motion
                 break;
             case 'sculpture':
                 itemType = 'sculpture_base';
@@ -105,25 +132,32 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
                     artworkData = firebaseArt.artwork_data;
                 }
 
-                if (firebaseArt.artwork_file && firebaseArt.artwork_file.toLowerCase().includes('.glb')) {
-                    textureUrl = firebaseArt.artwork_file;
+                if (isGlbFile) {
+                    textureUrl = fileUrl;
                 }
                 break;
             case 'media':
             case 'motion':
                 itemType = 'canvas_landscape';
-                textureUrl = firebaseArt.artwork_file || firebaseArt.file; 
-                aspectRatio = 16 / 9;
-                if (firebaseArt.artwork_type === 'motion') {
+                if (isVideoFile) {
+                    textureUrl = fileUrl;
                     isMotionVideo = true;
-                    // Check if it's a GLB file used for motion, which is faulty for video display
-                    if (textureUrl && textureUrl.toLowerCase().includes('.glb')) {
-                        isFaultyMotionVideo = true;
-                    }
+                    isDirectVideoFile = isDirectVideo; // NEW: Set direct video flag
+                } else if (isGlbFile) { // A motion file that's actually GLB
+                    textureUrl = fileUrl;
+                    isFaultyMotionVideo = true; // Still mark as faulty for video display
+                    console.warn(`[MuseumService] Motion artwork "${firebaseArt.title}" has a GLB file. Displaying faulty video placeholder.`);
+                } else {
+                    // Motion type but not video or GLB, potentially faulty
+                    textureUrl = fileUrl;
+                    isFaultyMotionVideo = true;
+                    console.warn(`[MuseumService] Motion artwork "${firebaseArt.title}" has a non-video/non-GLB file. Displaying faulty video placeholder.`);
                 }
+                aspectRatio = 16 / 9;
                 break;
             case 'other':
                 itemType = 'sphere_exhibit';
+                textureUrl = fileUrl; 
                 break;
             default:
                 itemType = 'sculpture_base';
@@ -143,6 +177,7 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
             artworkData: artworkData,
             isMotionVideo: isMotionVideo,
             isFaultyMotionVideo: isFaultyMotionVideo,
+            isDirectVideoFile: isDirectVideoFile, // NEW: Pass the flag
         };
     }).filter((item): item is ExhibitionArtItem => item !== null);
 };
@@ -167,13 +202,31 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
         let artworkData: ArtworkData | undefined = undefined;
         let isMotionVideo: boolean = false;
         let isFaultyMotionVideo: boolean = false;
+        let isDirectVideoFile: boolean = false; // NEW: Initialize isDirectVideoFile
+
+        const fileUrl = firebaseArt.artwork_file || firebaseArt.file;
+        const isVideoPlatform = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com'));
+        const isDirectVideo = isDirectVideoFileUrl(fileUrl);
+        const isVideoFile = isVideoPlatform || isDirectVideo;
+        const isImageFile = fileUrl && (/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(fileUrl.split('?')[0]));
+        const isGlbFile = fileUrl && fileUrl.toLowerCase().includes('.glb');
 
         switch (firebaseArt.artwork_type) {
             case 'painting':
                 itemType = 'canvas_square';
-                textureUrl = firebaseArt.artwork_file || firebaseArt.file;
-                // Removed the check for image extensions here. TexturedWallDisplay will handle loading errors.
-                aspectRatio = 1;
+                if (isImageFile) {
+                    textureUrl = fileUrl;
+                } else if (isVideoFile) {
+                    itemType = 'canvas_landscape';
+                    textureUrl = fileUrl;
+                    isMotionVideo = true;
+                    isDirectVideoFile = isDirectVideo; // NEW: Set direct video flag
+                    console.warn(`[MuseumService] Painting artwork "${firebaseArt.title}" has a video file. Treating as motion video.`);
+                } else {
+                    textureUrl = fileUrl;
+                    console.warn(`[MuseumService] Painting artwork "${firebaseArt.title}" has a non-image/non-video file. Display may be broken.`);
+                }
+                aspectRatio = isMotionVideo ? (16 / 9) : 1;
                 break;
             case 'sculpture':
                 itemType = 'sculpture_base';
@@ -181,24 +234,31 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
                     artworkData = firebaseArt.artwork_data;
                 }
 
-                if (firebaseArt.artwork_file && firebaseArt.artwork_file.toLowerCase().includes('.glb')) {
-                    textureUrl = firebaseArt.artwork_file;
+                if (isGlbFile) {
+                    textureUrl = fileUrl;
                 }
                 break;
             case 'media':
             case 'motion':
                 itemType = 'canvas_landscape';
-                textureUrl = firebaseArt.artwork_file || firebaseArt.file;
-                aspectRatio = 16 / 9;
-                if (firebaseArt.artwork_type === 'motion') {
+                if (isVideoFile) {
+                    textureUrl = fileUrl;
                     isMotionVideo = true;
-                    if (textureUrl && textureUrl.toLowerCase().includes('.glb')) {
-                        isFaultyMotionVideo = true;
-                    }
+                    isDirectVideoFile = isDirectVideo; // NEW: Set direct video flag
+                } else if (isGlbFile) { 
+                    textureUrl = fileUrl;
+                    isFaultyMotionVideo = true;
+                    console.warn(`[MuseumService] Motion artwork "${firebaseArt.title}" has a GLB file. Displaying faulty video placeholder.`);
+                } else {
+                    textureUrl = fileUrl;
+                    isFaultyMotionVideo = true;
+                    console.warn(`[MuseumService] Motion artwork "${firebaseArt.title}" has a non-video/non-GLB file. Displaying faulty video placeholder.`);
                 }
+                aspectRatio = 16 / 9;
                 break;
             case 'other':
                 itemType = 'sphere_exhibit';
+                textureUrl = fileUrl;
                 break;
             default:
                 console.warn(`[MuseumService] createFirebaseLayout - Unknown Firebase artwork_type: "${firebaseArt.artwork_type}" for artworkID: "${firebaseArt.artworkID}". Using default display.`);
@@ -218,6 +278,7 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
             artworkData: artworkData,
             isMotionVideo: isMotionVideo,
             isFaultyMotionVideo: isFaultyMotionVideo,
+            isDirectVideoFile: isDirectVideoFile, // NEW: Pass the flag
         });
     });
 
@@ -265,7 +326,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             supportedBy: data.supportedBy,
             exhibit_artworks: exhibitArtworksList, // Ensure this is always an array
             defaultLayout: createFirebaseLayout(exhibitArtworksList, allFirebaseArtworks), // Generate defaultLayout here
-            isActive: typeof data.isActive === 'boolean' ? data.isActive : false, // NEW: Read isActive field
+            isActive: typeof data.isActive === 'boolean' ? data.isActive : false,
         };
         return exhibition;
     });

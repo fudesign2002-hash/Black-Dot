@@ -9,30 +9,97 @@ interface TexturedWallDisplayProps {
   orientation?: 'portrait' | 'landscape' | 'square';
   aspectRatio?: number;
   isPainting?: boolean;
+  isMotionVideo?: boolean; // NEW: Add isMotionVideo
+  isDirectVideoFile?: boolean; // NEW: Add isDirectVideoFile
   onDimensionsCalculated?: (width: number, height: number, artworkSurfaceZ: number, artworkCenterY: number) => void;
   isFocused: boolean;
   lightsOn: boolean;
 }
 
-const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, maxDimension = 5.0, orientation, aspectRatio, isPainting, onDimensionsCalculated, isFocused, lightsOn }) => {
+const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, maxDimension = 5.0, orientation, aspectRatio, isPainting, isMotionVideo, isDirectVideoFile, onDimensionsCalculated, isFocused, lightsOn }) => {
   const [isLoadingError, setIsLoadingError] = useState(false);
-  
-  // Conditionally call useLoader only if textureUrl is present
-  const loadedTexture = textureUrl
-    ? useLoader(THREE.TextureLoader, textureUrl, 
-        (loader) => {
-          loader.crossOrigin = 'anonymous';
-        },
-        (errorEvent) => {
-          console.error(`[TexturedWallDisplay] Texture loading error for URL: ${textureUrl}`, errorEvent);
-          setIsLoadingError(true);
-        }
-      )
-    : null; // If no textureUrl, set loadedTexture to null
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Use state to hold the texture/video element or texture instance
+  const [loadedMedia, setLoadedMedia] = useState<THREE.Texture | HTMLVideoElement | null>(null);
+
+  // Memoize video element creation and setup
+  const videoElement = useMemo(() => {
+    if (!isDirectVideoFile || !textureUrl) return null;
+
+    const video = document.createElement('video');
+    video.src = textureUrl;
+    video.loop = true;
+    video.muted = true; // Essential for autoplay in most browsers
+    video.autoplay = true;
+    video.playsInline = true; // Important for mobile browsers
+    video.crossOrigin = 'anonymous'; // For CORS
+    video.preload = 'auto'; // Load video metadata
+    video.setAttribute('webkit-playsinline', 'webkit-playsinline'); // iOS support
+
+    video.onloadedmetadata = () => {
+      // Attempt to play immediately once metadata is loaded
+      video.play().catch(e => console.error("Video autoplay failed (metadata):", e));
+      setLoadedMedia(video); // Set video element directly for aspect ratio calculation
+    };
+    video.onerror = (e) => {
+      console.error(`[TexturedWallDisplay] Video element error for URL: ${textureUrl}`, e);
+      setIsLoadingError(true);
+    };
+    videoRef.current = video; // Assign to ref
+    return video;
+  }, [isDirectVideoFile, textureUrl]);
+
+  // Use useLoader for the actual THREE.VideoTexture, dependent on videoElement
+  const videoTexture = useLoader(THREE.VideoTexture, videoElement ? videoElement : null,
+    (loader) => {
+      // This callback fires when video texture is successfully created
+      if (videoElement && videoElement.paused) {
+        videoElement.play().catch(e => console.error("Video texture play failed:", e));
+      }
+    },
+    (error) => {
+      console.error(`[TexturedWallDisplay] Video texture creation error for URL: ${textureUrl}`, error);
+      setIsLoadingError(true);
+    }
+  );
+
+  // Use useLoader for image texture
+  const imageTexture = useLoader(THREE.TextureLoader, !isDirectVideoFile && textureUrl ? textureUrl : null,
+    (loader) => {
+      loader.crossOrigin = 'anonymous';
+    },
+    (errorEvent) => {
+      console.error(`[TexturedWallDisplay] Image texture loading error for URL: ${textureUrl}`, errorEvent);
+      setIsLoadingError(true);
+    }
+  );
 
   useEffect(() => {
     setIsLoadingError(false);
-  }, [textureUrl]);
+    // When direct video file is active, prioritize video texture
+    if (isDirectVideoFile && videoTexture) {
+        setLoadedMedia(videoTexture);
+    } 
+    // Otherwise, if not motion video, use image texture
+    else if (!isMotionVideo && imageTexture) { // Changed condition to !isMotionVideo
+        setLoadedMedia(imageTexture);
+    } else {
+        setLoadedMedia(null);
+    }
+  }, [isDirectVideoFile, isMotionVideo, textureUrl, videoTexture, imageTexture]);
+
+  // Handle video play/pause based on focus or lightsOn (if needed, currently always plays)
+  useEffect(() => {
+    if (isDirectVideoFile && videoElement) {
+      if (lightsOn || isFocused) { // For simplicity, always play video if lights are on or artwork is focused
+        videoElement.play().catch(e => console.error("Video play failed:", e));
+      } else {
+        videoElement.pause();
+      }
+    }
+  }, [isDirectVideoFile, videoElement, lightsOn, isFocused]);
+
 
   const MAX_ART_DIMENSION = maxDimension;
   const WALL_BORDER_WIDTH = 1.0;
@@ -50,8 +117,12 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     if (aspectRatio !== undefined && aspectRatio !== null) {
       calculatedAspect = aspectRatio;
     } 
-    else if (loadedTexture && (loadedTexture.image as HTMLImageElement)?.width && (loadedTexture.image as HTMLImageElement)?.height) {
-      calculatedAspect = (loadedTexture.image as HTMLImageElement).width / (loadedTexture.image as HTMLImageElement).height;
+    // NEW: Prioritize video dimensions for aspect ratio if it's a direct video
+    else if (isDirectVideoFile && videoElement && videoElement.videoWidth && videoElement.videoHeight) {
+        calculatedAspect = videoElement.videoWidth / videoElement.videoHeight;
+    }
+    else if (loadedMedia && (loadedMedia as THREE.Texture).image?.width && (loadedMedia as THREE.Texture).image?.height) {
+      calculatedAspect = (loadedMedia as THREE.Texture).image.width / (loadedMedia as THREE.Texture).image.height;
     } 
     else if (orientation) {
       switch(orientation) {
@@ -95,7 +166,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         [artWidth, artHeight],
         [finalWallWidth, finalWallHeight]
     ];
-  }, [aspectRatio, loadedTexture, MAX_ART_DIMENSION, orientation, isPainting, onDimensionsCalculated]); // Removed textureUrl from dependencies as it's now handled by loadedTexture check
+  }, [aspectRatio, loadedMedia, videoElement, MAX_ART_DIMENSION, orientation, isPainting, isDirectVideoFile, onDimensionsCalculated]);
 
   const [artWidth, artHeight] = artDims;
   const [wallWidth, wallHeight] = wallDims;
@@ -120,7 +191,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     return [rpWidth, rpHeight, fWidth, fHeight];
   }, [wallWidth, wallHeight]);
 
-  if (isLoadingError || !textureUrl || !loadedTexture) { // Added !loadedTexture to condition
+  // Adjusted error condition to use loadedMedia
+  if (isLoadingError || !textureUrl || !loadedMedia) {
     return (
       <group>
         <mesh receiveShadow position={[0, wallHeight / 2, wallBackingDepth / 2]}>
@@ -164,7 +236,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
             <mesh position={[0, wallHeight / 2, wallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05]} receiveShadow>
               <boxGeometry args={[redPlaneWidth, redPlaneHeight, 0.02]} />
               <meshStandardMaterial 
-                map={loadedTexture} 
+                map={loadedMedia as THREE.Texture} // Use loadedMedia as map
                 roughness={1}
                 metalness={0}
               /> 
@@ -180,7 +252,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
               </mesh>
               <mesh position={[0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME]}>
                 <planeGeometry args={[artWidth, artHeight]} />
-                <meshStandardMaterial map={loadedTexture} roughness={1} metalness={0} />
+                <meshStandardMaterial map={loadedMedia as THREE.Texture} roughness={1} metalness={0} />
               </mesh>
           </group>
         )}
