@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Check, Sun, Map, Brush, Settings } from 'lucide-react'; // NEW: Added Settings icon
 import { SimplifiedLightingConfig, ExhibitionArtItem, ZoneLightingDesign, FirebaseArtwork, ArtworkData, Exhibition } from '../../types';
@@ -24,7 +26,7 @@ interface FloorPlanEditorProps {
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
   onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>; // NEW: Add onUpdateExhibition prop
   activeExhibition: Exhibition; // NEW: Add activeExhibition prop
-  theme: {
+  uiConfig: {
     lightsOn: boolean;
     bg: string;
     text: string;
@@ -56,7 +58,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   onUpdateArtworkData,
   onUpdateExhibition, // NEW: Destructure prop
   activeExhibition, // NEW: Destructure prop
-  theme,
+  uiConfig,
   onActiveTabChange,
   onFocusArtwork,
   onRemoveArtworkFromLayout,
@@ -68,7 +70,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   const [showSaved, setShowSaved] = useState(false);
   const saveTimeoutRef = useRef<number | null>(null);
 
-  const { lightsOn } = theme;
+  const { lightsOn } = uiConfig;
 
   const triggerSaveNotification = useCallback(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -106,7 +108,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   }, [onActiveTabChange]);
 
   return (
-    <>
+    <React.Fragment>
       {isOpen && (
         <div
           className="absolute inset-0 z-40"
@@ -117,10 +119,10 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
       <div 
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        // Updated className for explicit background color with opacity and theme border/text
-        className={`absolute top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${theme.border} ${theme.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        // Updated className for explicit background color with opacity and uiConfig border/text
+        className={`absolute top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${uiConfig.border} ${uiConfig.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className={`px-4 py-3 border-b flex justify-between items-center ${theme.border}`}>
+        <div className={`px-4 py-3 border-b flex justify-between items-center ${uiConfig.border}`}>
           <div className="flex items-center gap-2">
               <h3 className="font-bold tracking-widest uppercase text-sm">Zone Editor</h3>
               <div className={`flex items-center gap-1.5 text-green-500 transition-opacity duration-300 ${showSaved ? 'opacity-100' : 'opacity-0'}`}>
@@ -132,7 +134,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
         </div>
         
         {/* Updated tab bar background to be semi-transparent */}
-        <div className={`p-2 border-b ${theme.border} ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'}`}>
+        <div className={`p-2 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'}`}>
             <div className="flex items-center gap-2">
                 <button
                     onClick={() => handleTabClick('lighting')}
@@ -163,7 +165,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
 
         {activeTab === 'lighting' ? (
           <LightingTab 
-            theme={theme}
+            uiConfig={uiConfig}
             lightingConfig={lightingConfig}
             onUpdateLighting={onUpdateLighting}
             fullZoneLightingDesign={fullZoneLightingDesign}
@@ -171,17 +173,19 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           />
         ) : activeTab === 'layout' ? (
           <LayoutTab 
-            theme={theme}
+            uiConfig={uiConfig}
             currentLayout={currentLayout}
             onEditorLayoutChange={onEditorLayoutChange}
             selectedArtworkId={selectedArtworkId}
             onSelectArtwork={onSelectArtwork}
             selectedArtworkTitle={selectedArtworkTitle}
             selectedArtworkArtist={selectedArtworkArtist}
+            lightingConfig={lightingConfig} // NEW: Pass lightingConfig
+            onUpdateLighting={onUpdateLighting} // NEW: Pass onUpdateLighting
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab
-            theme={theme}
+            uiConfig={uiConfig}
             firebaseArtworks={firebaseArtworks}
             currentLayout={currentLayout}
             onUpdateArtworkFile={async (artworkId: string, newFileUrl: string) => {
@@ -195,10 +199,11 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             onFocusArtwork={onFocusArtwork}
             onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
             onOpenConfirmationDialog={onOpenConfirmationDialog}
+            onSelectArtwork={onSelectArtwork}
           />
         ) : ( // NEW: Render AdminTab
             <AdminTab
-                theme={theme}
+                uiConfig={uiConfig}
                 activeExhibition={activeExhibition}
                 onUpdateExhibition={async (exhibitionId, updatedFields) => {
                   await onUpdateExhibition(exhibitionId, updatedFields);
@@ -207,7 +212,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             />
         )}
       </div>
-    </>
+    </React.Fragment>
   );
 };
 

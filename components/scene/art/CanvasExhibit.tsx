@@ -4,7 +4,7 @@ import { Html } from '@react-three/drei';
 import { getVideoEmbedUrl } from '../../../services/utils/videoUtils';
 import * as THREE from 'three';
 import { useLoader } from '@react-three/fiber';
-import { ArtworkDimensions } from '../../../types';
+import { ArtworkDimensions, ArtType } from '../../../types';
 import { HelpCircle } from 'lucide-react';
 
 interface CanvasExhibitProps {
@@ -13,20 +13,29 @@ interface CanvasExhibitProps {
   aspectRatio?: number,
   isMotionVideo?: boolean;
   isFaultyMotionVideo?: boolean;
-  isDirectVideoFile?: boolean; // NEW: Add isDirectVideoFile prop
   isPainting?: boolean;
   isFocused: boolean;
   lightsOn: boolean;
+  onDimensionsCalculated?: (width: number, height: number, artworkSurfaceZ: number, artworkCenterY: number) => void;
+  artworkPosition: [number, number, number];
+  artworkRotation: [number, number, number];
+  artworkType: ArtType;
+  onArtworkClickedHtml: (e: React.MouseEvent<HTMLDivElement>, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType) => void;
 }
 
-// Utility to check if a URL is likely an image
 const isImageUrl = (url: string | undefined): boolean => {
   if (!url) return false;
-  // Use .split('?')[0] to ignore query parameters in extension check
   return /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(url.split('?')[0]); 
 };
 
-const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isDirectVideoFile, isPainting, isFocused, lightsOn }) => {
+const VIDEO_SIZE_MULTIPLIER = 0.3;
+const VIDEO_INNER_CONTENT_MULTIPLIER = 0.9;
+const EMBED_VIDEO_VERTICAL_OFFSET = 0; 
+const MOTION_WALL_BACKING_MULTIPLIER = 2.5; 
+
+const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
+  artworkPosition, artworkRotation, artworkType, onArtworkClickedHtml
+}) => {
   let maxDimension = 3.0; 
   
   if (orientation === 'square') {
@@ -38,8 +47,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
   const wallRef = useRef<THREE.Mesh>(null);
 
   const embedUrl = useMemo(() => {
-    // Only generate embed URL if it's an embeddable video platform (not direct file)
-    if (!isMotionVideo || isDirectVideoFile || isFaultyMotionVideo || !textureUrl) { // NEW: Add isDirectVideoFile check
+    if (!isMotionVideo || isFaultyMotionVideo || !textureUrl) {
       return null;
     }
 
@@ -48,11 +56,12 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
       
     }
     return url;
-  }, [isMotionVideo, isDirectVideoFile, isFaultyMotionVideo, textureUrl]); // NEW: Add isDirectVideoFile to dependencies
+  }, [isMotionVideo, isFaultyMotionVideo, textureUrl]);
 
   const WALL_DEPTH = 0.4;
 
   const [artworkInfo, setArtworkInfo] = useState<ArtworkDimensions | null>(null);
+  const [internalFaultyVideo, setInternalFaultyVideo] = useState(false);
   
   const mountedRef = useRef(false);
 
@@ -66,31 +75,30 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
   const handleArtworkDimensions = useCallback((width: number, height: number, artworkSurfaceZ: number, artworkCenterY: number) => {
     if (mountedRef.current) {
       setArtworkInfo({ artworkRenderWidth: width, artworkRenderHeight: height, artworkSurfaceZ, artworkCenterY });
+      if (onDimensionsCalculated) {
+        onDimensionsCalculated(width, height, artworkSurfaceZ, artworkCenterY);
+      }
     }
-  }, []);
+  }, [onDimensionsCalculated]);
 
-  // Conditionally set stampSourceUrl to textureUrl only if it's a painting AND a valid image URL
-  const stampSourceUrl = isPainting && isImageUrl(textureUrl)
-    ? textureUrl
-    : "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
   
-  // Only load stampTexture if stampSourceUrl is not the default fallback (which is always an image)
-  // or if stampSourceUrl is provided and is a valid image URL, which is guaranteed by the above logic.
-  const stampTexture = useLoader(THREE.TextureLoader, stampSourceUrl,
-    (loader) => {
-      loader.crossOrigin = 'anonymous';
-    },
-    (errorEvent) => {
-      console.error(`[CanvasExhibit] Stamp texture loading error for URL: ${stampSourceUrl}`, errorEvent);
-      // Fallback to default if stamp fails to load, even after validation
-      // This is a last resort, as isImageUrl should prevent most issues
-    }
-  );
+  const showFaultyVideo = isFaultyMotionVideo || internalFaultyVideo;
 
-  if (isFaultyMotionVideo) {
+  if (showFaultyVideo) {
     const placeholderSize = maxDimension * 0.4;
     const zPosition = WALL_DEPTH / 2 + 0.01;
     const yPosition = placeholderSize / 2;
+
+    useEffect(() => {
+      if (onDimensionsCalculated) {
+        onDimensionsCalculated(
+          placeholderSize,
+          placeholderSize,
+          zPosition,
+          yPosition
+        );
+      }
+    }, [onDimensionsCalculated, placeholderSize, zPosition, yPosition]);
 
     return (
       <group>
@@ -118,108 +126,99 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     );
   }
 
-  // NEW: Handle direct video files as textures
-  if (isMotionVideo && isDirectVideoFile) {
-    return (
-      <TexturedWallDisplay
-        textureUrl={textureUrl}
-        maxDimension={maxDimension}
-        orientation={orientation}
-        aspectRatio={aspectRatio}
-        isPainting={isPainting} // Should be false for motion video
-        isMotionVideo={isMotionVideo} // NEW: Pass isMotionVideo
-        isDirectVideoFile={isDirectVideoFile} // NEW: Pass isDirectVideoFile
-        onDimensionsCalculated={handleArtworkDimensions}
-        isFocused={isFocused}
-        lightsOn={lightsOn}
-      />
-    );
-  }
-
-  // Existing: Handle embeddable videos via iframe
   if (isMotionVideo && embedUrl) {
     
-
     const videoAspectRatio = aspectRatio !== undefined && aspectRatio !== null ? aspectRatio : (16 / 9);
 
-    const VIDEO_SIZE_MULTIPLIER = 0.25;
-    const VIDEO_INNER_CONTENT_MULTIPLIER = 0.5;
+    const videoContentBaseWidth = maxDimension * VIDEO_SIZE_MULTIPLIER;
+    const videoContentBaseHeight = videoContentBaseWidth / videoAspectRatio;
 
-    const wallDisplayWidth = maxDimension * VIDEO_SIZE_MULTIPLIER;
-    const wallDisplayHeight = wallDisplayWidth / videoAspectRatio;
+    const backingWallWidth = videoContentBaseWidth * MOTION_WALL_BACKING_MULTIPLIER;
+    const backingWallHeight = videoContentBaseHeight * MOTION_WALL_BACKING_MULTIPLIER;
 
-    const videoContentWidth = wallDisplayWidth * VIDEO_INNER_CONTENT_MULTIPLIER;
-    const videoContentHeight = wallDisplayHeight * VIDEO_INNER_CONTENT_MULTIPLIER;
-
-    const HTML_SCALE_FACTOR = 100;
-    const iframeWidthPx = videoContentWidth * HTML_SCALE_FACTOR;
-    const iframeHeightPx = videoContentHeight * HTML_SCALE_FACTOR;
+    const backingWallMeshCenterY = backingWallHeight / 2;
 
     const zPosition = WALL_DEPTH / 2 + 0.01;
-    const yPosition = wallDisplayHeight / 2;
+
+    const htmlContentCenterY = backingWallMeshCenterY + EMBED_VIDEO_VERTICAL_OFFSET;
+
+    const HTML_SCALE_FACTOR = 100;
+    const iframeWidthPx = videoContentBaseWidth * VIDEO_INNER_CONTENT_MULTIPLIER * HTML_SCALE_FACTOR;
+    const iframeHeightPx = videoContentBaseHeight * VIDEO_INNER_CONTENT_MULTIPLIER * HTML_SCALE_FACTOR;
+
+    useEffect(() => {
+      if (onDimensionsCalculated) {
+        onDimensionsCalculated(
+          videoContentBaseWidth,
+          videoContentBaseHeight,
+          zPosition,
+          htmlContentCenterY
+        );
+      }
+    }, [onDimensionsCalculated, videoContentBaseWidth, videoContentBaseHeight, zPosition, htmlContentCenterY]);
 
     return (
       <group>
-        <mesh ref={wallRef} receiveShadow position={[0, yPosition, 0]}>
-          <boxGeometry args={[wallDisplayWidth, wallDisplayHeight, WALL_DEPTH]} />
+        <mesh ref={wallRef} receiveShadow castShadow position={[0, backingWallMeshCenterY, 0]}>
+          <boxGeometry args={[backingWallWidth, backingWallHeight, WALL_DEPTH]} />
           <meshStandardMaterial color="#1a1a1a" roughness={0.5} metalness={0} />
         </mesh>
         
         <Html
-          position={[0, yPosition, zPosition]}
+          position={[0, htmlContentCenterY, zPosition]}
           wrapperClass="youtube-video-html"
           center
           occlude={[wallRef]}
+          transform
         >
-          <iframe
-            src={embedUrl}
-            width={iframeWidthPx}
-            height={iframeHeightPx}
-            frameBorder="0"
-            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
-            allowFullScreen
-            sandbox="allow-scripts allow-same-origin allow-popups"
-            style={{ display: 'block' }}
-            title="Vimeo video player"
-            aria-label="Vimeo video player"
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
+          <div style={{ position: 'relative', width: iframeWidthPx, height: iframeHeightPx }}>
+            <iframe
+              src={embedUrl}
+              width="100%"
+              height="100%"
+              frameBorder="0"
+              allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-share"
+              allowFullScreen
+              sandbox="allow-scripts allow-same-origin allow-popups"
+              style={{ display: 'block', position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+              title="Embedded video player"
+              aria-label="Embedded video player"
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 1,
+                cursor: 'pointer',
+              }}
+              onClick={(e) => onArtworkClickedHtml(e, artworkPosition, artworkRotation, artworkType)}
+            />
+          </div>
         </Html>
       </group>
     );
   }
 
-  // Existing: Handle regular images/paintings
   return (
-    <>
+    <React.Fragment>
       <TexturedWallDisplay 
         textureUrl={textureUrl} 
-        maxDimension={maxDimension} 
+        mapTexture={null}
+        maxDimension={maxDimension}
         orientation={orientation} 
         aspectRatio={aspectRatio} 
         isPainting={isPainting}
-        isMotionVideo={false} // NEW: Explicitly false for non-motion
-        isDirectVideoFile={false} // NEW: Explicitly false for non-motion
         onDimensionsCalculated={handleArtworkDimensions}
         isFocused={isFocused}
         lightsOn={lightsOn}
       />
 
-      {isPainting && artworkInfo && (
-        <mesh
-          position={[
-            artworkInfo.artworkRenderWidth / 2 - 0.4,
-            artworkInfo.artworkCenterY - artworkInfo.artworkRenderHeight / 2 + 0.4,
-            artworkInfo.artworkSurfaceZ + 0.005
-          ]}
-          rotation={[0, 0, 0]}
-          receiveShadow
-        >
-          <planeGeometry args={[0.8, 0.8]} />
-          <meshStandardMaterial map={stampTexture} transparent />
-        </mesh>
-      )}
-    </>
+      
+    </React.Fragment>
   );
 };
 

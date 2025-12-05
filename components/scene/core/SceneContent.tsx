@@ -10,12 +10,12 @@ import ArtComponent from './ArtComponent';
 import SmartSpotlight from '../lighting/SmartSpotlight';
 import { kelvinToHex } from '../../../services/utils/colorUtils';
 import SceneAxisHelper from './SceneAxisHelper';
+import ArtworkWrapper from './ArtworkWrapper';
 
-const SceneContent: React.FC<SceneProps> = ({ 
-  lightingConfig, 
-  resetTrigger, 
-  currentZoneTheme, 
-  artworks, 
+
+const SceneContent: React.FC<SceneProps> = ({
+  lightingConfig,
+  artworks,
   isEditorOpen,
   isEditorMode,
   selectedArtworkId,
@@ -25,10 +25,23 @@ const SceneContent: React.FC<SceneProps> = ({
   activeEditorTab,
   focusedArtworkInstanceId,
   setFps,
+  hasMotionArtwork,
+  uiConfig,
+  setFocusedArtworkInstanceId,
+  activeExhibition,
+  onInfoOpen,
+  cameraControlRef,
+  onArtworkClicked,
+  isDebugMode,
+  triggerHeartEmitter,
+  heartEmitterArtworkId,
+  onCanvasClick,
+  isRankingMode,
 }) => {
   const { lightsOn } = lightingConfig;
-  
-  const ambientRef = useRef<THREE.AmbientLight>(null);
+
+  const dirLight1Ref = useRef<THREE.DirectionalLight>(null);
+  const dirLight2Ref = useRef<THREE.DirectionalLight>(null);
   const floorMatRef = useRef<THREE.MeshStandardMaterial>(null);
   const { scene, camera } = useThree();
 
@@ -42,105 +55,96 @@ const SceneContent: React.FC<SceneProps> = ({
   const darkFloorColor = useMemo(() => new THREE.Color("#000000"), []);
 
   useFrame((state, delta) => {
-    const lerpSpeed = delta * 1.5;
+    const lerpSpeed = delta * 3;
 
-    const targetAmbientIntensity = lightsOn ? lightingConfig.ambientIntensity : 0;
-    
+
     const targetBgColor = lightsOn ? lightBgColor : darkBgColor;
     const targetFloorColor = lightsOn ? lightFloorColor : darkFloorColor;
 
     if (scene.background instanceof THREE.Color) scene.background.lerp(targetBgColor, lerpSpeed);
     if (scene.fog instanceof THREE.Fog) scene.fog.color.lerp(targetBgColor, lerpSpeed);
-    if (ambientRef.current) ambientRef.current.intensity = THREE.MathUtils.lerp(ambientRef.current.intensity, targetAmbientIntensity, lerpSpeed);
-    
-    
+
+
     if (floorMatRef.current) floorMatRef.current.color.lerp(targetFloorColor, lerpSpeed);
 
-    const now = performance.now();
-    frameTimes.current.push(now);
-    while (frameTimes.current.length > 0 && frameTimes.current[0] < now - 1000) {
-      frameTimes.current.shift();
-    }
-    if (now - lastFpsUpdate.current > FPS_UPDATE_INTERVAL) {
-      setFps(frameTimes.current.length);
-      lastFpsUpdate.current = now;
+    if (isDebugMode) {
+      const now = performance.now();
+      frameTimes.current.push(now);
+      while (frameTimes.current.length > 0 && frameTimes.current[0] < now - 1000) {
+        frameTimes.current.shift();
+      }
+      if (now - lastFpsUpdate.current > FPS_UPDATE_INTERVAL) {
+        setFps(frameTimes.current.length);
+        lastFpsUpdate.current = now;
+      }
+    } else if (frameTimes.current.length > 0) {
+      frameTimes.current = [];
+      lastFpsUpdate.current = 0;
+      setFps(0);
     }
   });
-  
+
   const initialBackgroundColor = lightsOn ? "#e4e4e4" : '#050505';
   const initialFloorColor = lightsOn ? "#eeeeee" : "#000000";
 
-  const ambientLightColor = useMemo(() => new THREE.Color(kelvinToHex(lightingConfig.colorTemperature)), [lightingConfig.colorTemperature]);
-  const directionalLightColor = useMemo(() => new THREE.Color(ambientLightColor), [ambientLightColor]);
+  const directionalLightColor = useMemo(() => new THREE.Color(kelvinToHex(lightingConfig.colorTemperature)), [lightingConfig.colorTemperature]);
 
   const showAxisHelper = isEditorMode && isEditorOpen && activeEditorTab === 'layout';
   const axisColor = lightsOn ? '#aaaaaa' : '#555555';
-  
+
+  const selectedArtwork = useMemo(() => artworks.find(art => art.id === selectedArtworkId), [artworks, selectedArtworkId]);
+
   return (
-    <>
-        <CameraController 
-          isEditorOpen={isEditorOpen} 
-          resetTrigger={resetTrigger} 
+    <React.Fragment>
+        <CameraController
+          isEditorOpen={isEditorOpen}
           focusedArtworkInstanceId={focusedArtworkInstanceId}
           artworks={artworks}
           isEditorMode={isEditorMode}
           activeEditorTab={activeEditorTab}
+          cameraControlRef={cameraControlRef}
         />
-        {!isEditorMode && !lightsOn && <ProximityHandler 
-          artworks={artworks}
-          setFocusedIndex={onFocusChange} 
-          currentFocusedIndex={focusedIndex}
-        />}
+        {!isEditorMode && !lightsOn && !focusedArtworkInstanceId && !isRankingMode && (
+          <ProximityHandler
+            artworks={artworks}
+            setFocusedIndex={onFocusChange}
+            currentFocusedIndex={focusedIndex}
+            focusedArtworkInstanceId={focusedArtworkInstanceId}
+          />
+        )}
 
         <color attach="background" args={[initialBackgroundColor]} />
         <fog attach="fog" args={[initialBackgroundColor, 20, 90]} />
 
-        <ambientLight 
-          ref={ambientRef}
-          color={ambientLightColor}
-          intensity={lightsOn ? lightingConfig.ambientIntensity : 0.05}
+
+        <directionalLight
+            ref={dirLight1Ref}
+            position={lightingConfig.keyLightPosition || [-2, 6, 9]}
+            intensity={lightsOn ? 3.0 : 0}
+            color={directionalLightColor}
+            castShadow
+            shadow-mapSize={[512, 512]}
+            shadow-camera-left={-15}
+            shadow-camera-right={15}
+            shadow-camera-top={15}
+            shadow-camera-bottom={-15}
+            shadow-bias={-0.0001}
+            shadow-normalBias={0.05}
         />
-        
-        {lightsOn && (
-           <group>
-             <directionalLight 
-               position={[-8, 15, 8]} 
-               intensity={1.8}
-               color={directionalLightColor}
-               castShadow 
-               shadow-mapSize={[1024, 1024]}
-               shadow-camera-left={-10}
-               shadow-camera-right={10}
-               shadow-camera-top={10}
-               shadow-camera-bottom={-10}
-               shadow-bias={-0.0001}
-               shadow-normalBias={0.03}
-             />
-             <directionalLight 
-                position={[10, 5, -5]} 
-                intensity={0.9}
-                color="#dbeafe" 
-            />
-           </group>
-        )}
-        <ContactShadows 
-          position={[0, 0.01, 0]} 
-          scale={100} 
-          resolution={1024} 
-          far={10} 
-          blur={3} 
-          opacity={lightsOn ? 0.7 : 0.5} 
-          color="#000000" 
-          frames={1} 
+        <directionalLight
+            ref={dirLight2Ref}
+            position={lightingConfig.fillLightPosition || [5, 0, 5]}
+            intensity={lightsOn ? 0.9 : 0}
+            color="#dbeafe"
         />
 
         <group position={[0, -1.5, 0]}>
-            <mesh 
-              rotation={[-Math.PI / 2, 0, 0]} 
-              position={[0, -0.02, 0]} 
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              position={[0, -0.02, 0]}
               receiveShadow={true}
             >
-              <planeGeometry args={[10000, 10000]} />
+              <planeGeometry args={[300, 300]} />
               <meshStandardMaterial
                 ref={floorMatRef}
                 color={initialFloorColor}
@@ -148,53 +152,83 @@ const SceneContent: React.FC<SceneProps> = ({
                 metalness={0.1}
               />
             </mesh>
-            
+
             {showAxisHelper && (
-              <SceneAxisHelper 
+              <SceneAxisHelper
                 sizeX={24}
                 sizeZ={12}
                 color={axisColor}
-                lineWidth={0.1}
                 offsetY={0.02}
               />
             )}
 
             {artworks.map((art, index) => {
               const highlightColor = lightingConfig.manualSpotlightColor;
-              const isFocused = isEditorMode ? art.id === selectedArtworkId : focusedIndex === index;
+
+              const isExplicitlyFocused = isEditorMode ? art.id === selectedArtworkId : focusedArtworkInstanceId === art.id;
+
+              const isProximityFocusedInDark = !isEditorMode && !lightsOn && !focusedArtworkInstanceId && index === focusedIndex && !isRankingMode;
+
+              const isSmartSpotlightActive = isExplicitlyFocused || isProximityFocusedInDark;
 
               return (
-                <group 
+                <ArtworkWrapper
                   key={art.id}
-                  name={art.id}
-                  position={art.position} 
-                  rotation={art.rotation} 
-                  scale={art.scale}
+                  id={art.id}
+                  artworkType={art.type}
+                  originalPosition={art.originalPosition || art.position}
+                  originalRotation={art.originalRotation || art.rotation}
+                  targetPosition={art.position}
+                  targetRotation={art.rotation}
+                  isRankingMode={isRankingMode}
+                  onArtworkClicked={(e) => {
+                    e.stopPropagation();
+                    if (!art.isMotionVideo) {
+                      onSelectArtwork(art.id);
+                      onArtworkClicked(e, art.id, art.originalPosition || art.position, art.originalRotation || art.rotation, art.type, !!art.isMotionVideo);
+                    }
+                  }}
                 >
-                   <SmartSpotlight 
-                      isActive={isFocused} 
-                      lightsOn={lightsOn} 
-                      color={highlightColor}
-                      spotlightMode={lightingConfig.spotlightMode}
-                      artworkType={art.type}
-                    />
-                   <ArtComponent 
-                        type={art.type} 
-                        zone={currentZoneTheme} 
-                        isFocused={isFocused}
-                        textureUrl={art.textureUrl}
-                        artworkData={art.artworkData}
-                        isMotionVideo={art.isMotionVideo}
-                        isFaultyMotionVideo={art.isFaultyMotionVideo}
-                        lightsOn={lightsOn}
-                    />
-                </group>
+                  <SmartSpotlight
+                    isActive={isSmartSpotlightActive}
+                    lightsOn={lightsOn}
+                    color={highlightColor}
+                    spotlightMode={lightingConfig.spotlightMode}
+                    isEditorMode={isEditorMode}
+                    isMotionVideo={art.isMotionVideo}
+                    artworkRotation={art.rotation}
+                    artworkType={art.type}
+                  />
+                  <ArtComponent
+                    id={art.id}
+                    type={art.type}
+                    artworkPosition={art.originalPosition || art.position}
+                    artworkRotation={art.originalRotation || art.rotation}
+                    artworkType={art.type}
+                    isFocused={isExplicitlyFocused}
+                    textureUrl={art.textureUrl}
+                    artworkData={art.artworkData}
+                    isMotionVideo={art.isMotionVideo}
+                    isFaultyMotionVideo={art.isFaultyMotionVideo}
+                    lightsOn={lightsOn}
+                    uiConfig={uiConfig}
+                    setFocusedArtworkInstanceId={setFocusedArtworkInstanceId}
+                    activeExhibition={activeExhibition}
+                    onInfoOpen={onInfoOpen}
+                    isDebugMode={isDebugMode}
+                    triggerHeartEmitter={triggerHeartEmitter}
+                    heartEmitterArtworkId={heartEmitterArtworkId}
+                    onArtworkClicked={onArtworkClicked}
+                    isRankingMode={isRankingMode}
+                    displayLikes={art.displayLikes}
+                  />
+                </ArtworkWrapper>
               );
             })}
         </group>
 
         <Environment preset={lightsOn ? "city" : "night"} background={false} />
-    </>
+    </React.Fragment>
   );
 };
 

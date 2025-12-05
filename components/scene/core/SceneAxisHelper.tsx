@@ -1,3 +1,5 @@
+
+
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 
@@ -32,6 +34,7 @@ const SceneAxisHelper: React.FC<SceneAxisHelperProps> = ({
   }, [sizeZ]);
 
   return (
+    // FIX: Use JSX intrinsic elements explicitly declared or extended in r3f-declarations.ts
     <group position={[0, offsetY, 0]}>
       <lineSegments geometry={xAxisGeometry}>
         <lineBasicMaterial attach="material" color={color} linewidth={lineWidth} transparent opacity={0.5} />

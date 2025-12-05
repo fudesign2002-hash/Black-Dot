@@ -1,9 +1,11 @@
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition } from '../../types';
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy } from 'lucide-react';
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Image } from 'lucide-react'; // NEW: Import Image icon
 
 interface AdminTabProps {
-  theme: {
+  uiConfig: {
     lightsOn: boolean;
     text: string;
     subtext: string;
@@ -16,38 +18,43 @@ interface AdminTabProps {
 
 const DEBOUNCE_DELAY = 700;
 
-// NEW: Utility type to extract keys of properties that are string or string | undefined
-type StringKeys<T> = {
-  [K in keyof T]: T[K] extends string | undefined ? K : never;
-}[keyof T];
+// NEW: Explicitly define the keys of Exhibition that are string or string | undefined
+type ExhibitionEditableFieldKeys =
+  'title' | 'subtitle' | 'overview' | 'dateFrom' | 'dateTo' |
+  'venue' | 'hours' | 'admissionLink' | 'artist' | 'dates' | 'admission' | 'supportedBy' | 'exhibit_poster'; // NEW: Add exhibit_poster
 
-type StringExhibitionKeys = StringKeys<Exhibition>;
-
-// FIX: Add generic type TField to constrain the `field` prop
-interface InputFieldProps<TField extends StringExhibitionKeys> {
+// FIX: Refactored InputFieldProps to be generic to prevent 'never' type errors
+interface InputFieldProps<T extends ExhibitionEditableFieldKeys> {
   label: string;
-  field: TField; // Use the generic type here
-  icon: React.ElementType;
-  type?: string;
+  field: T; // Use generic T for field
+  icon: React.ComponentType<{ className?: string }>;
+  inputType?: string;
   isTextArea?: boolean;
-  value: string;
-  onChange: (value: string) => void;
+  value: string | undefined;
+  onChange: (value: string | undefined, field: T) => void; // onChange uses generic T
   statusIcon: React.ReactNode;
-  theme: AdminTabProps['theme'];
+  uiConfig: AdminTabProps['uiConfig'];
   className?: string;
 }
 
-// FIX: Define the functional component without memo first
-const InputFieldComponent = <TField extends StringExhibitionKeys>({
-  label, field, icon: Icon, type = 'text', isTextArea = false, value, onChange, statusIcon, theme, className
-}: InputFieldProps<TField>) => {
-  const { lightsOn, text, subtext, border, input } = theme;
+// FIX: Refactored InputFieldComponent to be generic and explicitly return React.JSX.Element
+function InputFieldComponent<T extends ExhibitionEditableFieldKeys>({
+  label, field, icon: Icon, inputType = 'text', isTextArea = false, value, onChange, statusIcon, uiConfig, className
+}: InputFieldProps<T>): React.JSX.Element { // Explicitly define return type as React.JSX.Element
+  const { lightsOn, text, subtext, border, input } = uiConfig;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
+
+  const displayValue = value || '';
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const newValue = e.target.value === '' ? undefined : e.target.value;
+    onChange(newValue, field);
+  }, [onChange, field]);
 
   return (
     <div className={`p-4 rounded-xl border ${border} ${controlBgClass} ${className || ''}`}>
       <div className="flex items-center gap-2 mb-2">
-        <Icon className="w-4 h-4 opacity-70" />
+        <Icon className={`w-4 h-4 opacity-70 ${text}`} />
         <p className={`text-sm font-medium ${text}`}>{label}</p>
         <div className="ml-auto flex items-center gap-2">
           {statusIcon}
@@ -55,96 +62,141 @@ const InputFieldComponent = <TField extends StringExhibitionKeys>({
       </div>
       {isTextArea ? (
         <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={displayValue}
+          onChange={handleInputChange}
           className={`w-full px-3 py-2 rounded-md text-xs ${input} h-24 resize-y`}
           rows={3}
         />
       ) : (
         <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          type={inputType}
+          value={displayValue}
+          onChange={handleInputChange}
           className={`w-full px-3 py-2 rounded-md text-xs ${input}`}
         />
       )}
     </div>
   );
-};
+}
 
-// FIX: Then apply React.memo, ensuring the generic type is preserved
-const InputField = React.memo(InputFieldComponent) as typeof InputFieldComponent;
+// FIX: Correctly type InputField using React.memo with the generic component.
+const InputField: typeof InputFieldComponent = React.memo(InputFieldComponent) as typeof InputFieldComponent;
 
-const AdminTab: React.FC<AdminTabProps> = React.memo(({ theme, activeExhibition, onUpdateExhibition }) => {
-  const [localExhibition, setLocalExhibition] = useState<Partial<Exhibition>>({});
-  // FIX: Type updateStatus with Partial<Record<keyof Exhibition, ...>>
-  const [updateStatus, setUpdateStatus] = useState<Partial<Record<keyof Exhibition, 'idle' | 'saving' | 'saved' | 'error'>>>({});
-  // FIX: Type timeoutRefs with Partial<Record<keyof Exhibition, number>>
-  const timeoutRefs = useRef<Partial<Record<keyof Exhibition, number>>>({});
+const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibition, onUpdateExhibition }) => {
+  // FIX: Type localExhibition with Record<ExhibitionEditableFieldKeys, string | undefined>
+  const [localExhibition, setLocalExhibition] = useState<Record<ExhibitionEditableFieldKeys, string | undefined>>(() => ({
+    title: activeExhibition.title,
+    subtitle: activeExhibition.subtitle,
+    overview: activeExhibition.overview,
+    dateFrom: activeExhibition.dateFrom || undefined,
+    dateTo: activeExhibition.dateTo || undefined,
+    venue: activeExhibition.venue || undefined,
+    hours: activeExhibition.hours || undefined,
+    admissionLink: activeExhibition.admissionLink || undefined,
+    artist: activeExhibition.artist,
+    dates: activeExhibition.dates,
+    admission: activeExhibition.admission,
+    supportedBy: activeExhibition.supportedBy || undefined,
+    exhibit_poster: activeExhibition.exhibit_poster || undefined, // NEW: Initialize exhibit_poster
+  }));
+  // FIX: Type updateStatus with Partial<Record<ExhibitionEditableFieldKeys, ...>> to allow empty object initialization
+  const [updateStatus, setUpdateStatus] = useState<Partial<Record<ExhibitionEditableFieldKeys, 'idle' | 'saving' | 'saved' | 'error'>>>({});
+  // FIX: Type timeoutRefs with Partial<Record<ExhibitionEditableFieldKeys, number | undefined>> to allow empty object initialization
+  const timeoutRefs = useRef<Partial<Record<ExhibitionEditableFieldKeys, number | undefined>>>({});
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
-  const { lightsOn, text, subtext, border, input } = theme;
+  const { lightsOn, text, subtext, border, input } = uiConfig;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
 
-  useEffect(() => {
-    setLocalExhibition({
-      title: activeExhibition.title,
-      subtitle: activeExhibition.subtitle,
-      overview: activeExhibition.overview,
-      dateFrom: activeExhibition.dateFrom,
-      dateTo: activeExhibition.dateTo,
-      venue: activeExhibition.venue,
-      hours: activeExhibition.hours,
-      admissionLink: activeExhibition.admissionLink,
-    });
-    // FIX: Initialize with an empty object, now allowed by Partial type
-    setUpdateStatus({});
-    Object.values(timeoutRefs.current).forEach(clearTimeout);
-    timeoutRefs.current = {}; // FIX: Initialize with an empty object, now allowed by Partial type
-  }, [activeExhibition]);
-
-  const handleUpdateStatus = useCallback((field: keyof Exhibition, status: 'idle' | 'saving' | 'saved' | 'error', duration: number = 2000) => { // FIX: Use keyof Exhibition for field
+  // NEW: Define handleUpdateStatus here
+  // FIX: Update handleUpdateStatus signature to accept non-generic field
+  const handleUpdateStatus = useCallback((
+    field: ExhibitionEditableFieldKeys,
+    status: 'idle' | 'saving' | 'saved' | 'error',
+    duration: number = 2000
+  ) => {
     setUpdateStatus(prev => ({ ...prev, [field]: status }));
     if (status === 'saved' || status === 'error') {
-      setTimeout(() => setUpdateStatus(prev => ({ ...prev, [field]: 'idle' })), duration);
+      if (timeoutRefs.current[field]) {
+        clearTimeout(timeoutRefs.current[field]);
+      }
+      timeoutRefs.current[field] = window.setTimeout(() => {
+        setUpdateStatus(prev => ({ ...prev, [field]: 'idle' }));
+      }, duration) as unknown as number;
     }
   }, []);
 
-  const handleChange = useCallback((field: StringExhibitionKeys, value: string) => { // FIX: Restrict field to StringExhibitionKeys
-    setLocalExhibition(prev => ({ ...prev, [field]: value }));
-    handleUpdateStatus(field, 'idle'); // FIX: Use field directly
+  useEffect(() => {
+    // FIX: Initialize local state with exhibition fields, handling potential undefined values
+    const initialLocalExhibition: Record<ExhibitionEditableFieldKeys, string | undefined> = {
+      title: activeExhibition.title,
+      subtitle: activeExhibition.subtitle,
+      overview: activeExhibition.overview,
+      dateFrom: activeExhibition.dateFrom || undefined,
+      dateTo: activeExhibition.dateTo || undefined,
+      venue: activeExhibition.venue || undefined,
+      hours: activeExhibition.hours || undefined,
+      admissionLink: activeExhibition.admissionLink || undefined,
+      artist: activeExhibition.artist,
+      dates: activeExhibition.dates,
+      admission: activeExhibition.admission,
+      supportedBy: activeExhibition.supportedBy || undefined,
+      exhibit_poster: activeExhibition.exhibit_poster || undefined, // NEW: Initialize exhibit_poster
+    };
+    setLocalExhibition(initialLocalExhibition);
+    // FIX: Clear updateStatus by setting an empty object, now compatible with Partial<Record>
+    setUpdateStatus({});
+    Object.values(timeoutRefs.current).forEach(clearTimeout);
+    // FIX: Reset timeoutRefs.current to an empty object, now compatible with Partial<Record>
+    timeoutRefs.current = {};
+  }, [activeExhibition]);
 
-    if (timeoutRefs.current[field]) { // FIX: Use field directly
-      clearTimeout(timeoutRefs.current[field]); // FIX: Use field directly
+  // FIX: Update handleChange signature to match new signature (value, field) and be generic
+  const handleChange = useCallback(<T extends ExhibitionEditableFieldKeys>(
+    value: string | undefined,
+    field: T
+  ) => {
+    // FIX: Refactored state update to use the spread syntax for creating the new state.
+    // This is generally more reliable for TypeScript's inference with dynamic keys.
+    setLocalExhibition(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+    // FIX: Call the defined handleUpdateStatus
+    handleUpdateStatus(field, 'idle');
+
+    if (timeoutRefs.current[field]) {
+      clearTimeout(timeoutRefs.current[field]);
     }
 
-    timeoutRefs.current[field] = window.setTimeout(async () => { // FIX: Use field directly
+    timeoutRefs.current[field] = window.setTimeout(async () => {
       if (activeExhibition.id) {
-        handleUpdateStatus(field, 'saving'); // FIX: Use field directly
+        // FIX: Call the defined handleUpdateStatus
+        handleUpdateStatus(field, 'saving');
         try {
           const updatedField: Partial<Exhibition> = { [field]: value };
           await onUpdateExhibition(activeExhibition.id, updatedField);
-          handleUpdateStatus(field, 'saved'); // FIX: Use field directly
+          // FIX: Call the defined handleUpdateStatus
+          handleUpdateStatus(field, 'saved');
         } catch (error) {
           console.error(`Failed to update ${field}:`, error);
-          handleUpdateStatus(field, 'error', 3000); // FIX: Use field directly
+          // FIX: Call the defined handleUpdateStatus
+          handleUpdateStatus(field, 'error', 3000);
         }
       }
-    }, DEBOUNCE_DELAY);
+    }, DEBOUNCE_DELAY) as unknown as number;
   }, [activeExhibition.id, onUpdateExhibition, handleUpdateStatus]);
 
-  const getStatusIcon = (field: keyof Exhibition) => { // FIX: Use keyof Exhibition for field
-    switch (updateStatus[field]) {
-      case 'saving':
-        return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />;
-      case 'saved':
-        return <Check className="w-4 h-4 text-green-500" />;
-      case 'error':
-        return <span className="text-red-500 font-bold">!</span>;
-      default:
-        return null;
-    }
-  };
+  // FIX: Use non-generic field in getStatusIcon
+  const getStatusIcon = useCallback((field: ExhibitionEditableFieldKeys) => {
+    return updateStatus[field] === 'saving'
+      ? <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
+      : updateStatus[field] === 'saved'
+      ? <Check className="w-4 h-4 text-green-500" />
+      : updateStatus[field] === 'error'
+      ? <span className="text-red-500 font-bold">!</span>
+      : null;
+  }, [updateStatus]);
 
   const currentOrigin = window.location.origin;
   const embedUrl = `${currentOrigin}/?embed=true&exhibitionId=${activeExhibition.id}`;
@@ -166,24 +218,33 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ theme, activeExhibition,
     <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
       <div className="space-y-4">
         <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
-          <h4 className="font-bold text-sm mb-2">Exhibition Details for "{activeExhibition.title}"</h4>
+          <h4 className="font-bold text-sm mb-4">Exhibition Details for "{activeExhibition.title}"</h4>
           <p className={`text-sm leading-relaxed ${subtext}`}>
             Edit the core information for this exhibition. Changes will be saved automatically.
           </p>
         </div>
 
-        <InputField label="Title" field="title" icon={FileText} value={localExhibition.title || ''} onChange={(val) => handleChange('title', val)} statusIcon={getStatusIcon('title')} theme={theme} />
-        <InputField label="Subtitle" field="subtitle" icon={Layout} value={localExhibition.subtitle || ''} onChange={(val) => handleChange('subtitle', val)} statusIcon={getStatusIcon('subtitle')} theme={theme} />
-        <InputField label="Overview" field="overview" icon={FileText} isTextArea value={localExhibition.overview || ''} onChange={(val) => handleChange('overview', val)} statusIcon={getStatusIcon('overview')} theme={theme} />
-        
+        {/* FIX: Update onChange calls to match new signature (value, field) */}
+        <InputField label="Title" field="title" icon={FileText} value={localExhibition.title} onChange={handleChange} statusIcon={getStatusIcon('title')} uiConfig={uiConfig} />
+        <InputField label="Subtitle" field="subtitle" icon={Layout} value={localExhibition.subtitle} onChange={handleChange} statusIcon={getStatusIcon('subtitle')} uiConfig={uiConfig} />
+        <InputField label="Overview" field="overview" icon={FileText} isTextArea value={localExhibition.overview} onChange={handleChange} statusIcon={getStatusIcon('overview')} uiConfig={uiConfig} />
+
         <div className="flex gap-4">
-          <InputField label="Date From" field="dateFrom" icon={Calendar} type="date" value={localExhibition.dateFrom || ''} onChange={(val) => handleChange('dateFrom', val)} statusIcon={getStatusIcon('dateFrom')} theme={theme} className="flex-1" />
-          <InputField label="Date To" field="dateTo" icon={Calendar} type="date" value={localExhibition.dateTo || ''} onChange={(val) => handleChange('dateTo', val)} statusIcon={getStatusIcon('dateTo')} theme={theme} className="flex-1" />
+          <InputField label="Date From" field="dateFrom" icon={Calendar} inputType="date" value={localExhibition.dateFrom} onChange={handleChange} statusIcon={getStatusIcon('dateFrom')} uiConfig={uiConfig} className="flex-1" />
+          <InputField label="Date To" field="dateTo" icon={Calendar} inputType="date" value={localExhibition.dateTo} onChange={handleChange} statusIcon={getStatusIcon('dateTo')} uiConfig={uiConfig} className="flex-1" />
         </div>
 
-        <InputField label="Venue" field="venue" icon={MapPin} value={localExhibition.venue || ''} onChange={(val) => handleChange('venue', val)} statusIcon={getStatusIcon('venue')} theme={theme} />
-        <InputField label="Hours" field="hours" icon={Clock} value={localExhibition.hours || ''} onChange={(val) => handleChange('hours', val)} statusIcon={getStatusIcon('hours')} theme={theme} />
-        <InputField label="Purchase Ticket Link" field="admissionLink" icon={Ticket} value={localExhibition.admissionLink || ''} onChange={(val) => handleChange('admissionLink', val)} statusIcon={getStatusIcon('admissionLink')} theme={theme} />
+        <InputField label="Venue" field="venue" icon={MapPin} value={localExhibition.venue} onChange={handleChange} statusIcon={getStatusIcon('venue')} uiConfig={uiConfig} />
+        <InputField label="Hours" field="hours" icon={Clock} value={localExhibition.hours} onChange={handleChange} statusIcon={getStatusIcon('hours')} uiConfig={uiConfig} />
+        <InputField label="Purchase Ticket Link" field="admissionLink" icon={Ticket} value={localExhibition.admissionLink} onChange={handleChange} statusIcon={getStatusIcon('admissionLink')} uiConfig={uiConfig} />
+
+        {/* Add more fields here from ExhibitionEditableFieldKeys if needed, following the pattern */}
+        <InputField label="Artist" field="artist" icon={FileText} value={localExhibition.artist} onChange={handleChange} statusIcon={getStatusIcon('artist')} uiConfig={uiConfig} />
+        <InputField label="Dates (Display)" field="dates" icon={Calendar} value={localExhibition.dates} onChange={handleChange} statusIcon={getStatusIcon('dates')} uiConfig={uiConfig} />
+        <InputField label="Admission (Display)" field="admission" icon={Ticket} value={localExhibition.admission} onChange={handleChange} statusIcon={getStatusIcon('admission')} uiConfig={uiConfig} />
+        <InputField label="Supported By" field="supportedBy" icon={FileText} value={localExhibition.supportedBy} onChange={handleChange} statusIcon={getStatusIcon('supportedBy')} uiConfig={uiConfig} />
+        <InputField label="Exhibition Poster URL" field="exhibit_poster" icon={Image} value={localExhibition.exhibit_poster} onChange={handleChange} statusIcon={getStatusIcon('exhibit_poster')} uiConfig={uiConfig} />
+
 
         <div className={`p-4 rounded-xl border ${border} ${controlBgClass} mt-6`}>
             <h4 className="font-bold text-sm mb-4">Embed Exhibition</h4>

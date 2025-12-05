@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import firebase from 'firebase/compat/app';
 import { db } from '../firebase';
 import { Exhibition, ExhibitionZone, ExhibitionArtItem, SimplifiedLightingConfig, FirebaseArtwork } from '../types';
-import { processFirebaseExhibitions, processFirebaseZones, createFirebaseLayout, processFirebaseArtworks, createLayoutFromZone } from '../services/museumService';
+import { processFirebaseExhibitions, processFirebaseZones, createLayoutFromZone } from '../services/museumService';
+// FIX: Import processFirebaseArtworks from services/museumService
+import { processFirebaseArtworks } from '../services/museumService';
 
 const DEFAULT_SIMPLIFIED_LIGHTING_CONFIG: SimplifiedLightingConfig = {
   lightsOn: true,
@@ -10,6 +12,8 @@ const DEFAULT_SIMPLIFIED_LIGHTING_CONFIG: SimplifiedLightingConfig = {
   spotlightMode: 'off',
   manualSpotlightColor: '#ffffff',
   colorTemperature: 5500,
+  keyLightPosition: [-2, 7, 10],
+  fillLightPosition: [5, 2, 5],
 };
 
 const DEFAULT_FALLBACK_EXHIBITION: Exhibition = {
@@ -25,19 +29,20 @@ const DEFAULT_FALLBACK_EXHIBITION: Exhibition = {
   posterColor: 'bg-gray-700',
   defaultLayout: [],
   exhibit_artworks: [],
-  isActive: false, // Ensure fallback has isActive property
+  isActive: false,
 };
 
 const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
   id: 'fallback_zone_id',
   name: 'Loading Zone...',
-  theme: 'empty',
   lightingDesign: {
     description: 'Default lighting.',
     defaultConfig: DEFAULT_SIMPLIFIED_LIGHTING_CONFIG,
     recommendedPresets: [],
   },
   exhibitionId: DEFAULT_FALLBACK_EXHIBITION.id,
+  artwork_selected: [],
+  zone_capacity: 100,
 };
 
 export const useMuseumState = () => {
@@ -104,18 +109,16 @@ export const useMuseumState = () => {
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];
     const processedAllExhibitions = processFirebaseExhibitions(rawExhibitionDocs, firebaseArtworks);
-    // Filter to only include active exhibitions
-    return processedAllExhibitions.filter(ex => ex.isActive === true); // CHANGED: Filter by isActive
+    return processedAllExhibitions.filter(ex => ex.isActive === true);
   }, [rawExhibitionDocs, firebaseArtworks]);
 
-  // Effect to ensure currentIndex is always valid for the filtered exhibitions list
   useEffect(() => {
     if (exhibitions.length === 0) {
       if (currentIndex !== 0) {
-        setCurrentIndex(0); // If no active exhibitions, ensure index is 0 for fallback display
+        setCurrentIndex(0);
       }
     } else if (currentIndex >= exhibitions.length) {
-      setCurrentIndex(0); // If current index is out of bounds for the filtered list, reset to 0
+      setCurrentIndex(0);
     }
   }, [exhibitions, currentIndex]);
 
@@ -132,7 +135,8 @@ export const useMuseumState = () => {
   }, [isLoading, exhibitions, zones, currentIndex]);
   
   const lightingConfig = useMemo((): SimplifiedLightingConfig => {
-    return lightingOverrides[activeZone.id] || activeZone.lightingDesign.defaultConfig;
+    const baseConfig = { ...DEFAULT_SIMPLIFIED_LIGHTING_CONFIG, ...activeZone.lightingDesign.defaultConfig };
+    return { ...baseConfig, ...lightingOverrides[activeZone.id] };
   }, [activeZone, lightingOverrides]);
   
   const currentLayout = useMemo((): ExhibitionArtItem[] => {

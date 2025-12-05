@@ -5,22 +5,26 @@ import { ArtType } from '../../../types';
 
 interface GodRayProps { 
   isActive: boolean; 
+  lightsOn: boolean;
   color?: string;
   artworkType: ArtType;
+  isEditorMode: boolean;
+  isMotionVideo?: boolean;
 }
 
-const GodRay: React.FC<GodRayProps> = ({ isActive, color = "#ffffff", artworkType }) => {
+const GodRay: React.FC<GodRayProps> = ({ isActive, lightsOn, color = "#ffffff", artworkType, isEditorMode, isMotionVideo }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   const { rayRadiusBottom, rayHeight } = useMemo(() => {
     switch (artworkType) {
       case 'canvas_portrait':
       case 'canvas_square':
-        return { rayRadiusBottom: 8, rayHeight: 25 };
+        return { rayRadiusBottom: 10, rayHeight: 25 };
       case 'canvas_landscape':
+      case 'media':
+      case 'motion':
         return { rayRadiusBottom: 9, rayHeight: 30 };
       case 'sculpture_base':
-      case 'sphere_exhibit':
       default:
         return { rayRadiusBottom: 3, rayHeight: 20 };
     }
@@ -28,12 +32,19 @@ const GodRay: React.FC<GodRayProps> = ({ isActive, color = "#ffffff", artworkTyp
   
   useFrame((state, delta) => {
     if (meshRef.current) {
-      const targetOpacity = isActive ? 0.05 : 0.0;
       const material = meshRef.current.material as THREE.MeshBasicMaterial;
+
+      let targetOpacity;
+      if (!lightsOn && isEditorMode) {
+        targetOpacity = isActive ? 0.05 : 0.01;
+      } else {
+        targetOpacity = isActive ? 0.04 : 0.04;
+      }
+
       material.opacity = THREE.MathUtils.lerp(
         material.opacity,
         targetOpacity,
-        delta * 2
+        delta * 3
       );
     }
   });

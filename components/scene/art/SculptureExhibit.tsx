@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useEffect, useState, Suspense } from 'react';
 import * as THREE from 'three';
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { ArtworkData, ArtworkGeometry } from '../../../types';
+import { ArtworkData, ArtworkGeometry, ArtType } from '../../../types';
 import Podium from './Podium';
 
 const getGeometryComponentTypeString = (type: ArtworkGeometry['type'] | string): string => {
@@ -42,18 +42,25 @@ const getSide = (sideString: string | undefined): THREE.Side => {
 
 interface SculptureExhibitProps {
   artworkData?: ArtworkData;
-  zone: string;
   textureUrl?: string;
+  isFocused: boolean;
+  lightsOn: boolean;
+  onDimensionsCalculated?: (width: number, height: number, depth: number, podiumHeight: number, finalGroupYPosition: number) => void;
+  artworkPosition: [number, number, number];
+  artworkRotation: [number, number, number];
+  artworkType: ArtType;
+  onArtworkClickedHtml?: (e: React.MouseEvent<HTMLDivElement>, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType) => void;
 }
 
 const DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT = 0; 
 
 const FADE_DURATION = 800;
 
-const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, textureUrl }) => {
+const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textureUrl, isFocused, lightsOn, onDimensionsCalculated,
+  artworkPosition, artworkRotation, artworkType, onArtworkClickedHtml
+}) => {
   const isGLB = useMemo(() => textureUrl && textureUrl.toLowerCase().includes('.glb'), [textureUrl]);
 
-  // FIX: Remove primitive from @react-three/drei import. It is extended globally in r3f-declarations.ts.
   const gltf = isGLB && textureUrl ? useGLTF(textureUrl) : null;
 
   const defaultMaterialPropsForGlb = useMemo(() => ({
@@ -63,7 +70,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
     metalness: 0,
     roughness: 0.5,
     side: THREE.FrontSide,
-    transparent: true,
+    transparent: false,
     opacity: 1,
     transmission: 0,
     thickness: 0,
@@ -97,6 +104,9 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
     const newScene = cleanedGlbScene.clone();
     newScene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         materials.forEach(originalMaterial => {
           const config = artworkData?.material;
@@ -120,14 +130,12 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
 
           if (config && (newMaterial instanceof THREE.MeshStandardMaterial || newMaterial instanceof THREE.MeshPhysicalMaterial)) {
             newMaterial.map = null;
-            // FIX: Access material properties only after checking its type
             newMaterial.color.set(config?.color ?? defaultMaterialPropsForGlb.color);
             newMaterial.emissive.set(config?.emissive ?? defaultMaterialPropsForGlb.emissive);
             newMaterial.emissiveIntensity = config?.emissiveIntensity ?? defaultMaterialPropsForGlb.emissiveIntensity;
             newMaterial.metalness = config?.metalness ?? defaultMaterialPropsForGlb.metalness;
             newMaterial.roughness = config?.roughness ?? defaultMaterialPropsForGlb.roughness;
             newMaterial.side = getSide(config?.side);
-            newMaterial.transparent = config?.transparent ?? defaultMaterialPropsForGlb.transparent;
             
             if (newMaterial instanceof THREE.MeshPhysicalMaterial) {
                 newMaterial.transmission = config?.transmission ?? defaultMaterialPropsForGlb.transmission;
@@ -142,8 +150,9 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
                 if ('clearcoatRoughness' in newMaterial) (newMaterial as any).clearcoatRoughness = 0;
             }
             
-            newMaterial.transparent = true;
-            newMaterial.opacity = 0;
+            newMaterial.transparent = config?.transparent ?? false;
+            newMaterial.opacity = config?.opacity ?? 1;
+
 
             child.material = newMaterial;
             child.material.needsUpdate = true;
@@ -153,45 +162,6 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
     });
     setClonedGlbWithMaterial(newScene);
   }, [isGLB, cleanedGlbScene, artworkData?.material, defaultMaterialPropsForGlb]);
-
-
-  const [fadeProgress, setFadeProgress] = useState(0);
-  const glbGroupRef = useRef<THREE.Group>(null);
-  const fadeStartTime = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (isGLB && clonedGlbWithMaterial) {
-      fadeStartTime.current = performance.now();
-      setFadeProgress(0);
-    } else if (!isGLB) {
-      setFadeProgress(1);
-      fadeStartTime.current = null;
-    }
-  }, [isGLB, clonedGlbWithMaterial]);
-
-  useFrame((state) => {
-    if (isGLB && clonedGlbWithMaterial && fadeStartTime.current !== null) {
-      const elapsedTime = performance.now() - fadeStartTime.current;
-      const newProgress = Math.min(1, elapsedTime / FADE_DURATION);
-      
-      setFadeProgress(newProgress);
-
-      clonedGlbWithMaterial.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          const materials = Array.isArray(child.material) ? child.material : [child.material];
-          materials.forEach(material => {
-            if (material instanceof THREE.Material) { // FIX: Ensure material is of type THREE.Material
-                material.opacity = newProgress;
-                material.needsUpdate = true;
-            }
-          });
-        }
-      });
-      if (newProgress === 1) {
-          fadeStartTime.current = null;
-      }
-    }
-  });
 
 
   const defaultMaterialProps = useMemo(() => ({
@@ -220,7 +190,6 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
     };
   }, [artworkData]);
 
-  // FIX: Calculate bounding box for dynamically generated geometry
   const [geometryMinX, geometryMaxX, geometryMinY, geometryMaxY, geometryMinZ, geometryMaxZ] = useMemo(() => {
     if (!artworkData?.geometry) {
       return [0, 0, 0, 0, 0, 0];
@@ -296,8 +265,8 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
 
 
   const sculptureVisualHeight = isGLB ? glbRenderProps.height : (geometryMaxY - geometryMinY);
-  const sculptureVisualWidth = geometryMaxX - geometryMinX; 
-  const sculptureVisualDepth = geometryMaxZ - geometryMinZ; 
+  const sculptureVisualWidth = isGLB ? glbRenderProps.horizontalFootprint : (geometryMaxX - geometryMinX);
+  const sculptureVisualDepth = isGLB ? glbRenderProps.horizontalFootprint : (geometryMaxZ - geometryMinZ);
   const parametricHorizontalFootprint = Math.max(sculptureVisualWidth, sculptureVisualDepth);
 
   const finalSculptureHorizontalFootprint = isGLB ? glbRenderProps.horizontalFootprint : parametricHorizontalFootprint;
@@ -355,7 +324,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
     const config = artworkData?.material; 
     return {
       color: config?.color ?? defaultMaterialProps.color,
-      emissive: config?.emissive ?? defaultMaterialProps.emissive,
+      emissive: new THREE.Color(config?.emissive ?? defaultMaterialProps.emissive).getHex(),
       emissiveIntensity: config?.emissiveIntensity ?? defaultMaterialProps.emissiveIntensity,
       metalness: config?.metalness ?? defaultMaterialProps.metalness,
       roughness: config?.roughness ?? defaultMaterialProps.roughness,
@@ -374,11 +343,22 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
       
       return actualPodiumHeight + glbRenderProps.yOffset + DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT;
     }
-    // FIX: Use calculated geometryMinY
     const autoGroundingY = -geometryMinY; 
     const additionalUserOffset = positionOffset[1] || 0;
     return actualPodiumHeight + autoGroundingY + additionalUserOffset + DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT;
   }, [isGLB, glbRenderProps.yOffset, actualPodiumHeight, geometryMinY, positionOffset]);
+
+  useEffect(() => {
+    if (onDimensionsCalculated) {
+      onDimensionsCalculated(
+        finalSculptureHorizontalFootprint,
+        sculptureVisualHeight,
+        finalSculptureHorizontalFootprint,
+        actualPodiumHeight,
+        finalGroupYPosition
+      );
+    }
+  }, [onDimensionsCalculated, finalSculptureHorizontalFootprint, sculptureVisualHeight, actualPodiumHeight, finalGroupYPosition]);
 
 
   if (!artworkData && !isGLB) {
@@ -400,7 +380,6 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
       {isGLB && clonedGlbWithMaterial ? (
         <Suspense fallback={null}>
           <group
-            ref={glbGroupRef}
             position={[
               positionOffset[0] - glbRenderProps.xCenterOffset,
               finalGroupYPosition,
@@ -409,7 +388,6 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
             scale={glbRenderProps.scale}
             rotation={glbRotationEuler}
           >
-            {/* FIX: primitive is extended globally via r3f-declarations.ts */}
             <primitive object={clonedGlbWithMaterial} castShadow receiveShadow />
           </group>
         </Suspense>
@@ -423,7 +401,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, zone, 
             {geometryComponent.type === 'torusKnotGeometry' && <torusKnotGeometry args={geometryComponent.args as [number?, number?, number?, number?, number?, number?]} />}
             {geometryComponent.type === 'sphereGeometry' && <sphereGeometry args={geometryComponent.args as [number?, number?, number?, number?, number?, number?, number?]} />}
             {geometryComponent.type === 'coneGeometry' && <coneGeometry args={geometryComponent.args as [number?, number?, number?, number?, boolean?, number?, number?]} />}
-            <meshPhysicalMaterial {...materialProps} transparent={materialProps.transparent || fadeProgress < 1} opacity={materialProps.opacity * fadeProgress} />
+            <meshPhysicalMaterial {...materialProps} transparent={materialProps.transparent} opacity={materialProps.opacity} />
           </mesh>
         </group>
       )}

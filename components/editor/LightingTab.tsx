@@ -1,11 +1,9 @@
-
-
 import React, { useCallback, useMemo } from 'react';
-import { Sun, Moon, Sparkles } from 'lucide-react';
+import { Sun, Moon, Sparkles, Lightbulb } from 'lucide-react';
 import { SimplifiedLightingConfig, SimplifiedLightingPreset, ZoneLightingDesign } from '../../types';
 
 interface LightingTabProps {
-  theme: {
+  uiConfig: {
     lightsOn: boolean;
     text: string;
     subtext: string;
@@ -18,13 +16,13 @@ interface LightingTabProps {
 }
 
 const LightingTab: React.FC<LightingTabProps> = React.memo(({
-  theme,
+  uiConfig,
   lightingConfig,
   onUpdateLighting,
   fullZoneLightingDesign,
   currentZoneNameForEditor,
 }) => {
-    const { lightsOn, border, subtext } = theme;
+    const { lightsOn, border, subtext } = uiConfig;
     const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
     
     const handleLightingValueChange = useCallback((key: keyof SimplifiedLightingConfig, value: any) => onUpdateLighting({ ...lightingConfig, [key]: value }), [onUpdateLighting, lightingConfig]);
@@ -61,6 +59,23 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
                         </div>
                     </div>
                 </div>
+
+                <ControlRow label="Master Lights" value={lightingConfig.lightsOn ? 'ON' : 'OFF'}>
+                    <label htmlFor="lights-on-toggle" className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="lights-on-toggle"
+                            className="sr-only peer"
+                            checked={lightingConfig.lightsOn}
+                            onChange={(e) => handleLightingValueChange('lightsOn', e.target.checked)}
+                        />
+                        <div className="w-14 h-8 bg-neutral-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[6px] after:left-[6px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
+                        <span className={`ml-3 text-sm font-medium ${uiConfig.text}`}>
+                            {lightingConfig.lightsOn ? 'Lights On' : 'Lights Off'}
+                        </span>
+                    </label>
+                </ControlRow>
+                
                 <ControlRow label="Ambient Environment" value={`${lightingConfig.colorTemperature}K`}>
                     <div className="w-full flex items-center gap-3">
                         <span className="text-amber-500"><Sun className="w-4 h-4" /></span>

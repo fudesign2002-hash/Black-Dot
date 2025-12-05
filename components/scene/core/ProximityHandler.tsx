@@ -7,18 +7,19 @@ interface ProximityHandlerProps {
   artworks: ExhibitionArtItem[];
   setFocusedIndex: (index: number) => void;
   currentFocusedIndex: number;
+  focusedArtworkInstanceId: string | null;
 }
 
-const THROTTLE_TIME = 100;
-const CAMERA_MOVE_THRESHOLD = 0.05;
+const THROTTLE_TIME = 2000;
+const CAMERA_MOVE_THRESHOLD = 0.5;
 
-const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocusedIndex, currentFocusedIndex }) => {
+const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocusedIndex, currentFocusedIndex, focusedArtworkInstanceId }) => {
   const { camera } = useThree();
   const tempV = useMemo(() => new THREE.Vector3(), []);
   const frustum = useMemo(() => new THREE.Frustum(), []);
   const projectionScreenMatrix = useMemo(() => new THREE.Matrix4(), []);
   const artWorldPosition = useMemo(() => new THREE.Vector3(), []);
-  
+
 
   const lastCameraPosition = useRef(new THREE.Vector3());
   const lastCameraQuaternion = useRef(new THREE.Quaternion());
@@ -26,6 +27,13 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
   const lastBestCandidateIndex = useRef(-1);
 
   useFrame((state) => {
+    if (focusedArtworkInstanceId) {
+      if (currentFocusedIndex !== -1) {
+        setFocusedIndex(-1);
+      }
+      return;
+    }
+
     const cameraMoved =
       lastCameraPosition.current.distanceToSquared(camera.position) > CAMERA_MOVE_THRESHOLD ||
       lastCameraQuaternion.current.angleTo(camera.quaternion) > CAMERA_MOVE_THRESHOLD;
@@ -34,8 +42,8 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
       lastCameraPosition.current.copy(camera.position);
       lastCameraQuaternion.current.copy(camera.quaternion);
     } else if (performance.now() - lastUpdateTime.current < THROTTLE_TIME && lastBestCandidateIndex.current === currentFocusedIndex) {
-      
-      return; 
+
+      return;
     }
 
     let bestScore = Infinity;
@@ -49,7 +57,7 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
       artWorldPosition.set(...art.position);
 
       if (!frustum.containsPoint(artWorldPosition)) {
-        return; 
+        return;
       }
 
       tempV.copy(artWorldPosition).project(camera);
@@ -57,15 +65,15 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
       const screenPaddingX = 0.1;
       if (tempV.x < (-1 + screenPaddingX) || tempV.x > (1 - screenPaddingX) ||
           tempV.z < -1 || tempV.z > 1) {
-        return; 
+        return;
       }
 
       const distToScreenXCenter = Math.abs(tempV.x);
 
-      let score = distToScreenXCenter; 
-      
+      let score = distToScreenXCenter;
+
       if (idx === currentFocusedIndex) {
-          score *= 0.8; 
+          score *= 0.8;
       }
 
       if (score < bestScore) {
@@ -73,7 +81,7 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
         bestCandidateIndex = idx;
       }
     });
-    
+
     lastBestCandidateIndex.current = bestCandidateIndex;
 
     const now = performance.now();

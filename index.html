@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Black Dot</title>
+    <title>Block Dot</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       body, html, #root {
@@ -27,6 +28,112 @@
           transform: scale(0.6);
           opacity: 1;
         }
+      }
+      .youtube-video-html {
+        z-index: 10 !important; 
+      }
+      .heart-emitter-wrapper {
+        z-index: 999 !important;
+      }
+      html.dark input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+      }
+      @keyframes textShine {
+        0% {
+            background-position: 0% 50%;
+        }
+        100% {
+            background-position: 100% 50%;
+        }
+      }
+
+      .heart-particle-container {
+          position: relative;
+          width: 0;
+          height: 0;
+          pointer-events: none;
+      }
+
+      .heart-particle {
+          position: absolute;
+          font-size: 1rem;
+          opacity: 0;
+          pointer-events: none;
+          animation-timing-function: ease-out;
+          animation-fill-mode: forwards;
+          line-height: 1;
+          text-shadow: 0 0 5px rgba(0,0,0,0.2);
+      }
+
+      @keyframes floatAndFade {
+          0% {
+              transform: translate(var(--start-x, -50%), var(--start-y, 0)) scale(0);
+              opacity: 0;
+          }
+          10% {
+              transform: translate(var(--start-x, -50%), var(--start-y, 0)) scale(1);
+              opacity: 1;
+          }
+          100% {
+              transform: translate(var(--end-x, -50%), var(--end-y, -150px)) scale(var(--scale-end, 1.2));
+              opacity: 0;
+          }
+      }
+
+      @keyframes ripple-expand-subtle {
+        0% {
+          transform: translate(-50%, -50%) scale(0);
+          opacity: 1;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1.5);
+          opacity: 0;
+        }
+      }
+
+      @keyframes ripple-expand-prominent {
+        0% {
+          transform: translate(-50%, -50%) scale(0);
+          opacity: 1;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(2.0);
+          opacity: 0;
+        }
+      }
+
+      .ripple-effect {
+        position: absolute;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 5;
+        transition: border-color 0.3s ease-out;
+      }
+
+      .ripple-effect.subtle {
+        width: 30px;
+        height: 30px;
+        border: 2px solid currentColor;
+        animation: ripple-expand-subtle 0.7s ease-out forwards;
+      }
+
+      .ripple-effect.prominent {
+        width: 40px;
+        height: 40px;
+        border: 4px solid currentColor;
+        animation: ripple-expand-prominent 0.8s ease-out forwards;
+      }
+
+      @keyframes jiggle {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-2px); }
+        75% { transform: translateX(2px); }
+      }
+      .text-jiggle {
+        animation: jiggle 0.1s infinite alternate;
       }
     </style>
   <script type="importmap">

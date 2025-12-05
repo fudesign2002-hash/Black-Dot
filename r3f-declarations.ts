@@ -1,78 +1,10 @@
+
 import * as THREE from 'three';
 import { extend } from '@react-three/fiber';
 import type React from 'react';
-// FIX: Removed Object3DNode as it's typically inferred or not directly imported like this.
-// If primitive needs specific typing, it's usually handled by extend or by using `JSX.IntrinsicElements` directly.
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'model-viewer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        src: string;
-        alt?: string;
-        'auto-rotate'?: boolean;
-        'camera-controls'?: boolean;
-        class?: string;
-        style?: string; 
-        'shadow-intensity'?: string;
-        'environment-image'?: string;
-        ar?: boolean;
-        'disable-zoom'?: boolean;
-        'disable-pan'?: boolean;
-        'disable-rotate'?: boolean;
-        orientation?: string;
-      };
-      div: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
-      span: React.DetailedHTMLProps<React.HTMLAttributes<HTMLSpanElement>, HTMLSpanElement>;
-      p: React.DetailedHTMLProps<React.HTMLAttributes<HTMLParagraphElement>, HTMLParagraphElement>;
-      button: React.DetailedHTMLProps<React.ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>;
-      input: React.DetailedHTMLProps<React.InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>;
-      label: React.DetailedHTMLProps<React.LabelHTMLAttributes<HTMLLabelElement>, HTMLLabelElement>;
-      img: React.DetailedHTMLProps<React.ImgHTMLAttributes<HTMLImageElement>, HTMLImageElement>;
-      video: React.DetailedHTMLProps<React.VideoHTMLAttributes<HTMLVideoElement>, HTMLVideoElement>;
-      iframe: React.DetailedHTMLProps<React.IframeHTMLAttributes<HTMLIFrameElement>, HTMLIFrameElement>; 
-      a: React.DetailedHTMLProps<React.AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>;
-      h1: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
-      h2: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
-      h3: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
-      h4: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
-      h5: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
-      pre: React.DetailedHTMLProps<React.HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
-      code: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
-      svg: React.DetailedHTMLProps<React.SVGAttributes<SVGSVGElement>, SVGSVGElement>;
-      rect: React.DetailedHTMLProps<React.SVGAttributes<SVGRectElement>, SVGRectElement>;
-      line: React.DetailedHTMLProps<React.SVGAttributes<SVGLineElement>, SVGLineElement>; 
-      g: React.DetailedHTMLProps<React.SVGAttributes<SVGGElement>, SVGGElement>;
-      circle: React.DetailedHTMLProps<React.SVGAttributes<SVGCircleElement>, SVGCircleElement>;
-      textarea: React.DetailedHTMLProps<React.TextareaHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>;
-
-      group: React.PropsWithChildren<Partial<import('three').Group>>;
-      mesh: React.PropsWithChildren<Partial<import('three').Mesh>>;
-      boxGeometry: React.PropsWithChildren<Partial<import('three').BoxGeometry>>;
-      cylinderGeometry: React.PropsWithChildren<Partial<import('three').CylinderGeometry>>;
-      icosahedronGeometry: React.PropsWithChildren<Partial<import('three').IcosahedronGeometry>>;
-      torusGeometry: React.PropsWithChildren<Partial<import('three').TorusGeometry>>;
-      torusKnotGeometry: React.PropsWithChildren<Partial<import('three').TorusKnotGeometry>>;
-      sphereGeometry: React.PropsWithChildren<Partial<import('three').SphereGeometry>>;
-      planeGeometry: React.PropsWithChildren<Partial<import('three').PlaneGeometry>>;
-      coneGeometry: React.PropsWithChildren<Partial<import('three').ConeGeometry>>;
-      ambientLight: React.PropsWithChildren<Partial<import('three').AmbientLight>>;
-      directionalLight: React.PropsWithChildren<Partial<import('three').DirectionalLight>>;
-      pointLight: React.PropsWithChildren<Partial<import('three').PointLight>>;
-      spotLight: React.PropsWithChildren<Partial<import('three').SpotLight>>;
-      lineSegments: React.PropsWithChildren<Partial<import('three').LineSegments>>;
-      lineBasicMaterial: React.PropsWithChildren<Partial<import('three').LineBasicMaterial>>;
-      meshStandardMaterial: React.PropsWithChildren<Partial<import('three').MeshStandardMaterial>>;
-      meshPhysicalMaterial: React.PropsWithChildren<Partial<import('three').MeshPhysicalMaterial>>;
-      meshBasicMaterial: React.PropsWithChildren<Partial<import('three').MeshBasicMaterial>>;
-      color: React.PropsWithChildren<any>;
-      fog: React.PropsWithChildren<any>;
-      // FIX: Use `Object3D` for primitive as it's the base class for all scene objects.
-      primitive: React.PropsWithChildren<Partial<import('three').Object3D>>;
-    }
-  }
-}
-
+// 這些由 extend 處理並註冊供 R3F 使用。
+// 這部分是正確且必要的。
 extend({
   AmbientLight: THREE.AmbientLight,
   DirectionalLight: THREE.DirectionalLight,
@@ -92,6 +24,50 @@ extend({
   MeshStandardMaterial: THREE.MeshStandardMaterial,
   MeshPhysicalMaterial: THREE.MeshPhysicalMaterial,
   MeshBasicMaterial: THREE.MeshBasicMaterial,
+  LineBasicMaterial: THREE.LineBasicMaterial,
 });
 
+// FIX: 直接擴充全域 JSX.IntrinsicElements 以包含 React 的內建元素，
+// 並明確定義常見的 R3F 元素和 SVG 元素，以解決「屬性不存在」的錯誤。
+declare global { // Augment global namespace for JSX
+  namespace JSX {
+    interface IntrinsicElements extends React.JSX.IntrinsicElements {
+      // 明確添加常見的 R3F 元素類型，簡化為 `any` 以確保最大兼容性。
+      ambientLight: any;
+      directionalLight: any;
+      pointLight: any;
+      spotLight: any;
+      mesh: any;
+      group: any;
+      boxGeometry: any;
+      cylinderGeometry: any;
+      icosahedronGeometry: any;
+      torusKnotGeometry: any;
+      torusGeometry: any;
+      sphereGeometry: any;
+      planeGeometry: any;
+      coneGeometry: any;
+      lineSegments: any;
+      meshStandardMaterial: any;
+      meshPhysicalMaterial: any;
+      meshBasicMaterial: any;
+      lineBasicMaterial: any;
+      primitive: any; // 用於 `useGLTF` 和通用對象
+      color: any;   // 用於 `<color attach="..." />`
+      fog: any;     // 用於 `<fog attach="..." />`
+
+      // 確保 SVG 元素也包含在內，以防出現錯誤。
+      svg: React.SVGProps<SVGSVGElement>;
+      rect: React.SVGProps<SVGRectElement>;
+      line: React.SVGProps<SVGLineElement>;
+      g: React.SVGProps<SVGGElement>;
+      circle: React.SVGProps<SVGCircleElement>;
+
+      // 回退，用於任何其他可能出現的自定義元素（例如，來自其他庫）。
+      [elem: string]: any;
+    }
+  }
+}
+
+// `export {};` 保持此檔案為模組。
 export {};

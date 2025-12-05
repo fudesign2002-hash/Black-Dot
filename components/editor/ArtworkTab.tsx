@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Video, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Video, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'; // NEW: Added AlertCircle for error state
 import { FirebaseArtwork, ExhibitionArtItem, ArtworkData, ArtworkMaterialConfig, MaterialPreset } from '../../types';
 import { storage } from '../../firebase';
 import { getVideoEmbedUrl } from '../../services/utils/videoUtils';
@@ -9,7 +9,7 @@ const MAX_IMAGE_HEIGHT = 1200;
 const JPEG_QUALITY = 0.8;
 
 interface ArtworkTabProps {
-  theme: {
+  uiConfig: {
     lightsOn: boolean;
     text: string;
     subtext: string;
@@ -20,9 +20,10 @@ interface ArtworkTabProps {
   currentLayout: ExhibitionArtItem[];
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
-    onFocusArtwork: (artworkInstanceId: string | null) => void;
+  onFocusArtwork: (artworkInstanceId: string | null) => void;
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>;
   onOpenConfirmationDialog: (artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => void;
+  onSelectArtwork: (id: string | null) => void;
 }
 
 const MATERIAL_PRESETS: MaterialPreset[] = [
@@ -64,8 +65,17 @@ const MATERIAL_PRESETS: MaterialPreset[] = [
   },
 ];
 
+const normalizeDegrees = (degrees: number): number => {
+  let normalized = degrees % 360;
+  if (normalized > 180) {
+    normalized -= 360;
+  } else if (normalized < -180) {
+    normalized += 360;
+  }
+  return normalized;
+};
 
-const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtworks, currentLayout, onUpdateArtworkFile, onUpdateArtworkData, onFocusArtwork, onRemoveArtworkFromLayout, onOpenConfirmationDialog }) => {
+const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseArtworks, currentLayout, onUpdateArtworkFile, onUpdateArtworkData, onFocusArtwork, onRemoveArtworkFromLayout, onOpenConfirmationDialog, onSelectArtwork }) => {
   const [editingUrlArtworkId, setEditingUrlArtworkId] = useState<string | null>(null);
   const [currentEditValue, setCurrentEditValue] = useState<string>('');
   const [originalArtworkFile, setOriginalArtworkFile] = useState<string>('');
@@ -78,7 +88,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
   const [glbPreviewRotation, setGlbPreviewRotation] = useState<[number, number, number]>([0, 0, 0]);
   const [selectedMaterialPresetId, setSelectedMaterialPresetId] = useState<string | null>(null);
 
-  const { lightsOn, text, subtext, border, input } = theme;
+  const { lightsOn, text, subtext, border, input } = uiConfig;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
 
   const relevantArtworks = useMemo(() => {
@@ -116,29 +126,58 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
     }
   }, [editingUrlArtworkId, originalArtworkFile, onUpdateArtworkFile, handleUpdateStatus]);
 
-  const handleRotateAndSaveGlb = useCallback(async (artworkId: string, axis: 0 | 1 | 2) => {
+  const handleGlbAxisRotate = useCallback(async (artworkId: string, uiAxisIndex: 0 | 1 | 2) => {
     handleUpdateStatus(artworkId, 'saving');
     
-    const newRotationDegrees = [...glbPreviewRotation];
-    newRotationDegrees[axis] = (newRotationDegrees[axis] + 90);
-    if (newRotationDegrees[axis] > 180) newRotationDegrees[axis] -= 360;
-    if (newRotationDegrees[axis] < -180) newRotationDegrees[axis] += 360;
+    const currentArtwork = firebaseArtworks.find(art => art.id === artworkId);
+    if (!currentArtwork) {
+        console.error("Artwork not found for ID:", artworkId);
+        handleUpdateStatus(artworkId, 'error', 3000);
+        return;
+    }
     
-    setGlbPreviewRotation(newRotationDegrees as [number, number, number]);
+    const currentRotationOffsetFromDB = currentArtwork.artwork_data?.rotation_offset;
+    const initialRotation: [number, number, number] = (currentRotationOffsetFromDB && currentRotationOffsetFromDB.length === 3)
+        ? currentRotationOffsetFromDB
+        : [0, 0, 0];
+    const newRotationOffsetRadians: [number, number, number] = [...initialRotation];
+
+    const currentDegreeForUIaxis = glbPreviewRotation[uiAxisIndex];
+    const newDegreeForUIaxis = normalizeDegrees(currentDegreeForUIaxis + 90);
+    
+    const radianValue = newDegreeForUIaxis * (Math.PI / 180);
+
+    // This logic needs to align with how the rotation_offset is interpreted in SculptureExhibit.tsx
+    // SculptureExhibit.tsx currently uses [rotationOffset[1], rotationOffset[2], rotationOffset[0]] for GLB Euler (Y, Z, X)
+    // So, uiAxisIndex 0 -> rotationOffset[1] (Y-axis in Three.js, horizontal spin)
+    // uiAxisIndex 1 -> rotationOffset[2] (Z-axis in Three.js, depth axis)
+    // uiAxisIndex 2 -> rotationOffset[0] (X-axis in Three.js, front/back lean)
+
+    // To rotate around the visual Y-axis (vertical spin in UI) which maps to Three.js Y-axis:
+    if (uiAxisIndex === 0) { // This corresponds to a visual Y-axis rotation in the UI
+      newRotationOffsetRadians[1] = radianValue; // Maps to Three.js Y
+    } else if (uiAxisIndex === 1) { // This corresponds to a visual X-axis rotation (tilt forward/backward)
+      newRotationOffsetRadians[0] = radianValue; // Maps to Three.js X
+    } else if (uiAxisIndex === 2) { // This corresponds to a visual Z-axis rotation (roll left/right)
+      newRotationOffsetRadians[2] = radianValue; // Maps to Three.js Z
+    }
+
+
+    setGlbPreviewRotation((prev: [number, number, number]) => {
+        const newGlbPreviewRotation: [number, number, number] = [prev[0], prev[1], prev[2]];
+        newGlbPreviewRotation[uiAxisIndex] = newDegreeForUIaxis;
+        return newGlbPreviewRotation;
+    });
 
     try {
-        const rotationOffsetRadians: [number, number, number] = [
-            newRotationDegrees[0] * (Math.PI / 180),
-            newRotationDegrees[1] * (180 / Math.PI),
-            newRotationDegrees[2] * (180 / Math.PI),
-        ];
-        await onUpdateArtworkData(artworkId, { rotation_offset: rotationOffsetRadians });
+        await onUpdateArtworkData(artworkId, { rotation_offset: newRotationOffsetRadians });
         handleUpdateStatus(artworkId, 'saved');
     } catch (error) {
         console.error("Failed to save GLB rotation:", error);
         handleUpdateStatus(artworkId, 'error', 3000);
     }
-  }, [glbPreviewRotation, onUpdateArtworkData, handleUpdateStatus]);
+  }, [glbPreviewRotation, firebaseArtworks, onUpdateArtworkData, handleUpdateStatus]);
+
 
   const handleSaveMaterial = useCallback(async (artworkId: string, presetId: string, materialConfig: ArtworkMaterialConfig | null) => {
     handleUpdateStatus(artworkId, 'saving');
@@ -152,52 +191,78 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
     }
   }, [onUpdateArtworkData, handleUpdateStatus]);
 
-  const handleEditClick = useCallback((artwork: FirebaseArtwork) => {
-    setEditingUrlArtworkId(artwork.id);
-    const initialValue = artwork.artwork_file || artwork.file || '';
-    setCurrentEditValue(initialValue);
-    setOriginalArtworkFile(initialValue);
-    setUpdateStatus(prev => ({ ...prev, [artwork.id]: 'idle' }));
-    setUploadMessage(null);
-    setUploadProgress(0);
-    setIsUploading(false);
-    setPreviewMediaError(prev => ({ ...prev, [artwork.id]: false }));
+  const handleToggleEdit = useCallback((artwork: FirebaseArtwork) => {
+    const isCurrentlyEditing = editingUrlArtworkId === artwork.id;
     
-    if (artwork.artwork_type === 'sculpture' && artwork.artwork_file?.toLowerCase().includes('.glb')) {
-        const rotationOffset = artwork.artwork_data?.rotation_offset || [0, 0, 0];
-        setGlbPreviewRotation([
-            rotationOffset[0] * (180 / Math.PI),
-            rotationOffset[1] * (180 / Math.PI),
-            rotationOffset[2] * (180 / Math.PI),
-        ]);
-
-        const savedMaterial = artwork.artwork_data?.material;
-        let presetIdFound: string | null = 'original';
-        if (savedMaterial) {
-            const matchedPreset = MATERIAL_PRESETS.find(preset => {
-                if (!preset.config) return false;
-                const keys: Array<keyof ArtworkMaterialConfig> = ['color', 'roughness', 'metalness', 'emissive', 'emissiveIntensity', 'transmission', 'thickness', 'clearcoat', 'clearcoatRoughness', 'transparent', 'opacity', 'side'];
-                return keys.every(key => preset.config?.[key] === savedMaterial[key]);
-            });
-            if (matchedPreset) {
-                presetIdFound = matchedPreset.id;
-            } else {
-                
-                presetIdFound = 'original'; 
-            }
-        }
-        setSelectedMaterialPresetId(presetIdFound);
-
-        const artworkInstance = currentLayout.find(item => item.artworkId === artwork.id);
-        if (artworkInstance) {
-            onFocusArtwork(artworkInstance.id);
-        }
+    if (isCurrentlyEditing) {
+      setEditingUrlArtworkId(null);
+      onFocusArtwork(null);
+      onSelectArtwork(null);
     } else {
-        setGlbPreviewRotation([0, 0, 0]);
-        setSelectedMaterialPresetId(null);
-        onFocusArtwork(null);
+      setEditingUrlArtworkId(artwork.id);
+      const initialValue = artwork.artwork_file || artwork.file || '';
+      setCurrentEditValue(initialValue);
+      setOriginalArtworkFile(initialValue);
+      setUpdateStatus(prev => ({ ...prev, [artwork.id]: 'idle' }));
+      setUploadMessage(null);
+      setUploadProgress(0);
+      setIsUploading(false);
+      setPreviewMediaError(prev => ({ ...prev, [artwork.id]: false }));
+      
+      const artworkInstance = currentLayout.find(item => item.artworkId === artwork.id);
+
+      if (artworkInstance) {
+          onSelectArtwork(artworkInstance.id);
+      } else {
+          onSelectArtwork(null); 
+      }
+
+      if (artwork.artwork_type === 'sculpture' && artwork.artwork_file?.toLowerCase().includes('.glb')) {
+          const rotationOffset = artwork.artwork_data?.rotation_offset;
+          const initialRotation: [number, number, number] = (rotationOffset && rotationOffset.length === 3)
+              ? rotationOffset
+              : [0, 0, 0];
+          // These degrees map to the UI's visual interpretation (Y-axis for horizontal spin, X for tilt, Z for roll)
+          setGlbPreviewRotation([
+              normalizeDegrees(initialRotation[1] * (180 / Math.PI)), // Three.js Y-axis -> UI visual Y-axis (horizontal spin)
+              normalizeDegrees(initialRotation[0] * (180 / Math.PI)), // Three.js X-axis -> UI visual X-axis (tilt forward/backward)
+              normalizeDegrees(initialRotation[2] * (180 / Math.PI)), // Three.js Z-axis -> UI visual Z-axis (roll left/right)
+          ]);
+
+          const savedMaterial = artwork.artwork_data?.material;
+          let presetIdFound: string | null = 'original';
+          if (savedMaterial) {
+              const matchedPreset = MATERIAL_PRESETS.find(preset => {
+                  if (!preset.config) return false;
+                  // Compare properties, handling undefined/null values
+                  const keys: Array<keyof ArtworkMaterialConfig> = ['color', 'roughness', 'metalness', 'emissive', 'emissiveIntensity', 'transmission', 'thickness', 'clearcoat', 'clearcoatRoughness', 'transparent', 'opacity', 'side'];
+                  return keys.every(key => (preset.config?.[key] === savedMaterial[key]) || (preset.config?.[key] === undefined && savedMaterial[key] === null));
+              });
+              if (matchedPreset) {
+                  presetIdFound = matchedPreset.id;
+              } else {
+                  presetIdFound = 'original'; 
+              }
+          }
+          setSelectedMaterialPresetId(presetIdFound);
+      } else {
+          setGlbPreviewRotation([0, 0, 0]);
+          setSelectedMaterialPresetId(null);
+      }
     }
-  }, [setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks]);
+  }, [editingUrlArtworkId, setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks, onSelectArtwork, normalizeDegrees]);
+
+  const handleArtworkDoubleClick = useCallback((artwork: FirebaseArtwork) => {
+    const artworkInstance = currentLayout.find(item => item.artworkId === artwork.id);
+    if (artworkInstance) {
+      onFocusArtwork(artworkInstance.id);
+      onSelectArtwork(artworkInstance.id);
+      if (!editingUrlArtworkId) {
+        handleToggleEdit(artwork);
+      }
+    }
+  }, [currentLayout, onFocusArtwork, onSelectArtwork, editingUrlArtworkId, handleToggleEdit]);
+
 
   const handleRemoveClick = useCallback(async (artworkId: string, artworkTitle: string) => {
     const onConfirmRemoval = async () => {
@@ -208,6 +273,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
         if (editingUrlArtworkId === artworkId) {
           setEditingUrlArtworkId(null);
           onFocusArtwork(null);
+          onSelectArtwork(null);
         }
       } catch (error) {
         console.error("Failed to remove artwork from layout:", error);
@@ -217,7 +283,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
     };
 
     onOpenConfirmationDialog(artworkId, artworkTitle, onConfirmRemoval);
-  }, [editingUrlArtworkId, onFocusArtwork, onRemoveArtworkFromLayout, handleUpdateStatus, onOpenConfirmationDialog]);
+  }, [editingUrlArtworkId, onFocusArtwork, onSelectArtwork, onRemoveArtworkFromLayout, handleUpdateStatus, onOpenConfirmationDialog]);
 
   useEffect(() => {
     if (editingUrlArtworkId) {
@@ -236,384 +302,318 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ theme, firebaseArtwo
 
     const artwork = firebaseArtworks.find(art => art.id === artworkId);
     if (!artwork) {
-        console.error("Artwork not found for ID:", artworkId);
-        setUploadMessage('Upload failed: Artwork not found.');
+      setUploadMessage('Artwork not found.');
+      setIsUploading(false);
+      handleUpdateStatus(artworkId, 'error');
+      return;
+    }
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExtension || '');
+    const isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(fileExtension || '');
+    const isGlb = fileExtension === 'glb';
+
+    if (!isImage && !isVideo && !isGlb) {
+      setUploadMessage('Unsupported file type.');
+      setIsUploading(false);
+      handleUpdateStatus(artworkId, 'error');
+      return;
+    }
+
+    let processedFile = file;
+
+    if (isImage) {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await new Promise(resolve => img.onload = resolve);
+
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > MAX_IMAGE_WIDTH || height > MAX_IMAGE_HEIGHT) {
+        if (width > height) {
+          height = Math.round(height * (MAX_IMAGE_WIDTH / width));
+          width = MAX_IMAGE_WIDTH;
+        } else {
+          width = Math.round(width * (MAX_IMAGE_HEIGHT / height));
+          height = MAX_IMAGE_HEIGHT;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+      }
+      processedFile = await new Promise<File>(resolve => {
+        canvas.toBlob(blob => {
+          if (blob) {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          } else {
+            resolve(file); // Fallback to original if blob conversion fails
+          }
+        }, 'image/jpeg', JPEG_QUALITY);
+      });
+    }
+
+    const storageRef = storage.ref();
+    const artworkFilesRef = storageRef.child(`artwork_files/${artworkId}/${processedFile.name}`);
+    const uploadTask = artworkFilesRef.put(processedFile);
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress);
+        setUploadMessage(`Uploading: ${progress.toFixed(0)}%`);
+      },
+      (error) => {
+        console.error("Upload failed:", error);
+        setUploadMessage('Upload failed!');
+        setIsUploading(false);
+        handleUpdateStatus(artworkId, 'error', 3000);
+      },
+      async () => {
+        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+        await handleSaveUrl(artworkId, downloadURL);
+        setUploadMessage('Upload complete!');
         setIsUploading(false);
         setUploadProgress(0);
-        return;
-    }
+        handleUpdateStatus(artworkId, 'saved');
+      }
+    );
+  }, [firebaseArtworks, handleSaveUrl, handleUpdateStatus]);
 
-    const uploadAndSave = async (blobToUpload: Blob, originalFileName: string) => {
-        let subfolder = 'other';
-        switch (artwork.artwork_type) {
-            case 'painting':
-                subfolder = 'painting';
-                break;
-            case 'sculpture':
-                subfolder = 'sculpture';
-                break;
-            case 'motion':
-            case 'media':
-                subfolder = 'media'; 
-                break;
-        }
 
-        try {
-            const fileName = blobToUpload.type.startsWith('image/') ? `compressed_${originalFileName}` : originalFileName;
-            const storageRef = storage.ref().child(`artwork_files/${subfolder}/${artworkId}-${Date.now()}_${fileName}`);
-            const uploadTask = storageRef.put(blobToUpload);
+  const getMediaPreview = useCallback((artwork: FirebaseArtwork) => {
+    const fileUrl = artwork.artwork_file || artwork.file;
+    if (!fileUrl) return null;
 
-            uploadTask.on(
-                'state_changed',
-                (snapshot) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    setUploadProgress(progress);
-                },
-                (error) => {
-                    console.error("Upload failed:", error);
-                    setUploadMessage('Upload failed!');
-                    setIsUploading(false);
-                    setUploadProgress(0);
-                    setPreviewMediaError(prev => ({ ...prev, [artworkId]: true }));
-                },
-                async () => {
-                    const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
-                    setCurrentEditValue(downloadURL);
-                    setUploadMessage('Upload successful! Saving...');
-                    setIsUploading(false);
-                    setUploadProgress(100);
-                    if (fileInputRef.current) fileInputRef.current.value = "";
+    const isVideo = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)$/i.test(fileUrl.split('?')[0]));
+    const isImage = fileUrl && (/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(fileUrl.split('?')[0]));
+    const isGlb = fileUrl && fileUrl.toLowerCase().includes('.glb');
 
-                    await handleSaveUrl(artwork.id, downloadURL);
-                    setUploadMessage('Saved!');
-                }
-            );
-        } catch (error) {
-            console.error("Error initiating upload:", error);
-            setUploadMessage('Upload failed!');
-            setIsUploading(false);
-            setUploadProgress(0);
-            setPreviewMediaError(prev => ({ ...prev, [artworkId]: true }));
-        }
-    };
-
-    if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const img = new Image();
-            img.onload = () => {
-                let width = img.width;
-                let height = img.height;
-
-                
-                if (width > height) {
-                    if (width > MAX_IMAGE_WIDTH) {
-                        height *= MAX_IMAGE_WIDTH / width;
-                        width = MAX_IMAGE_WIDTH;
-                    }
-                } else {
-                    if (height > MAX_IMAGE_HEIGHT) {
-                        width *= MAX_IMAGE_HEIGHT / height;
-                        height = MAX_IMAGE_HEIGHT;
-                    }
-                }
-
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    console.error("Failed to get 2D canvas context.");
-                    setUploadMessage('Image compression failed!');
-                    setIsUploading(false);
-                    setUploadProgress(0);
-                    setPreviewMediaError(prev => ({ ...prev, [artworkId]: true }));
-                    return;
-                }
-                ctx.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob((blob) => {
-                    if (blob) {
-                        uploadAndSave(blob, file.name);
-                    } else {
-                        console.error("Failed to compress image to Blob.");
-                        setUploadMessage('Image compression failed!');
-                        setIsUploading(false);
-                        setUploadProgress(0);
-                        setPreviewMediaError(prev => ({ ...prev, [artworkId]: true }));
-                    }
-                }, 'image/jpeg', JPEG_QUALITY);
-
-            };
-            img.src = reader.result as string;
-        };
-        reader.readAsDataURL(file);
-    } else {
-        
-        uploadAndSave(file, file.name);
-    }
-}, [handleSaveUrl, firebaseArtworks]);
-
-  const getStatusIcon = (status: 'idle' | 'saving' | 'saved' | 'error', artworkId: string) => {
-    switch (status) {
-      case 'saving':
-        return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />;
-      case 'saved':
-        return <Check className="w-4 h-4 text-green-500" />;
-      case 'error':
-        return <span className="text-red-500 font-bold">!</span>;
-      default:
-        return null;
-    }
-  };
-
-  const renderMediaPreview = useCallback((artwork: FirebaseArtwork, url: string | undefined, size: 'small' | 'large' = 'small') => {
-    if (!url) {
+    const hasError = previewMediaError[artwork.id];
+    
+    if (hasError) {
       return (
-        <div className={`flex items-center justify-center ${size === 'small' ? 'h-24' : 'h-[150px]'} bg-neutral-500/10 rounded-md text-sm ${subtext}`}>
-          No preview content.
+        <div className="flex items-center justify-center w-full h-full bg-red-800 text-white rounded-md text-center">
+          <AlertCircle className="w-8 h-8 mr-2" />
+          Error Loading Media
         </div>
       );
     }
 
-    const currentError = previewMediaError[artwork.id];
-    const aspectRatioClass = artwork.artwork_type === 'painting' ? 'aspect-square' : 'aspect-video';
-    const errorBgClass = `w-full h-full bg-gray-400 flex items-center justify-center text-white text-sm rounded-sm ${aspectRatioClass}`;
-
-    if (currentError) {
-      return (
-        <div className={errorBgClass}>
-          <span className="flex items-center gap-1.5">{artwork.artwork_type === 'painting' ? <ImageIcon className="w-4 h-4" /> : (artwork.artwork_type === 'sculpture' ? <Box className="w-4 h-4" /> : <Video className="w-4 h-4" />)} Failed to load</span>
-        </div>
-      );
-    }
-
-    if (artwork.artwork_type === 'painting') {
-      return (
-        <img
-          src={url}
-          alt="Artwork Preview"
-          className={`max-w-full ${size === 'small' ? 'max-h-24' : 'max-h-[150px]'} object-contain rounded-sm`}
-          crossOrigin="anonymous"
-          onError={() => setPreviewMediaError(prev => ({ ...prev, [artwork.id]: true }))}
-        />
-      );
-    } else if (artwork.artwork_type === 'motion') {
-      const isDirectVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
-      const isVimeo = url.includes('vimeo.com');
-
-      if (isDirectVideo) {
+    if (isVideo) {
+      const embedUrl = getVideoEmbedUrl(fileUrl);
+      if (!embedUrl) {
         return (
-          <video
-            src={url}
-            controls
-            loop
-            muted
-            className={`max-w-full ${size === 'small' ? 'max-h-24' : 'max-h-[150px]'} object-contain rounded-sm`}
-            crossOrigin="anonymous"
-            onError={() => setPreviewMediaError(prev => ({ ...prev, [artwork.id]: true }))}
-          >
-            Your browser does not support this video format.
-          </video>
-        );
-      } else if (isVimeo) {
-        return (
-          <iframe
-            src={getVideoEmbedUrl(url) || ''}
-            width="100%"
-            height={size === 'small' ? "96" : "150"}
-            frameBorder="0"
-            allow="autoplay; fullscreen; picture-in-picture"
-            allowFullScreen
-            sandbox="allow-scripts allow-same-origin allow-popups"
-            style={{ display: 'block' }}
-            title="Vimeo video player preview"
-            onError={() => setPreviewMediaError(prev => ({ ...prev, [artwork.id]: true }))}
-          />
-        );
-      } else {
-        return (
-          <div className={`flex items-center justify-center ${size === 'small' ? 'h-24' : 'h-[150px]'} bg-neutral-500/10 rounded-md text-sm ${subtext}`}>
-            <span className="flex items-center gap-1.5"><Video className="w-4 h-4" /> Invalid video URL (preview failed)</span>
+          <div className="flex items-center justify-center w-full h-full bg-red-800 text-white rounded-md text-center">
+            <AlertCircle className="w-8 h-8 mr-2" />
+            Invalid Video URL
           </div>
         );
       }
-    } else if (artwork.artwork_type === 'sculpture') {
-      return null;
+      return (
+        <iframe
+          src={embedUrl}
+          frameBorder="0"
+          allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media;"
+          allowFullScreen
+          style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
+          onError={() => setPreviewMediaError(prev => ({ ...prev, [artwork.id]: true }))}
+        />
+      );
+    } else if (isImage) {
+      return (
+        <img
+          src={fileUrl}
+          alt={`Artwork preview for ${artwork.title}`}
+          className="object-cover w-full h-full rounded-md"
+          onError={() => setPreviewMediaError(prev => ({ ...prev, [artwork.id]: true }))}
+        />
+      );
+    } else if (isGlb) {
+      return (
+        <div className="flex items-center justify-center w-full h-full bg-neutral-700 text-white rounded-md text-center">
+          <Box className="w-8 h-8 mr-2" />
+          GLB Model
+        </div>
+      );
     }
-    return null;
-  }, [previewMediaError, subtext]);
+    return (
+      <div className="flex items-center justify-center w-full h-full bg-neutral-700 text-white rounded-md text-center">
+        <AlertCircle className="w-8 h-8 mr-2" />
+        Unsupported File Type
+      </div>
+    );
+  }, [previewMediaError, setPreviewMediaError]);
 
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
       <div className="space-y-4">
         <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
-          <h4 className="font-bold text-sm mb-2">Editable Artworks in Current Zone</h4>
+          <h4 className="font-bold text-sm mb-4">Artwork Management</h4>
           <p className={`text-sm leading-relaxed ${subtext}`}>
-            Here you can update the media URLs and, for GLB sculptures, adjust their display rotation.
-            Changes will be saved automatically to Firebase.
+            Configure media files and display settings for artworks in this zone. Double-click an artwork to quickly select it and open its editor.
           </p>
         </div>
 
-        {relevantArtworks.length === 0 ? (
-          <div className={`text-center py-8 ${subtext}`}>
-            No editable painting, motion, or GLB sculpture artworks found in this zone.
+        {relevantArtworks.length === 0 && (
+          <div className={`text-center py-12 ${subtext}`}>
+            <p>No artworks found in this zone layout.</p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {relevantArtworks.map((artwork) => (
-              <div key={artwork.id} className={`p-4 rounded-xl border ${border} ${controlBgClass} flex flex-col gap-2`}>
-                <div className="flex items-center gap-2 mb-2">
-                  {artwork.artwork_type === 'painting' ? (
-                    <ImageIcon className="w-4 h-4 opacity-70" />
-                  ) : artwork.artwork_type === 'sculpture' ? (
-                    <Box className="w-4 h-4 opacity-70" />
-                  ) : (
-                    <Video className="w-4 h-4 opacity-70" />
-                  )}
-                  <h5 className={`font-medium text-sm ${text}`}>{artwork.title}</h5>
-                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${lightsOn ? 'bg-neutral-200 text-neutral-600' : 'bg-neutral-700 text-neutral-300'}`}>
-                    {artwork.artwork_type}
-                  </span>
-                  {artwork.fileSizeMB !== undefined && (
-                    <span className={`text-[10px] font-mono tracking-wider px-2 py-0.5 rounded-full ${lightsOn ? 'bg-neutral-100 text-neutral-500' : 'bg-neutral-800 text-neutral-400'}`}>
-                      {artwork.fileSizeMB.toFixed(2)} MB
-                    </span>
-                  )}
-                  <div className="w-4 h-4 flex items-center justify-center ml-auto">
-                    {getStatusIcon(updateStatus[artwork.id] || 'idle', artwork.id)}
-                  </div>
+        )}
+
+        {relevantArtworks.map((artwork) => {
+          const isEditing = editingUrlArtworkId === artwork.id;
+          const status = updateStatus[artwork.id] || 'idle';
+          const isGlb = (artwork.artwork_file || artwork.file)?.toLowerCase().includes('.glb');
+
+          return (
+            <div
+              key={artwork.id}
+              className={`p-4 rounded-xl border ${border} ${controlBgClass}
+                          ${isEditing ? (lightsOn ? 'ring-2 ring-cyan-500' : 'ring-2 ring-cyan-400') : ''}`}
+              onDoubleClick={() => handleArtworkDoubleClick(artwork)}
+            >
+              <div className="flex items-center justify-between gap-4 mb-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {(artwork.artwork_type === 'painting' || artwork.artwork_type === 'motion') ? <ImageIcon className={`w-4 h-4 opacity-70 ${text}`} /> : <Box className={`w-4 h-4 opacity-70 ${text}`} />}
+                  <h4 className={`text-sm font-medium ${text} truncate`}>{artwork.title}</h4>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {status === 'saving' && <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />}
+                  {status === 'saved' && <Check className="w-4 h-4 text-green-500" />}
+                  {status === 'error' && <AlertCircle className="w-4 h-4 text-red-500" title="Error saving" />}
+                  <button
+                    onClick={() => handleToggleEdit(artwork)}
+                    className={`p-1.5 rounded-full transition-colors duration-200 ${isEditing ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : (lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700')} ${text}`}
+                    title={isEditing ? 'Close Editor' : 'Open Editor'}
+                  >
+                    {isEditing ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
                   <button
                     onClick={() => handleRemoveClick(artwork.id, artwork.title)}
-                    className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-red-100 text-red-600' : 'hover:bg-red-900/50 text-red-400'}`}
-                    title={`Remove "${artwork.title}" from layout`}
-                    disabled={isUploading || updateStatus[artwork.id] === 'saving'}
+                    className={`p-1.5 rounded-full transition-colors duration-200 hover:bg-red-500/20 text-red-500`}
+                    title="Remove from Layout"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
 
-                {editingUrlArtworkId === artwork.id ? (
-                  <>
-                    <p className={`text-xs ${subtext}`}>Current URL:</p>
-                    <div className="flex items-center gap-2">
+              {isEditing && (
+                <div className="mt-4 space-y-4">
+                  <div className={`w-full aspect-video rounded-md overflow-hidden bg-neutral-700/50 flex items-center justify-center ${text}`}>
+                    {getMediaPreview(artwork)}
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-bold uppercase mb-1 ${subtext}`}>Media URL</label>
+                    <div className="flex gap-2">
                       <input
                         type="text"
                         value={currentEditValue}
                         onChange={(e) => setCurrentEditValue(e.target.value)}
-                        onBlur={(e) => {
-                          if (e.target.value !== originalArtworkFile) {
-                            handleSaveUrl(artwork.id, e.target.value);
-                          }
-                        }}
                         className={`flex-1 px-3 py-2 rounded-md text-xs ${input}`}
-                        disabled={isUploading || updateStatus[artwork.id] === 'saving'}
+                        placeholder="Enter URL for image, video, or GLB"
                       />
+                      <button
+                        onClick={() => handleSaveUrl(artwork.id, currentEditValue)}
+                        className={`px-4 py-2 rounded-md text-xs font-bold uppercase transition-colors duration-200 ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-black hover:bg-neutral-200'}`}
+                        disabled={status === 'saving'}
+                      >
+                        Save
+                      </button>
                     </div>
+                  </div>
 
-                    {artwork.artwork_type !== 'sculpture' && (currentEditValue ? (
-                      <div className={`mt-2 p-2 border ${border} rounded-md bg-neutral-500/10 flex items-center justify-center`} style={{minHeight: '80px'}}>
-                        {renderMediaPreview(artwork, currentEditValue, 'large')}
-                      </div>
-                    ) : (
-                      <div className={`mt-2 p-2 border ${border} rounded-md bg-neutral-500/10 flex items-center justify-center h-[100px] ${subtext} text-sm`}>
-                        No preview content.
-                      </div>
-                    ))}
-
-                    {artwork.artwork_type === 'sculpture' && artwork.artwork_file?.toLowerCase().includes('.glb') && (
-                        <div className="mt-4 border-t pt-4">
-                            <p className={`text-xs font-bold uppercase mb-2 ${subtext}`}>GLB Rotation (Degrees)</p>
-                            <div className="flex flex-col gap-2">
-                                {['X (Roll)', 'Y (Pitch)', 'Z (Yaw)'].map((label, index) => (
-                                    <div key={label} className="flex items-center gap-2">
-                                        <label className={`w-16 shrink-0 text-xs ${subtext}`}>{label}:</label>
-                                        <span className={`text-sm ${text}`}>{Math.round(glbPreviewRotation[index])}°</span>
-                                        <button
-                                            onClick={() => handleRotateAndSaveGlb(artwork.id, index as 0 | 1 | 2)}
-                                            className={`p-2 ml-auto rounded-md transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'}`}
-                                            disabled={updateStatus[artwork.id] === 'saving'}
-                                        >
-                                             <RefreshCw className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="mt-4 border-t pt-4">
-                                <p className={`text-xs font-bold uppercase mb-2 ${subtext}`}>GLB Material Presets</p>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {MATERIAL_PRESETS.map(preset => (
-                                        <button
-                                            key={preset.id}
-                                            onClick={() => handleSaveMaterial(artwork.id, preset.id, preset.config)}
-                                            className={`flex flex-col items-center gap-1 p-2 rounded-md transition-colors relative
-                                                ${selectedMaterialPresetId === preset.id ? (lightsOn ? 'bg-neutral-200' : 'bg-neutral-700') : (lightsOn ? 'hover:bg-neutral-100' : 'hover:bg-neutral-800')}
-                                                {(isUploading || updateStatus[artwork.id] === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}
-                                            `}
-                                            title={preset.name}
-                                            disabled={isUploading || updateStatus[artwork.id] === 'saving'}
-                                        >
-                                            <div
-                                                className={`w-8 h-8 rounded-full border-2 ${selectedMaterialPresetId === preset.id ? (lightsOn ? 'border-neutral-900' : 'border-white') : (lightsOn ? 'border-neutral-300' : 'border-neutral-600')}`}
-                                                style={{ backgroundColor: preset.iconColor }}
-                                            ></div>
-                                            <span className={`text-[10px] text-center ${selectedMaterialPresetId === preset.id ? (lightsOn ? 'text-neutral-900' : 'text-white') : subtext}`}>{preset.id === 'original' ? 'Original' : preset.name.split(' ')[0]}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="mt-4 border-t pt-4">
+                  <div>
+                    <label className={`block text-xs font-bold uppercase mb-1 ${subtext}`}>Upload File</label>
+                    <div className="flex items-center gap-2">
                       <input
                         type="file"
                         ref={fileInputRef}
-                        id={`file-upload-${artwork.id}`}
                         onChange={(e) => handleFileChange(e, artwork.id)}
                         className="hidden"
-                        accept={artwork.artwork_type === 'painting' ? 'image/*' : (artwork.artwork_type === 'motion' ? 'video/*' : (artwork.artwork_type === 'sculpture' ? '.glb' : '*/*'))}
-                        disabled={isUploading || updateStatus[artwork.id] === 'saving'}
+                        accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.webm,.glb"
+                        disabled={isUploading}
                       />
-                      <label
-                        htmlFor={`file-upload-${artwork.id}`}
-                        className={`w-full flex items-center justify-center gap-2 py-2 rounded-md text-xs font-bold uppercase cursor-pointer transition-colors ${lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-neutral-200 hover:bg-neutral-600'} ${(isUploading || updateStatus[artwork.id] === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`flex-1 px-4 py-2 rounded-md text-xs font-bold uppercase flex items-center justify-center gap-2 transition-colors duration-200 ${isUploading ? 'bg-neutral-500 text-white' : (lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-white hover:bg-neutral-600')}`}
+                        disabled={isUploading}
                       >
-                        {isUploading ? 'UPLOADING...' : 'UPLOAD NEW FILE'}
-                      </label>
-                      {isUploading && (
-                        <div className="w-full mt-2 bg-neutral-200 rounded-full h-1.5 dark:bg-neutral-700">
-                          <div className="bg-cyan-500 h-1.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-                        </div>
-                      )}
-                      {uploadMessage && (
-                        <p className={`text-center mt-2 text-xs ${uploadMessage.includes('successful') || uploadMessage.includes('Saved') ? 'text-green-500' : 'text-red-500'}`}>
-                          {uploadMessage}
-                        </p>
-                      )}
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                        {isUploading ? 'Uploading...' : 'Choose File'}
+                      </button>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    {artwork.artwork_type !== 'sculpture' && (
-                        <div className={`flex-1 flex items-center justify-center p-2 rounded-md border ${border} bg-neutral-500/10 max-h-28`} >
-                          {renderMediaPreview(artwork, artwork.artwork_file || artwork.file, 'small')}
-                        </div>
+                    {uploadMessage && (
+                      <p className={`mt-2 text-xs ${status === 'error' ? 'text-red-500' : (status === 'saved' ? 'text-green-500' : subtext)}`}>{uploadMessage}</p>
                     )}
-                    <button
-                      onClick={() => handleEditClick(artwork)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-neutral-200 hover:bg-neutral-600'}`}
-                    >
-                      EDIT
-                    </button>
+                    {isUploading && uploadProgress > 0 && (
+                      <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
+                        <div className="bg-cyan-600 h-1 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+
+                  {isGlb && (
+                    <div className="space-y-4">
+                      <h5 className={`text-sm font-bold mt-4 ${text}`}>3D Model Settings</h5>
+                      
+                      {/* Rotation controls */}
+                      <div>
+                        <label className={`block text-xs font-bold uppercase mb-1 ${subtext}`}>Rotation</label>
+                        <div className="flex items-center gap-2">
+                            {['Y', 'X', 'Z'].map((axis, index) => (
+                                <button
+                                    key={axis}
+                                    onClick={() => handleGlbAxisRotate(artwork.id, index as 0 | 1 | 2)}
+                                    className={`flex-1 px-3 py-2 rounded-md text-xs font-bold uppercase flex items-center justify-center gap-1 transition-colors duration-200 ${lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-white hover:bg-neutral-600'}`}
+                                    disabled={status === 'saving'}
+                                    title={`Rotate around ${axis}-axis`}
+                                >
+                                    <RefreshCw className="w-3 h-3" /> {axis}: {glbPreviewRotation[index]}°
+                                </button>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Material Presets */}
+                      <div>
+                        <label className={`block text-xs font-bold uppercase mb-1 ${subtext}`}>Material Presets</label>
+                        <div className="flex flex-wrap gap-2">
+                          {MATERIAL_PRESETS.map(preset => (
+                            <button
+                              key={preset.id}
+                              onClick={() => handleSaveMaterial(artwork.id, preset.id, preset.config)}
+                              className={`px-3 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 transition-colors duration-200
+                                  ${selectedMaterialPresetId === preset.id
+                                    ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-neutral-900 shadow-md')
+                                    : (lightsOn ? 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200' : 'bg-neutral-700 text-white hover:bg-neutral-600')
+                                  }
+                              `}
+                              disabled={status === 'saving'}
+                            >
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: preset.iconColor }}></div>
+                              {preset.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -24,7 +24,7 @@ interface FloorPlanEditorProps {
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
   onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>;
   activeExhibition: Exhibition;
-  theme: {
+  uiConfig: {
     lightsOn: boolean;
     bg: string;
     text: string;
@@ -32,7 +32,7 @@ interface FloorPlanEditorProps {
     border: string;
     input: string;
   };
-  onActiveTabChange: (tab: 'lighting' | 'layout' | 'artworks' | 'admin') => void; 
+  onActiveTabChange: (tab: 'lighting' | 'layout' | 'artworks' | 'admin') => void;
   onFocusArtwork: (artworkInstanceId: string | null) => void;
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>;
   onOpenConfirmationDialog: (artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => void;
@@ -56,19 +56,19 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   onUpdateArtworkData,
   onUpdateExhibition,
   activeExhibition,
-  theme,
+  uiConfig,
   onActiveTabChange,
   onFocusArtwork,
   onRemoveArtworkFromLayout,
   onOpenConfirmationDialog,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<'lighting' | 'layout' | 'artworks' | 'admin'>('lighting'); 
+  const [activeTab, setActiveTab] = useState<'lighting' | 'layout' | 'artworks' | 'admin'>('lighting');
   
   const [showSaved, setShowSaved] = useState(false);
   const saveTimeoutRef = useRef<number | null>(null);
 
-  const { lightsOn } = theme;
+  const { lightsOn } = uiConfig;
 
   const triggerSaveNotification = useCallback(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -96,13 +96,13 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     };
   }, []);
 
-  const handleTabClick = useCallback((tab: 'lighting' | 'layout' | 'artworks' | 'admin') => { 
+  const handleTabClick = useCallback((tab: 'lighting' | 'layout' | 'artworks' | 'admin') => {
     setActiveTab(tab);
     onActiveTabChange(tab);
   }, [onActiveTabChange]);
 
   return (
-    <>
+    <React.Fragment>
       {isOpen && (
         <div
           className="absolute inset-0 z-40"
@@ -113,9 +113,9 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
       <div 
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        className={`absolute top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${theme.border} ${theme.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${uiConfig.border} ${uiConfig.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className={`px-4 py-3 border-b flex justify-between items-center ${theme.border}`}>
+        <div className={`px-4 py-3 border-b flex justify-between items-center ${uiConfig.border}`}>
           <div className="flex items-center gap-2">
               <h3 className="font-bold tracking-widest uppercase text-sm">Zone Editor</h3>
               <div className={`flex items-center gap-1.5 text-green-500 transition-opacity duration-300 ${showSaved ? 'opacity-100' : 'opacity-0'}`}>
@@ -126,7 +126,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           <button onClick={onClose} className="p-2 hover:bg-neutral-500/10 rounded-full transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
         </div>
         
-        <div className={`p-2 border-b ${theme.border} ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'}`}>
+        <div className={`p-2 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'}`}>
             <div className="flex items-center gap-2">
                 <button
                     onClick={() => handleTabClick('lighting')}
@@ -157,7 +157,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
 
         {activeTab === 'lighting' ? (
           <LightingTab 
-            theme={theme}
+            uiConfig={uiConfig}
             lightingConfig={lightingConfig}
             onUpdateLighting={onUpdateLighting}
             fullZoneLightingDesign={fullZoneLightingDesign}
@@ -165,17 +165,19 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           />
         ) : activeTab === 'layout' ? (
           <LayoutTab 
-            theme={theme}
+            uiConfig={uiConfig}
             currentLayout={currentLayout}
             onEditorLayoutChange={onEditorLayoutChange}
             selectedArtworkId={selectedArtworkId}
             onSelectArtwork={onSelectArtwork}
             selectedArtworkTitle={selectedArtworkTitle}
             selectedArtworkArtist={selectedArtworkArtist}
+            lightingConfig={lightingConfig}
+            onUpdateLighting={onUpdateLighting}
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab
-            theme={theme}
+            uiConfig={uiConfig}
             firebaseArtworks={firebaseArtworks}
             currentLayout={currentLayout}
             onUpdateArtworkFile={async (artworkId: string, newFileUrl: string) => {
@@ -189,10 +191,11 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             onFocusArtwork={onFocusArtwork}
             onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
             onOpenConfirmationDialog={onOpenConfirmationDialog}
+            onSelectArtwork={onSelectArtwork}
           />
         ) : (
             <AdminTab
-                theme={theme}
+                uiConfig={uiConfig}
                 activeExhibition={activeExhibition}
                 onUpdateExhibition={async (exhibitionId, updatedFields) => {
                   await onUpdateExhibition(exhibitionId, updatedFields);
@@ -201,7 +204,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             />
         )}
       </div>
-    </>
+    </React.Fragment>
   );
 };
 

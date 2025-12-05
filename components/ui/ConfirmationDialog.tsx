@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import { X } from 'lucide-react';
 
@@ -10,7 +12,7 @@ interface ConfirmationDialogProps {
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
-  theme: {
+  uiConfig: {
     lightsOn: boolean;
     text: string;
     subtext: string;
@@ -28,11 +30,11 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   cancelText = 'Cancel',
   onConfirm,
   onCancel,
-  theme,
+  uiConfig,
 }) => {
   if (!isOpen) return null;
 
-  const { lightsOn } = theme;
+  const { lightsOn } = uiConfig;
 
   const handleWrapperClick = (e: React.MouseEvent<HTMLDivElement>) => {
     
@@ -51,23 +53,23 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
       aria-describedby="confirmation-dialog-description"
     >
       <div
-        className={`w-full max-w-sm flex flex-col rounded-2xl shadow-2xl overflow-hidden ${theme.panelBg} border ${theme.border}`}
+        className={`w-full max-w-sm flex flex-col rounded-2xl shadow-2xl overflow-hidden ${uiConfig.panelBg} border ${uiConfig.border}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`p-6 border-b flex items-center justify-between ${theme.border}`}>
-          <h3 id="confirmation-dialog-title" className={`text-xl font-serif font-bold ${theme.text}`}>{title}</h3>
-          <button onClick={onCancel} className={`p-2 rounded-full hover:bg-black/5 ${theme.text}`}>
+        <div className={`p-6 border-b flex items-center justify-between ${uiConfig.border}`}>
+          <h3 id="confirmation-dialog-title" className={`text-xl font-serif font-bold ${uiConfig.text}`}>{title}</h3>
+          <button onClick={onCancel} className={`p-2 rounded-full hover:bg-black/5 ${uiConfig.text}`}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          <p id="confirmation-dialog-description" className={`text-base leading-relaxed ${theme.subtext}`}>
+          <p id="confirmation-dialog-description" className={`text-base leading-relaxed ${uiConfig.subtext}`}>
             {message}
           </p>
         </div>
 
-        <div className={`p-6 border-t flex justify-end gap-3 ${theme.border}`}>
+        <div className={`p-6 border-t flex justify-end gap-3 ${uiConfig.border}`}>
           <button
             onClick={onCancel}
             className={`px-6 py-3 rounded-full text-sm font-bold uppercase tracking-wider transition-colors ${

@@ -3,7 +3,7 @@ import "firebase/compat/firestore";
 import "firebase/compat/storage"; 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDeTZMsZH-mp72FAhKPl37-P-TGVEXJtlO",
+  apiKey: process.env.API_KEY,
   authDomain: "blackdot-1890a.firebaseapp.com",
   projectId: "blackdot-1890a",
   storageBucket: "blackdot-1890a.firebasestorage.app",
