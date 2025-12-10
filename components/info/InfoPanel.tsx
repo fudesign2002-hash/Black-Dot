@@ -41,7 +41,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
       )}
 
       <div 
-        className={`absolute top-0 right-0 h-full w-full md:w-[600px] z-50 backdrop-blur-xl shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden flex flex-col border-l ${uiConfig.border} ${uiConfig.panelBg} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute top-0 right-0 h-full w-full md:w-[600px] z-[55] backdrop-blur-xl shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden flex flex-col border-l ${uiConfig.border} ${uiConfig.panelBg} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-10 flex justify-between items-start">
           <div>
@@ -206,7 +206,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                    className={`flex-1 py-4 flex items-center justify-center gap-4 font-bold tracking-[0.2em] uppercase transition-all duration-500 ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`}
                  >
                     <Ticket className="w-4 h-4" />
-                    <span>Purchase Tickets</span>
+                    <span>Tickets</span>
                  </a>
                ) : (
                   <button className={`flex-1 py-4 flex items-center justify-center gap-4 font-bold tracking-[0.2em] uppercase transition-all duration-500 ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`} disabled>
@@ -229,7 +229,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                      className={`w-full py-4 flex items-center justify-center gap-4 font-bold tracking-[0.2em] uppercase transition-all duration-500 ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`}
                    >
                       <Ticket className="w-4 h-4" />
-                      <span>{activeExhibition.status === 'past' ? 'View Archive' : 'Purchase Tickets'}</span>
+                      <span>{activeExhibition.status === 'past' ? 'View Archive' : 'Tickets'}</span>
                    </a>
                ) : (
                   <button className={`w-full py-4 flex items-center justify-center gap-4 font-bold tracking-[0.2em] uppercase transition-all duration-500 ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`} disabled>

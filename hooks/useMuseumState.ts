@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import firebase from 'firebase/compat/app';
 import { db } from '../firebase';
@@ -6,12 +7,21 @@ import { processFirebaseExhibitions, processFirebaseZones, createLayoutFromZone 
 // FIX: Import processFirebaseArtworks from services/museumService
 import { processFirebaseArtworks } from '../services/museumService';
 
+const INITIAL_CAMERA_POSITION: [number, number, number] = [-8, 4, 25]; // NEW: Define initial camera position
+const RANKING_CAMERA_POSITION: [number, number, number] = [-8, 3, 10]; // MODIFIED: Changed from [-15, 6, 0] to [-10, 6, 10]
+const RANKING_CAMERA_TARGET: [number, number, number] = [0, 1, 0];    // NEW: Define ranking camera target
+
 const DEFAULT_SIMPLIFIED_LIGHTING_CONFIG: SimplifiedLightingConfig = {
   lightsOn: true,
   ambientIntensity: 0.9,
   spotlightMode: 'off',
   manualSpotlightColor: '#ffffff',
   colorTemperature: 5500,
+  customCameraPosition: INITIAL_CAMERA_POSITION, // NEW: Add initial customCameraPosition
+  rankingCameraPosition: RANKING_CAMERA_POSITION, // NEW
+  rankingCameraTarget: RANKING_CAMERA_TARGET,   // NEW
+  useExhibitionBackground: false, // NEW: Default to not using exhibition background
+  floorColor: '#000000', // NEW: Default floor color
   keyLightPosition: [-2, 7, 10],
   fillLightPosition: [5, 2, 5],
 };
@@ -30,6 +40,7 @@ const DEFAULT_FALLBACK_EXHIBITION: Exhibition = {
   defaultLayout: [],
   exhibit_artworks: [],
   isActive: false,
+  exhibit_background: undefined, // NEW: Add default for exhibit_background
 };
 
 const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
@@ -43,9 +54,11 @@ const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
   exhibitionId: DEFAULT_FALLBACK_EXHIBITION.id,
   artwork_selected: [],
   zone_capacity: 100,
+  zone_theme: undefined, // NEW: Default zone_theme
+  zone_gravity: undefined, // NEW: Default zone_gravity
 };
 
-export const useMuseumState = () => {
+export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept enableSnapshots prop
   const [rawExhibitionDocs, setRawExhibitionDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [rawArtworkDocs, setRawArtworkDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [zones, setZones] = useState<ExhibitionZone[]>([]);
@@ -65,46 +78,59 @@ export const useMuseumState = () => {
         }
     }
 
-    const exhibitionsColRef = db.collection('exhibitions');
-    const zonesColRef = db.collection('zones');
-    const artworksColRef = db.collection('artworks');
+    const unsubscribes: (() => void)[] = []; // NEW: Array to hold unsubscribe functions
 
-    const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
-        setRawExhibitionDocs(snapshot.docs);
-        loadedFlags.exhibitions = true;
-        checkAllLoaded();
-    }, (error) => {
-        console.error("Error fetching real-time exhibitions:", error);
-        setIsLoading(false);
-    });
+    if (enableSnapshots) { // NEW: Conditionally subscribe to snapshots
+      const exhibitionsColRef = db.collection('exhibitions');
+      const zonesColRef = db.collection('zones');
+      const artworksColRef = db.collection('artworks');
 
-    const unsubscribeZones = zonesColRef.onSnapshot((snapshot) => {
-        setZones(processFirebaseZones(snapshot.docs));
-        loadedFlags.zones = true;
-        checkAllLoaded();
-    }, (error) => {
-        console.error("Error fetching real-time zones:", error);
-        setIsLoading(false);
-    });
+      const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
+          setRawExhibitionDocs(snapshot.docs);
+          loadedFlags.exhibitions = true;
+          checkAllLoaded();
+      }, (error) => {
+          // 
+          setIsLoading(false);
+      });
+      unsubscribes.push(unsubscribeExhibitions); // NEW: Store unsubscribe function
 
-    const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
-        
-        const processedArtworks = await processFirebaseArtworks(snapshot.docs);
-        setFirebaseArtworks(processedArtworks);
-        setRawArtworkDocs(snapshot.docs);
-        loadedFlags.artworks = true;
-        checkAllLoaded();
-    }, (error) => {
-        console.error("Error fetching real-time artworks:", error);
+      const unsubscribeZones = zonesColRef.onSnapshot((snapshot) => {
+          setZones(processFirebaseZones(snapshot.docs));
+          loadedFlags.zones = true;
+          checkAllLoaded();
+      }, (error) => {
+          // 
+          setIsLoading(false);
+      });
+      unsubscribes.push(unsubscribeZones); // NEW: Store unsubscribe function
+
+      const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
+          
+          const processedArtworks = await processFirebaseArtworks(snapshot.docs);
+          setFirebaseArtworks(processedArtworks);
+          setRawArtworkDocs(snapshot.docs);
+          loadedFlags.artworks = true;
+          checkAllLoaded();
+      }, (error) => {
+          // 
+          setIsLoading(false);
+      });
+      unsubscribes.push(unsubscribeArtworks); // NEW: Store unsubscribe function
+
+    } else { // NEW: If snapshots are disabled, reset data and set loading to false
+        setRawExhibitionDocs([]);
+        setZones([DEFAULT_FALLBACK_ZONE]); // Reset to default fallback zone
+        setFirebaseArtworks([]);
         setIsLoading(false);
-    });
+        loadedFlags = { exhibitions: true, zones: true, artworks: true }; // Mark as loaded even if no data
+    }
     
     return () => {
-        unsubscribeExhibitions();
-        unsubscribeZones();
-        unsubscribeArtworks();
+        // Unsubscribe all listeners when component unmounts or `enableSnapshots` changes
+        unsubscribes.forEach(unsubscribe => unsubscribe());
     };
-  }, []);
+  }, [enableSnapshots]); // NEW: Add enableSnapshots to dependency array
 
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];
@@ -136,7 +162,24 @@ export const useMuseumState = () => {
   
   const lightingConfig = useMemo((): SimplifiedLightingConfig => {
     const baseConfig = { ...DEFAULT_SIMPLIFIED_LIGHTING_CONFIG, ...activeZone.lightingDesign.defaultConfig };
-    return { ...baseConfig, ...lightingOverrides[activeZone.id] };
+    // NEW: Apply customCameraPosition from baseConfig, then any overrides
+    const finalConfig = { ...baseConfig, ...lightingOverrides[activeZone.id] };
+    if (!finalConfig.customCameraPosition) {
+      finalConfig.customCameraPosition = INITIAL_CAMERA_POSITION;
+    }
+    if (!finalConfig.rankingCameraPosition) {
+      finalConfig.rankingCameraPosition = RANKING_CAMERA_POSITION;
+    }
+    if (!finalConfig.rankingCameraTarget) {
+      finalConfig.rankingCameraTarget = RANKING_CAMERA_TARGET;
+    }
+    if (finalConfig.useExhibitionBackground === undefined) { // NEW: Ensure useExhibitionBackground is always defined
+      finalConfig.useExhibitionBackground = false;
+    }
+    if (finalConfig.floorColor === undefined) { // NEW: Ensure floorColor is always defined
+      finalConfig.floorColor = DEFAULT_SIMPLIFIED_LIGHTING_CONFIG.floorColor;
+    }
+    return finalConfig;
   }, [activeZone, lightingOverrides]);
   
   const currentLayout = useMemo((): ExhibitionArtItem[] => {

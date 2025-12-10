@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { db } from './firebase';
 import firebase from 'firebase/compat/app';
@@ -16,8 +17,10 @@ import DevToolsPanel from './components/ui/DevToolsPanel';
 import EmbeddedMuseumScene from './components/EmbeddedMuseumScene';
 
 import { useMuseumState } from './hooks/useMuseumState';
-import { ExhibitionArtItem, SimplifiedLightingConfig, ZoneArtworkItem, Exhibition, FirebaseArtwork, ArtworkData, ArtType } from './types';
+import { ExhibitionArtItem, SimplifiedLightingConfig, ZoneArtworkItem, Exhibition, FirebaseArtwork, ArtworkData, ArtType, EffectRegistryType } from './types';
 import { VERSION } from './abuild';
+import * as THREE from 'three'; // NEW: Import THREE for dynamic effect bundle
+import { updateHotspotPoint, updateArtworkHotspotLikes } from './services/firebaseService'; // NEW
 
 interface SceneRipple {
   id: string;
@@ -27,8 +30,10 @@ interface SceneRipple {
   effectClass: 'subtle' | 'prominent';
 }
 
+// NEW: Define remote URL for effect bundle
+const REMOTE_EFFECT_BUNDLE_URL = "https://firebasestorage.googleapis.com/v0/b/blackdot-1890a.firebasestorage.app/o/effect_bundles%2Feffect_bundle.js?alt=media";
+
 function MuseumApp() {
-  const [resetTrigger, setResetTrigger] = useState(0);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -39,16 +44,19 @@ function MuseumApp() {
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [isCurrentExhibitionInfoHidden, setIsCurrentExhibitionInfoHidden] = useState(false);
+  const [isCameraAtDefaultPosition, setIsCameraAtDefaultPosition] = useState(true); // NEW: State for camera position
 
-  const [isRankingMode, setIsRankingMode] = useState(false);
-  const [triggerRanking, setTriggerRanking] = useState(0);
-  const rankingTimeoutRef = useRef<number | null>(null);
+  const [isRankingMode, setisRankingMode] = useState(false);
   const [artworksInRankingOrder, setArtworksInRankingOrder] = useState<ExhibitionArtItem[]>([]);
+
+  // NEW: State for Zero Gravity mode
+  const [isZeroGravityMode, setIsZeroGravityMode] = useState(false);
 
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [editorLayout, setEditorLayout] = useState<ExhibitionArtItem[] | null>(null);
   const [selectedArtworkId, setSelectedArtworkId] = useState<string | null>(null);
-  const [activeEditorTab, setActiveEditorTab] = useState<'lighting' | 'layout' | 'artworks' | 'admin'>('lighting');
+  // FIX: Update activeEditorTab state type to include 'scene'
+  const [activeEditorTab, setActiveEditorTab] = useState<'lighting' | 'scene' | 'layout' | 'artworks' | 'admin'>('lighting');
   
   const [focusedArtworkInstanceId, _setFocusedArtworkInstanceId] = useState<string | null>(null);
   const setFocusedArtworkInstanceId = useCallback((value: string | null) => {
@@ -62,18 +70,13 @@ function MuseumApp() {
 
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [confirmationItemType, setConfirmationItemType] = useState<'artwork_removal' | null>(null);
   const [confirmationArtworkId, setConfirmationArtworkId] = useState<string | null>(null);
   const [confirmationArtworkTitle, setConfirmationArtworkTitle] = useState<string | null>(null);
-  const [confirmationConfirmCallback, setConfirmationConfirmCallback] = useState<(() => Promise<void>) | null>(null);
 
   const [fps, setFps] = useState(0);
 
-  const [isInitialDarkLoad, setIsInitialDarkLoad] = useState(false);
-  const [hasInitialDarkLoadFinished, setHasInitialDarkLoadFinished] = useState(false);
-  const [isFirstDarkToggleTransitioning, setIsFirstDarkToggleTransitioning] = useState(false);
-
   const lightingUpdateTimeoutRef = useRef<number | null>(null);
-  const hasFirstManualDarkTransitionOccurred = useRef(false);
 
   const [onlineUsersPerZone, setOnlineUsersPerZone] = useState<Record<string, number>>({});
   const [zoneCapacity, setZoneCapacity] = useState(100);
@@ -81,7 +84,8 @@ function MuseumApp() {
   const cameraControlRef = useRef<{ 
     moveCameraToArtwork: (artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => void;
     moveCameraToPrevious: () => void;
-    moveCameraToInitial: () => void;
+    moveCameraToInitial: (customCameraPosition?: [number, number, number]) => void;
+    moveCameraToRankingMode: (position: [number, number, number], target: [number, number, number]) => void; // NEW
   }>(null);
 
   const [heartEmitterTrigger, setHeartEmitterTrigger] = useState(0);
@@ -92,10 +96,27 @@ function MuseumApp() {
 
   const [likedArtworksLocalCount, setLikedArtworksLocalCount] = useState<Record<string, number>>({});
   const likeDebounceTimeouts = useRef<Record<string, number>>({});
+  // FIX: Initialize useRef with an empty object to match `Record<string, number>` type
   const likedArtworksLocalCountRef = useRef<Record<string, number>>({});
 
   const [focusedArtworkFirebaseId, setFocusedArtworkFirebaseId] = useState<string | null>(null);
 
+  const [isSnapshotEnabledGlobally, setIsSnapshotEnabledGlobally] = useState(true); // NEW: State for Firebase onSnapshot toggle
+  const [useExhibitionBackground, setUseExhibitionBackground] = useState(false); // NEW: State for exhibition background
+
+  // NEW: State for dynamically loaded EffectRegistry
+  const [effectRegistry, setEffectRegistry] = useState<EffectRegistryType | null>(null);
+  const [isEffectRegistryLoading, setIsEffectRegistryLoading] = useState(true);
+  const [effectRegistryError, setEffectRegistryError] = useState<string | null>(null);
+
+  // NEW: State for tracking if it's the first time lights are toggled off
+  const [isFirstLightToggleOff, setIsFirstLightToggleOff] = useState(true);
+  const [transitionMessage, setTransitionMessage] = useState('Loading Gallery...'); // NEW: State for transition message
+
+  // NEW: Callback to update camera position status
+  const handleCameraPositionChange = useCallback((isAtDefault: boolean) => {
+    setIsCameraAtDefaultPosition(isAtDefault);
+  }, []);
 
   const {
     isLoading,
@@ -109,7 +130,97 @@ function MuseumApp() {
     handleNavigate,
     setLightingOverride,
     currentIndex,
-  } = useMuseumState();
+  } = useMuseumState(isSnapshotEnabledGlobally); // NEW: Pass isSnapshotEnabledGlobally to useMuseumState
+
+  // NEW: activeEffectName now comes directly from activeZone.zone_theme
+  const activeEffectName = activeZone?.zone_theme || null;
+  // NEW: activeZoneGravity now comes directly from activeZone.zone_gravity
+  const activeZoneGravity = activeZone?.zone_gravity;
+
+
+  // NEW: Function to dynamically load the remote effect bundle
+  const loadRemoteEffectBundle = useCallback(async () => {
+    setIsEffectRegistryLoading(true);
+    setEffectRegistryError(null);
+    try {
+      const response = await fetch(REMOTE_EFFECT_BUNDLE_URL);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch effect bundle: ${response.statusText}`);
+      }
+      const jsCode = await response.text();
+
+      const blob = new Blob([jsCode], { type: 'application/javascript' });
+      const objectUrl = URL.createObjectURL(blob);
+
+      // Dynamically import the module
+      const module = await import(/* @vite-ignore */ objectUrl);
+      setEffectRegistry(module.EffectRegistry);
+      // console.log("EffectRegistry loaded dynamically:", module.EffectRegistry);
+
+      URL.revokeObjectURL(objectUrl); // Clean up the object URL
+    } catch (error: any) {
+      console.error("Error loading remote effect bundle:", error);
+      setEffectRegistry(null);
+      setEffectRegistryError(error.message || "Unknown error loading effect bundle.");
+    } finally {
+      setIsEffectRegistryLoading(false);
+    }
+  }, []);
+
+  // NEW: Trigger loading of remote effect bundle on component mount
+  useEffect(() => {
+    loadRemoteEffectBundle();
+  }, [loadRemoteEffectBundle]);
+
+
+  // NEW: Handle updating zone_theme in Firebase
+  const handleUpdateZoneTheme = useCallback(async (themeName: string | null) => {
+    if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
+      console.error("Cannot update zone theme: Invalid active zone ID.");
+      return;
+    }
+    if (!effectRegistry && themeName !== null) { // Only show error if trying to set a theme when registry isn't loaded
+      console.error("Cannot update zone theme: EffectRegistry not loaded.");
+      // Optionally, set an error message in UI
+      return;
+    }
+
+    try {
+      const zoneDocRef = db.collection('zones').doc(activeZone.id);
+      await zoneDocRef.update({ zone_theme: themeName });
+      // console.log(`Zone ${activeZone.id} theme updated to: ${themeName}`);
+    } catch (error) {
+      console.error("Error updating zone theme:", error);
+    }
+    // Also reset camera to initial for a clear view of the effect
+    if (cameraControlRef.current) {
+      cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
+    }
+    setFocusedArtworkInstanceId(null);
+    setIsArtworkFocusedForControls(false);
+    setFocusedArtworkFirebaseId(null);
+    setisRankingMode(false);
+    setIsZeroGravityMode(false); // NEW: Deactivate zero gravity if theme changes
+    setHeartEmitterArtworkId(null); // Clear heart emitter when switching effects
+  }, [activeZone?.id, cameraControlRef, lightingConfig.customCameraPosition, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setisRankingMode, setIsZeroGravityMode, setHeartEmitterArtworkId, effectRegistry]);
+
+  // NEW: Handle updating zone_gravity in Firebase
+  const handleUpdateZoneGravity = useCallback(async (gravityValue: number | undefined) => {
+    if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
+      console.error("Cannot update zone gravity: Invalid active zone ID.");
+      return;
+    }
+
+    try {
+      const zoneDocRef = db.collection('zones').doc(activeZone.id);
+      await zoneDocRef.update({ zone_gravity: gravityValue });
+      // console.log(`Zone ${activeZone.id} gravity updated to: ${gravityValue}`);
+    } catch (error) {
+      console.error("Error updating zone gravity:", error);
+    }
+    // No camera reset needed here, as the ArtworkWrapper will animate the Y position
+  }, [activeZone?.id]);
+
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -153,25 +264,13 @@ function MuseumApp() {
         }
       }
     };
-  }, []);
+  }, []); // Removed likedArtworksLocalCount from dependency array as it's a ref.
 
   useEffect(() => {
+    // 將最新的 likedArtworksLocalCount 狀態同步到 ref.current，
+    // 這確保了 setTimeout 函數可以透過 ref 繞過閉包的限制，隨時讀取到狀態的最新累積值。
     likedArtworksLocalCountRef.current = likedArtworksLocalCount;
   }, [likedArtworksLocalCount]);
-
-  useEffect(() => {
-    if (!hasInitialDarkLoadFinished) {
-      if (isLoading && !lightingConfig.lightsOn) {
-        setIsInitialDarkLoad(true);
-      } else if (!isLoading && !lightingConfig.lightsOn && isInitialDarkLoad) {
-        setIsInitialDarkLoad(false);
-        setHasInitialDarkLoadFinished(true);
-      } else if (!isLoading && lightingConfig.lightsOn) {
-        setIsInitialDarkLoad(false);
-        setHasInitialDarkLoadFinished(true);
-      }
-    }
-  }, [isLoading, lightingConfig.lightsOn, isInitialDarkLoad, hasInitialDarkLoadFinished]);
 
   useEffect(() => {
     if (isEditorMode) {
@@ -179,56 +278,63 @@ function MuseumApp() {
       setSelectedArtworkId(null);
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
-      setIsRankingMode(false);
+      setisRankingMode(false);
+      setIsZeroGravityMode(false); // NEW: Deactivate zero gravity if editor mode is entered
     } else {
       setEditorLayout(null);
       setSelectedArtworkId(null);
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
     }
-  }, [isEditorMode, currentLayout]);
-
-  useEffect(() => {
-    if (isEditorMode) {
-      setEditorLayout(JSON.parse(JSON.stringify(currentLayout)));
-    }
-  }, [currentLayout, isEditorMode]);
+  }, [isEditorMode, currentLayout, lightingConfig.customCameraPosition]); // ADDED cameraControlRef and lightingConfig.customCameraPosition to dependencies
 
 
   useEffect(() => {
-    setIsEditorOpen(isEditorMode);
+    // FIX: Only set isEditorOpen to true when editor mode is entered for the first time or explicitly opened.
+    // When exiting editor mode, it should be explicitly closed.
+    // setIsEditorOpen(isEditorMode); 
+    // This line is removed, FloorPlanEditor will now only open if the button is pressed.
   }, [isEditorMode]);
 
+  // MODIFIED: This useEffect focuses purely on resetting UI state when activeZone.id changes.
+  // It no longer directly triggers camera movement but sets isEditorMode(false),
+  // which then triggers the separate isEditorMode useEffect for camera reset.
   useEffect(() => {
     if (activeZone.id !== 'fallback_zone_id') {
-      setIsEditorMode(false);
+      // FIX: Corrected typo 'setisEditorMode' to 'setIsEditorMode'
+      setIsEditorMode(false); // This will trigger the next useEffect with isEditorMode=false
       setIsEditorOpen(false);
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
       setHeartEmitterArtworkId(null);
-      setIsRankingMode(false);
-
-      if (cameraControlRef.current) {
-        cameraControlRef.current.moveCameraToInitial();
-      }
+      setisRankingMode(false);
+      setIsZeroGravityMode(false); // NEW: Deactivate zero gravity when zone changes
+      // NEW: When zone changes, reset first light toggle state
+      setIsFirstLightToggleOff(true); 
     }
-  }, [activeZone.id, cameraControlRef]);
+  }, [activeZone.id]);
+
+  // NEW: Update useExhibitionBackground state from lightingConfig
+  useEffect(() => {
+    setUseExhibitionBackground(lightingConfig.useExhibitionBackground || false);
+  }, [lightingConfig.useExhibitionBackground]);
 
   useEffect(() => {
-    if (!lightingConfig.lightsOn) {
-      document.documentElement.classList.add('dark');
-    } else {
+    if (lightingConfig.lightsOn) {
       document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
     }
   }, [lightingConfig.lightsOn]);
 
   useEffect(() => {
     if (isSmallScreen) {
-      setIsCurrentExhibitionInfoHidden(isArtworkFocusedForControls);
+      // Hide exhibition info if artwork is focused OR in ranking mode OR in zero gravity mode on small screens
+      setIsCurrentExhibitionInfoHidden(isArtworkFocusedForControls || isRankingMode || isZeroGravityMode);
     } else {
       setIsCurrentExhibitionInfoHidden(false);
     }
-  }, [isArtworkFocusedForControls, isSmallScreen]);
+  }, [isArtworkFocusedForControls, isSmallScreen, isRankingMode, isZeroGravityMode]);
 
 
   const handleFocusArtworkInstance = useCallback((instanceId: string | null) => {
@@ -253,7 +359,7 @@ function MuseumApp() {
         const zoneDocRef = db.collection('zones').doc(activeZone.id);
         await zoneDocRef.update({ 'artwork_selected': artworkSelectedData });
     } catch (error) {
-        console.error("Failed to update layout in Firebase:", error);
+        // 
     }
   }, [activeZone.id]);
 
@@ -274,7 +380,9 @@ function MuseumApp() {
       });
   }, []);
 
-  const handleActiveEditorTabChange = useCallback((tab: 'lighting' | 'layout' | 'artworks' | 'admin') => {
+  // FIX: 更正 'setActiveTab' 為 'setActiveEditorTab'
+  // FIX: Update onActiveTabChange signature to include 'scene'
+  const handleActiveEditorTabChange = useCallback((tab: 'lighting' | 'scene' | 'layout' | 'artworks' | 'admin') => {
     setActiveEditorTab(tab);
   }, []);
 
@@ -303,6 +411,7 @@ function MuseumApp() {
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
       setFocusedArtworkFirebaseId(null);
+      setHeartEmitterArtworkId(null);
     } else {
       setFocusedArtworkInstanceId(id);
       setSelectedArtworkId(null);
@@ -313,47 +422,42 @@ function MuseumApp() {
       } else {
         setFocusedArtworkFirebaseId(null);
       }
+      setHeartEmitterArtworkId(null); 
     }
-  }, [isEditorMode, currentLayout, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId]);
+  }, [isEditorMode, currentLayout, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId]);
 
   const handleLightToggle = useCallback(() => {
     const newLightsOnState = !lightsOn;
-    const newConfig = { ...lightingConfig, lightsOn: newLightsOnState };
-    
-    if (!newLightsOnState && !hasFirstManualDarkTransitionOccurred.current) {
-      setIsFirstDarkToggleTransitioning(true);
-      hasFirstManualDarkTransitionOccurred.current = true;
+
+    // Only trigger transition if it's the first time turning lights OFF
+    if (isFirstLightToggleOff && lightsOn) {
+      setTransitionMessage('Adjusting lights...');
+      setIsTransitioning(true);
+      setHeartEmitterArtworkId(null);
+      setisRankingMode(false); // NEW: Deactivate ranking mode on light toggle
+      setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
+
       setTimeout(() => {
-        setIsFirstDarkToggleTransitioning(false);
-      }, 1200);
+        const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState, useExhibitionBackground: useExhibitionBackground };
+        setLightingOverride(activeZone.id, newConfig);
+        setIsTransitioning(false);
+        setTransitionMessage('Loading Gallery...'); // Reset to default message
+        setIsFirstLightToggleOff(false); // Mark that the first light off has occurred
+      }, 500); // 500ms delay for the transition
+    } else {
+      // Normal toggle, no special transition
+      setHeartEmitterArtworkId(null);
+      setisRankingMode(false); // NEW: Deactivate ranking mode on light toggle
+      setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
+      const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState, useExhibitionBackground: useExhibitionBackground };
+      setLightingOverride(activeZone.id, newConfig);
     }
+  }, [lightsOn, isFirstLightToggleOff, lightingConfig, setLightingOverride, activeZone.id, useExhibitionBackground, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
 
-    setLightingOverride(activeZone.id, newConfig);
-  }, [lightsOn, lightingConfig, setLightingOverride, activeZone.id]);
-
-  const loadExhibition = useCallback((index: number) => {
-    setIsTransitioning(true);
-    setIsSearchOpen(false);
-    setIsRankingMode(false);
-
-    setTimeout(() => {
-      handleNavigate(index);
-      setResetTrigger(t => t + 1);
-      setTimeout(() => setIsTransitioning(false), 150);
-    }, 150);
-  }, [handleNavigate]);
-
-  const handleExhibitionChange = useCallback((direction: 'next' | 'prev') => {
-    const totalItems = exhibitions.length;
-    if (totalItems === 0) return;
-    const nextIndex = direction === 'next'
-        ? (currentIndex + 1) % totalItems
-        : (currentIndex - 1 + totalItems) % totalItems;
-    loadExhibition(nextIndex);
-  }, [exhibitions.length, currentIndex, loadExhibition]);
-
+  // NEW: Handle update for lighting config including useExhibitionBackground
   const handleLightingUpdate = useCallback(async (newConfig: SimplifiedLightingConfig) => {
     setLightingOverride(activeZone.id, newConfig);
+    setUseExhibitionBackground(newConfig.useExhibitionBackground || false); // Update local state for consistency
 
     if (lightingUpdateTimeoutRef.current) {
         clearTimeout(lightingUpdateTimeoutRef.current);
@@ -366,17 +470,40 @@ function MuseumApp() {
           const zoneDocRef = db.collection('zones').doc(activeZone.id);
           await zoneDocRef.update({ 'lightingDesign.defaultConfig': newConfig });
       } catch (error) {
-          console.error("Failed to update lighting config in Firebase:", error);
+          // 
       }
     }, 500);
   }, [activeZone.id, setLightingOverride]);
+
+  const loadExhibition = useCallback((index: number) => {
+    setTransitionMessage('Loading Gallery...'); // Reset to default message
+    setIsTransitioning(true);
+    setIsSearchOpen(false);
+    setisRankingMode(false);
+    setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on exhibition load
+    setHeartEmitterArtworkId(null);
+
+    setTimeout(() => {
+      handleNavigate(index);
+      setTimeout(() => setIsTransitioning(false), 150);
+    }, 150);
+  }, [handleNavigate, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
+
+  const handleExhibitionChange = useCallback((direction: 'next' | 'prev') => {
+    const totalItems = exhibitions.length;
+    if (totalItems === 0) return;
+    const nextIndex = direction === 'next'
+        ? (currentIndex + 1) % totalItems
+        : (currentIndex - 1 + totalItems) % totalItems;
+    loadExhibition(nextIndex);
+  }, [exhibitions.length, currentIndex, loadExhibition]);
 
   const handleUpdateArtworkFile = useCallback(async (artworkId: string, newFileUrl: string) => {
     try {
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       await artworkDocRef.update({ artwork_file: newFileUrl });
     } catch (error) {
-      console.error("Failed to update artwork file in Firebase:", error);
+      // 
       throw error;
     }
   }, []);
@@ -389,32 +516,32 @@ function MuseumApp() {
       const mergedArtworkData = { ...currentArtworkData, ...updatedArtworkData };
       await artworkDocRef.update({ artwork_data: mergedArtworkData });
     } catch (error) {
-      console.error("Failed to update artwork_data in Firebase:", error);
+      // 
       throw error;
     }
   }, []);
 
   const handleUpdateExhibition = useCallback(async (exhibitionId: string, updatedFields: Partial<Exhibition>) => {
     if (!exhibitionId || exhibitionId === 'fallback_id') {
-      console.error("Cannot update exhibition: Invalid Exhibition ID.");
+      // 
       throw new Error("Invalid Exhibition ID");
     }
     try {
       const exhibitionDocRef = db.collection('exhibitions').doc(exhibitionId);
       await exhibitionDocRef.update(updatedFields);
     } catch (error) {
-      console.error("Failed to update exhibition in Firebase:", error);
+      // 
       throw error;
     }
   }, []);
 
-  const handleRemoveArtworkFromLayout = useCallback(async (artworkIdToRemove: string) => {
+  const onRemoveArtworkFromLayout = useCallback(async (artworkIdToRemove: string) => {
     if (!activeExhibition?.id || activeExhibition.id === 'fallback_id') {
-      console.error("Cannot remove artwork: Active exhibition ID is invalid.");
+      // 
       throw new Error("Invalid Exhibition ID");
     }
     if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
-      console.error("Cannot remove artwork: Active zone ID is invalid.");
+      // 
       throw new Error("Invalid Zone ID");
     }
 
@@ -440,50 +567,107 @@ function MuseumApp() {
       });
 
     } catch (error) {
-      console.error("Failed to remove artwork from layout in Firebase:", error);
+      // 
       throw error;
     }
   }, [activeExhibition.id, activeZone.id]);
 
-  const openConfirmationDialog = useCallback((artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => {
+  const onAddArtworkToLayout = useCallback(async (artworkToAdd: FirebaseArtwork) => {
+    if (!activeExhibition?.id || activeExhibition.id === 'fallback_id') {
+      console.error("onAddArtworkToLayout: Invalid Exhibition ID", activeExhibition?.id);
+      throw new Error("Invalid Exhibition ID");
+    }
+    if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
+      console.error("onAddArtworkToLayout: Invalid Zone ID", activeZone?.id);
+      throw new Error("Invalid Zone ID");
+    }
+  
+    try {
+      // console.log("onAddArtworkToLayout: Attempting to add artwork", artworkToAdd.id, "to exhibition", activeExhibition.id, "and zone", activeZone.id);
+      // 1. Update exhibition's exhibit_artworks
+      const exhibitionDocRef = db.collection('exhibitions').doc(activeExhibition.id);
+      // console.log("onAddArtworkToLayout: Updating exhibition 'exhibit_artworks'...");
+      await exhibitionDocRef.update({
+        exhibit_artworks: firebase.firestore.FieldValue.arrayUnion(artworkToAdd.id)
+      });
+      // console.log("onAddArtworkToLayout: Exhibition 'exhibit_artworks' updated successfully.");
+  
+      // 2. Update zone's artwork_selected
+      const zoneDocRef = db.collection('zones').doc(activeZone.id);
+      const zoneDoc = await zoneDocRef.get();
+      const currentArtworkSelected = zoneDoc.data()?.artwork_selected as ZoneArtworkItem[] || [];
+  
+      // Create a default ExhibitionArtItem for the new artwork
+      const newZoneArtworkItem: ZoneArtworkItem = {
+        artworkId: artworkToAdd.id,
+        position: [0, 0, 0], // Default position
+        rotation: [0, 0, 0], // Default rotation
+        scale: 1,           // Default scale
+      };
+  
+      const newArtworkSelected = [...currentArtworkSelected, newZoneArtworkItem];
+      // console.log("onAddArtworkToLayout: Updating zone 'artwork_selected'...", newArtworkSelected);
+      await zoneDocRef.update({
+        artwork_selected: newArtworkSelected
+      });
+      // console.log("onAddArtworkToLayout: Zone 'artwork_selected' updated successfully.");
+  
+      // No need to update artwork_data for the added artwork, as it might already have one
+      // and we don't want to reset it on addition.
+  
+      // console.log("onAddArtworkToLayout: Artwork added to layout successfully.");
+      return true; // Indicate success
+    } catch (error) {
+      console.error("Error adding artwork to layout:", error);
+      throw error; // Re-throw to be caught by caller for status update
+    }
+  }, [activeExhibition.id, activeZone.id]);
+
+  // FIX: Updated `openConfirmationDialog` signature to match `FloorPlanEditorProps`
+  const openConfirmationDialog = useCallback((itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => {
+    setConfirmationItemType(itemType);
     setConfirmationArtworkId(artworkId);
     setConfirmationArtworkTitle(artworkTitle);
     setConfirmationMessage(`Are you sure you want to remove "${artworkTitle}" from this exhibition and zone layout? This will NOT delete the artwork from the master artworks collection. This action will also reset any custom 3D display settings (like rotation or material) for this artwork.`);
-    setConfirmationConfirmCallback(() => onConfirm);
     setShowConfirmation(true);
   }, []);
 
   const handleConfirmAction = useCallback(async () => {
     setShowConfirmation(false);
-    if (confirmationConfirmCallback) {
+    if (confirmationItemType === 'artwork_removal' && confirmationArtworkId) {
       try {
-        await confirmationConfirmCallback();
+        await onRemoveArtworkFromLayout(confirmationArtworkId);
       } catch (error) {
-        console.error("Error during confirmed action:", error);
+        // 
 
       }
     }
+    setConfirmationItemType(null);
     setConfirmationArtworkId(null);
     setConfirmationArtworkTitle(null);
-    setConfirmationConfirmCallback(null);
-  }, [confirmationConfirmCallback]);
+  }, [confirmationItemType, confirmationArtworkId, onRemoveArtworkFromLayout]);
 
   const handleCancelAction = useCallback(() => {
     setShowConfirmation(false);
+    setConfirmationItemType(null);
     setConfirmationArtworkId(null);
     setConfirmationArtworkTitle(null);
-    setConfirmationConfirmCallback(null);
   }, []);
 
   const handleResetCamera = useCallback(() => {
     if (cameraControlRef.current) {
-      cameraControlRef.current.moveCameraToInitial();
+      // NEW: Pass customCameraPosition from lightingConfig
+      cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
     setFocusedArtworkInstanceId(null);
     setIsArtworkFocusedForControls(false);
     setFocusedArtworkFirebaseId(null);
-    setIsRankingMode(false);
-  }, [cameraControlRef, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId]);
+    setisRankingMode(false);
+    setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on camera reset
+    setHeartEmitterArtworkId(null);
+    // NEW: Reset first light toggle state when camera is manually reset
+    setIsFirstLightToggleOff(true);
+  }, [cameraControlRef, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setisRankingMode, setIsZeroGravityMode, setHeartEmitterArtworkId, lightingConfig.customCameraPosition]);
 
   const updateArtworkLikesInFirebase = useCallback(async (artworkId: string, incrementBy: number) => {
     try {
@@ -492,7 +676,7 @@ function MuseumApp() {
             artwork_liked: firebase.firestore.FieldValue.increment(incrementBy)
         });
     } catch (error) {
-        console.error(`Firebase update failed for ${artworkId}:`, error);
+        // 
     }
   }, []);
 
@@ -501,7 +685,7 @@ function MuseumApp() {
     const actualArtworkId = artworkIdMatch ? artworkIdMatch[1] : null;
 
     if (!actualArtworkId) {
-        console.error("Could not extract actual artwork ID from instance ID for liking:", artworkInstanceId);
+        // 
         return;
     }
 
@@ -518,6 +702,7 @@ function MuseumApp() {
     }
 
     likeDebounceTimeouts.current[actualArtworkId] = window.setTimeout(async () => {
+        // 使用 likedArtworksLocalCountRef.current 確保取得最新的點讚數，避免閉包問題
         let totalIncrement = likedArtworksLocalCountRef.current[actualArtworkId] || 0;
         setLikedArtworksLocalCount(prev => {
             const newPrev = { ...prev };
@@ -537,19 +722,11 @@ function MuseumApp() {
   }, [updateArtworkLikesInFirebase]);
 
 
-  const handleSceneClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>, isArtwork: boolean = false, artworkColorClass?: string) => {
+  const handleSceneClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const { clientX, clientY } = e;
 
-    let colorClass = '';
-    let effectClass: 'subtle' | 'prominent';
-
-    if (isArtwork) {
-      colorClass = artworkColorClass || (uiConfig.lightsOn ? 'text-cyan-500' : 'text-cyan-400');
-      effectClass = 'prominent';
-    } else {
-      colorClass = (uiConfig.lightsOn ? 'text-neutral-300' : 'text-neutral-700');
-      effectClass = 'subtle';
-    }
+    const colorClass = (uiConfig.lightsOn ? 'text-neutral-300' : 'text-neutral-700');
+    const effectClass: 'subtle' | 'prominent' = 'subtle';
 
     const newRipple: SceneRipple = {
       id: `scene-ripple-${nextSceneRippleId.current++}`,
@@ -561,27 +738,54 @@ function MuseumApp() {
 
     setSceneRipples(prev => [...prev, newRipple]);
 
+    // FIX: Hardcode duration to 800ms for 'subtle' effect, as effectClass is always 'subtle' in this context.
     setTimeout(() => {
       setSceneRipples(prev => prev.filter(r => r.id !== newRipple.id));
-    }, effectClass === 'prominent' ? 900 : 800);
-  }, [uiConfig.lightsOn, nextSceneRippleId, setSceneRipples]);
+    }, 800);
+
+    // NEW: Hotspot map update for ground clicks
+    if (e.point && activeZone?.id) { // e.point is the intersection point in world coordinates
+      updateHotspotPoint(activeZone.id, e.point.x, e.point.z, 1);
+    }
+  }, [uiConfig.lightsOn, nextSceneRippleId, setSceneRipples, activeZone?.id]);
 
 
   const handleArtworkClicked = useCallback((e: React.MouseEvent<HTMLDivElement>, artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => {
     e.stopPropagation();
 
+    // Extract the actual artworkId from the instanceId
+    const artworkIdMatch = artworkInstanceId.match(/zone_art_([a-zA-Z0-9_-]+)_\d+/);
+    const actualArtworkId = artworkIdMatch ? artworkIdMatch[1] : null;
+
+    if (!actualArtworkId) {
+        return;
+    }
+
+    // NEW: Hotspot map update for artwork clicks
+    if (activeZone?.id && position) {
+      updateHotspotPoint(activeZone.id, position[0], position[2], 1);
+    }
+
+    // NEW: Artwork liked update for artwork clicks (additional 2 points)
+    updateArtworkHotspotLikes(actualArtworkId, 2);
+
+    // Existing logic after handling the new updates
     if (isRankingMode) {
-      onLikeTriggered(artworkInstanceId);
-      handleSceneClick(e as any, true, uiConfig.lightsOn ? 'text-cyan-500' : 'text-cyan-400');
+      // onLikeTriggered(artworkInstanceId); // Removed to avoid double counting for Firebase artwork_liked
+    } else if (isZeroGravityMode) {
+      // onLikeTriggered(artworkInstanceId); // Removed to avoid double counting for Firebase artwork_liked
+    } else if (isEditorMode) {
+      handleSelectArtwork(artworkInstanceId);
     } else {
       handleSelectArtwork(artworkInstanceId);
-
       if (cameraControlRef.current && cameraControlRef.current.moveCameraToArtwork) {
         cameraControlRef.current.moveCameraToArtwork(artworkInstanceId, position, rotation, artworkType, isMotionVideo);
       }
-      handleSceneClick(e as any, true, uiConfig.lightsOn ? 'text-cyan-500' : 'text-cyan-400');
     }
-  }, [cameraControlRef, handleSceneClick, uiConfig.lightsOn, handleSelectArtwork, onLikeTriggered, isRankingMode]);
+    // Always trigger heart emitter for visual feedback on artwork click
+    setHeartEmitterArtworkId(artworkInstanceId);
+    setHeartEmitterTrigger(prev => prev + 1);
+  }, [cameraControlRef, handleSelectArtwork, isRankingMode, isEditorMode, isZeroGravityMode, activeZone?.id, setHeartEmitterArtworkId, setHeartEmitterTrigger]); // MODIFIED: Removed onLikeTriggered from deps, added setHeartEmitterTrigger
 
   const handleDismissArtworkControls = useCallback(() => {
     setIsArtworkFocusedForControls(false);
@@ -590,7 +794,8 @@ function MuseumApp() {
       setFocusedArtworkInstanceId(null);
       setFocusedArtworkFirebaseId(null);
     }
-  }, [focusedArtworkInstanceId, cameraControlRef, setIsArtworkFocusedForControls, setFocusedArtworkInstanceId, setFocusedArtworkFirebaseId]);
+    setHeartEmitterArtworkId(null);
+  }, [focusedArtworkInstanceId, cameraControlRef, setIsArtworkFocusedForControls, setFocusedArtworkInstanceId, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId]);
 
   const handleOpenInfo = useCallback(() => {
     if (focusedArtworkInstanceId) {
@@ -627,20 +832,28 @@ function MuseumApp() {
   }, [exhibitions, currentIndex]);
 
   const handleRankingToggle = useCallback(() => {
-    setIsRankingMode(prev => !prev);
+    setisRankingMode(prev => !prev);
+    setIsZeroGravityMode(false); // NEW: Deactivate zero gravity if ranking mode is toggled
     setFocusedArtworkInstanceId(null);
     setIsArtworkFocusedForControls(false);
     setFocusedArtworkFirebaseId(null);
-    if (cameraControlRef.current) {
-      cameraControlRef.current.moveCameraToInitial();
-    }
-    setTriggerRanking(prev => prev + 1);
+    // REMOVED: Camera movement is now handled by CameraController's useEffect based on isRankingMode state
+    setHeartEmitterArtworkId(null);
+  }, [setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId, setIsZeroGravityMode]); // Removed cameraControlRef and lightingConfig.customCameraPosition from dependencies
 
-    if (rankingTimeoutRef.current) {
-      clearTimeout(rankingTimeoutRef.current);
-      rankingTimeoutRef.current = null;
+  // NEW: handleZeroGravityToggle function
+  const handleZeroGravityToggle = useCallback(() => {
+    setIsZeroGravityMode(prev => !prev);
+    setisRankingMode(false); // Deactivate ranking mode if zero gravity is toggled
+    setFocusedArtworkInstanceId(null);
+    setIsArtworkFocusedForControls(false);
+    setFocusedArtworkFirebaseId(null);
+    setHeartEmitterArtworkId(null);
+    if (cameraControlRef.current) {
+      cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
-  }, [setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, cameraControlRef]);
+  }, [setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId, setisRankingMode, cameraControlRef, lightingConfig.customCameraPosition]);
+
 
   useEffect(() => {
     if (isRankingMode) {
@@ -657,7 +870,7 @@ function MuseumApp() {
 
         return likesB - likesA;
       }).map((artwork, index) => {
-        const newZPosition = 10 - (index * 5); 
+        const newZPosition = 5 - (index * 3); // MODIFIED: Changed from 10 - (index * 5) to 5 - (index * 3)
         
         const firebaseArt = firebaseArtworks.find(fa => fa.id === artwork.artworkId);
         const displayLikes = firebaseArt?.artwork_liked !== undefined ? firebaseArt.artwork_liked : null;
@@ -673,16 +886,10 @@ function MuseumApp() {
       });
       setArtworksInRankingOrder(sorted);
 
-      if (rankingTimeoutRef.current) clearTimeout(rankingTimeoutRef.current);
-      rankingTimeoutRef.current = null;
     } else {
       setArtworksInRankingOrder([]);
-      if (rankingTimeoutRef.current) {
-        clearTimeout(rankingTimeoutRef.current);
-        rankingTimeoutRef.current = null;
-      }
     }
-  }, [isRankingMode, currentLayout, firebaseArtworks, triggerRanking]);
+  }, [isRankingMode, currentLayout, firebaseArtworks]);
 
   const displayLayout = useMemo(() => {
     if (isEditorMode && editorLayout) {
@@ -725,14 +932,9 @@ function MuseumApp() {
     return firebaseArt ? firebaseArt.title.toUpperCase() : null;
   }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
 
-  const showGlobalOverlay = isTransitioning || isInitialDarkLoad || isFirstDarkToggleTransitioning;
-  const overlayMessage = isTransitioning
-    ? 'Loading Gallery...'
-    : (isInitialDarkLoad
-      ? 'Initializing Dark Gallery...'
-      : (isFirstDarkToggleTransitioning
-        ? 'Entering Dark Mode...'
-        : 'Loading Gallery...'));
+  const showGlobalOverlay = isTransitioning || isEffectRegistryLoading; // NEW: Include effect registry loading status
+  // MODIFIED: Use transitionMessage state for overlay message
+  // const overlayMessage = isEffectRegistryLoading ? 'Loading Effects...' : (isTransitioning ? 'Loading Gallery...' : 'Loading Gallery...'); // NEW: Update overlay message
 
   const hasMotionArtwork = useMemo(() => currentLayout.some(art => art.isMotionVideo), [currentLayout]);
 
@@ -746,9 +948,16 @@ function MuseumApp() {
     }
   }, [activeZone]);
 
+  const handleToggleSnapshot = useCallback((enabled: boolean) => { // NEW: Callback for toggling snapshots
+    setIsSnapshotEnabledGlobally(enabled);
+  }, []);
+
+  // Define isFirstItem here
+  const isFirstItem = currentIndex === 0;
+
   return (
     <React.Fragment>
-      <TransitionOverlay isTransitioning={showGlobalOverlay} message={overlayMessage} />
+      <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
 
       <React.Fragment>
         <Scene
@@ -771,10 +980,21 @@ function MuseumApp() {
           cameraControlRef={cameraControlRef}
           onArtworkClicked={handleArtworkClicked}
           isDebugMode={isDebugMode}
+          // FIX: Corrected prop name from `triggerHeartEmitter` to `heartEmitterTrigger`
           triggerHeartEmitter={heartEmitterTrigger}
           heartEmitterArtworkId={heartEmitterArtworkId}
           onCanvasClick={handleSceneClick}
           isRankingMode={isRankingMode}
+          isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
+          isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
+          onCameraPositionChange={handleCameraPositionChange} // NEW: Pass the callback
+          rankingCameraPosition={lightingConfig.rankingCameraPosition} // NEW
+          rankingCameraTarget={lightingConfig.rankingCameraTarget}   // NEW
+          useExhibitionBackground={useExhibitionBackground} // NEW: Pass useExhibitionBackground
+          activeEffectName={activeEffectName} // NEW: Pass active effect name
+          effectRegistry={effectRegistry} // NEW: Pass dynamically loaded effect registry
+          isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass effect registry loading state
+          zoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
         />
       </React.Fragment>
 
@@ -801,13 +1021,16 @@ function MuseumApp() {
 
       <SideNavigation
         uiConfig={uiConfig}
-        isFirstItem={currentIndex === 0}
+        isFirstItem={isFirstItem}
         isLastItem={exhibitions.length === 0 || currentIndex === exhibitions.length - 1}
         onPrev={() => handleExhibitionChange('prev')}
         onNext={() => handleExhibitionChange('next')}
         prevItem={prevItem}
         nextItem={nextItem}
         isSmallScreen={isSmallScreen}
+        focusedArtworkInstanceId={focusedArtworkInstanceId}
+        isRankingMode={isRankingMode}
+        isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
       />
 
       <MainControls
@@ -827,7 +1050,7 @@ function MuseumApp() {
         onNext={() => handleExhibitionChange('next')}
         prevItem={prevItem}
         nextItem={nextItem}
-        isFirstItem={currentIndex === 0}
+        isFirstItem={isFirstItem}
         isLastItem={exhibitions.length === 0 || currentIndex === exhibitions.length - 1}
         focusedArtworkInstanceId={focusedArtworkInstanceId}
         isArtworkFocusedForControls={isArtworkFocusedForControls}
@@ -837,6 +1060,13 @@ function MuseumApp() {
         onLikeTriggered={onLikeTriggered}
         isRankingMode={isRankingMode}
         onRankingToggle={handleRankingToggle}
+        isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
+        onZeroGravityToggle={handleZeroGravityToggle} // NEW: Pass onZeroGravityToggle
+        isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status
+        setHeartEmitterArtworkId={setHeartEmitterArtworkId}
+        hasMotionArtwork={hasMotionArtwork} // NEW: Pass hasMotionArtwork
+        // NEW: Pass customCameraPosition to MainControls
+        customCameraPosition={lightingConfig.customCameraPosition}
       />
 
       {isEditorMode && (
@@ -861,8 +1091,16 @@ function MuseumApp() {
             uiConfig={uiConfig}
             onActiveTabChange={handleActiveEditorTabChange}
             onFocusArtwork={handleFocusArtworkInstance}
-            onRemoveArtworkFromLayout={handleRemoveArtworkFromLayout}
             onOpenConfirmationDialog={openConfirmationDialog}
+            onAddArtworkToLayout={onAddArtworkToLayout}
+            useExhibitionBackground={useExhibitionBackground} // NEW: Pass useExhibitionBackground
+            activeZoneTheme={activeEffectName} // NEW: Pass activeZone.zone_theme as activeZoneTheme
+            onUpdateZoneTheme={handleUpdateZoneTheme} // NEW: Pass handler for updating zone theme
+            activeExhibitionBackgroundUrl={activeExhibition.exhibit_background} // NEW: Pass activeExhibition.exhibit_background
+            effectRegistry={effectRegistry} // NEW: Pass dynamically loaded effect registry
+            isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass effect registry loading state
+            activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
+            onUpdateZoneGravity={handleUpdateZoneGravity} // NEW: Pass handler for updating zone gravity
           />
       )}
 
@@ -910,9 +1148,12 @@ function MuseumApp() {
         fps={fps}
         onlineUsers={currentActiveZoneOnlineUsers}
         setOnlineUsers={handleSetOnlineUsersForActiveZone}
-        zoneCapacity={zoneCapacity}
         isDebugMode={isDebugMode}
         setIsDebugMode={setIsDebugMode}
+        isSnapshotEnabled={isSnapshotEnabledGlobally} // NEW: Pass isSnapshotEnabledGlobally
+        onToggleSnapshot={handleToggleSnapshot} // NEW: Pass handleToggleSnapshot
+        zoneCapacity={zoneCapacity}
+        effectRegistryError={effectRegistryError} // NEW: Pass effect registry error
       />
       
       {sceneRipples.map(ripple => (

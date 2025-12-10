@@ -1,5 +1,7 @@
-import React, { useCallback, useMemo } from 'react';
-import { Sun, Moon, Sparkles, Lightbulb } from 'lucide-react';
+
+
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { Sun, Moon, Sparkles, Image, Palette } from 'lucide-react';
 import { SimplifiedLightingConfig, SimplifiedLightingPreset, ZoneLightingDesign } from '../../types';
 
 interface LightingTabProps {
@@ -13,6 +15,8 @@ interface LightingTabProps {
   onUpdateLighting: (newConfig: SimplifiedLightingConfig) => void;
   fullZoneLightingDesign: ZoneLightingDesign;
   currentZoneNameForEditor: string;
+  // REMOVED: activeExhibitionBackgroundUrl?: string;
+  // REMOVED: useExhibitionBackground: boolean;
 }
 
 const LightingTab: React.FC<LightingTabProps> = React.memo(({
@@ -21,11 +25,51 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
   onUpdateLighting,
   fullZoneLightingDesign,
   currentZoneNameForEditor,
+  // REMOVED: activeExhibitionBackgroundUrl,
+  // REMOVED: useExhibitionBackground,
 }) => {
     const { lightsOn, border, subtext } = uiConfig;
     const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
     
-    const handleLightingValueChange = useCallback((key: keyof SimplifiedLightingConfig, value: any) => onUpdateLighting({ ...lightingConfig, [key]: value }), [onUpdateLighting, lightingConfig]);
+    // REMOVED: floorColor states and refs
+    // REMOVED: const [localFloorColor, setLocalFloorColor] = useState(lightingConfig.floorColor || '#000000');
+    // REMOVED: const [displayedFloorColorHex, setDisplayedFloorColorHex] = useState(lightingConfig.floorColor || '#000000');
+    // REMOVED: const floorColorDebounceRef = useRef<number | null>(null);
+
+    // REMOVED: Sync local states with prop when lightingConfig.floorColor changes from outside
+    // REMOVED: useEffect(() => {
+    // REMOVED:   const newColor = lightingConfig.floorColor || '#000000';
+    // REMOVED:   setLocalFloorColor(newColor);
+    // REMOVED:   setDisplayedFloorColorHex(newColor);
+    // REMOVED: }, [lightingConfig.floorColor]);
+
+    const handleLightingValueChange = useCallback((key: keyof SimplifiedLightingConfig, value: any) => {
+      // REMOVED: For floorColor, we need special handling to avoid immediate re-renders
+      // REMOVED: if (key === 'floorColor') {
+      // REMOVED:   setDisplayedFloorColorHex(value); // Update text display immediately
+      // REMOVED:
+      // REMOVED:   if (floorColorDebounceRef.current) {
+      // REMOVED:     clearTimeout(floorColorDebounceRef.current);
+      // REMOVED:   }
+      // REMOVED:   floorColorDebounceRef.current = window.setTimeout(() => {
+      // REMOVED:     // This update will eventually flow back to localFloorColor via useEffect
+      // REMOVED:     onUpdateLighting({ ...lightingConfig, [key]: value });
+      // REMOVED:   }, 300); // Debounce floor color updates
+      // REMOVED: } else {
+        onUpdateLighting({ ...lightingConfig, [key]: value });
+      // REMOVED: }
+    }, [onUpdateLighting, lightingConfig]);
+
+    // REMOVED: Handle blur event for floorColor to ensure immediate save when losing focus
+    // REMOVED: const handleFloorColorBlur = useCallback(() => {
+    // REMOVED:   if (floorColorDebounceRef.current) {
+    // REMOVED:     clearTimeout(floorColorDebounceRef.current);
+    // REMOVED:   }
+    // REMOVED:   // Use the last value from displayedFloorColorHex as the final value to commit
+    // REMOVED:   // This ensures the value committed is what the user visually saw
+    // REMOVED:   onUpdateLighting({ ...lightingConfig, floorColor: displayedFloorColorHex });
+    // REMOVED: }, [onUpdateLighting, lightingConfig, displayedFloorColorHex]);
+
     const handleSpotlightColorSelect = useCallback((color: string) => onUpdateLighting({ ...lightingConfig, spotlightMode: 'manual', manualSpotlightColor: color }), [onUpdateLighting, lightingConfig]);
     const applyPreset = useCallback((preset: SimplifiedLightingPreset) => onUpdateLighting({ ...lightingConfig, lightsOn: true, ambientIntensity: preset.ambientIntensity, colorTemperature: preset.colorTemperature, spotlightMode: 'manual', manualSpotlightColor: preset.manualSpotlightColor }), [onUpdateLighting, lightingConfig]);
 
@@ -79,7 +123,7 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
                 <ControlRow label="Ambient Environment" value={`${lightingConfig.colorTemperature}K`}>
                     <div className="w-full flex items-center gap-3">
                         <span className="text-amber-500"><Sun className="w-4 h-4" /></span>
-                        <input type="range" min="2700" max="7500" step="100" value={lightingConfig.colorTemperature} onChange={e => handleLightingValueChange('colorTemperature', Number(e.target.value))} className="w-full h-1 bg-gradient-to-r from-amber-500 to-blue-500 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-::-webkit-slider-thumb]:shadow" />
+                        <input type="range" min="2700" max="7500" step="100" value={lightingConfig.colorTemperature} onChange={e => handleLightingValueChange('colorTemperature', Number(e.target.value))} className="w-full h-1 bg-gradient-to-r from-amber-500 to-blue-500 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-::-webkit-slider-thumb]:shadow" />
                         <span className="text-blue-500"><Moon className="w-4 h-4" /></span>
                     </div>
                 </ControlRow>

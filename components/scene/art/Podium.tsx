@@ -1,4 +1,8 @@
+
+
+
 import React from 'react';
+import * as THREE from 'three'; // NEW: Import THREE
 
 const Podium: React.FC<{ 
   height: number; 
@@ -7,14 +11,19 @@ const Podium: React.FC<{
 }> = ({ height, shape = 'box', width = 2 }) => {
   const yPos = height / 2;
   return (
-    <mesh position={[0, yPos, 0]} receiveShadow={true} castShadow>
+    // FIX: Use THREE.Vector3 for position
+    <mesh position={new THREE.Vector3(0, yPos, 0)} receiveShadow={true} castShadow>
       {shape === 'box' ? (
-        <boxGeometry args={[width, height, width]} />
+        // FIX: Use args prop for geometry
+        <boxGeometry attach="geometry" args={[width, height, width]} />
       ) : (
-        <cylinderGeometry args={[width / 2, width / 2, height, 32]} />
+        // FIX: Use args prop for geometry
+        <cylinderGeometry attach="geometry" args={[width / 2, width / 2, height, 32]} />
       )}
+      {/* FIX: Use THREE.Color for color */}
       <meshStandardMaterial 
-        color="#eeeeee" 
+        attach="material"
+        color={new THREE.Color("#eeeeee")} 
         roughness={0.3}
         metalness={0}
       />

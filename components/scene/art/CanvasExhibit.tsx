@@ -1,3 +1,5 @@
+
+
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import TexturedWallDisplay from './TexturedWallDisplay';
 import { Html } from '@react-three/drei';
@@ -5,7 +7,7 @@ import { getVideoEmbedUrl } from '../../../services/utils/videoUtils';
 import * as THREE from 'three';
 import { useLoader } from '@react-three/fiber';
 import { ArtworkDimensions, ArtType } from '../../../types';
-import { HelpCircle } from 'lucide-react';
+
 
 interface CanvasExhibitProps {
   orientation: 'portrait' | 'landscape' | 'square', 
@@ -21,6 +23,7 @@ interface CanvasExhibitProps {
   artworkRotation: [number, number, number];
   artworkType: ArtType;
   onArtworkClickedHtml: (e: React.MouseEvent<HTMLDivElement>, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType) => void;
+  isSmallScreen: boolean; // NEW: Add isSmallScreen prop
 }
 
 const isImageUrl = (url: string | undefined): boolean => {
@@ -29,12 +32,15 @@ const isImageUrl = (url: string | undefined): boolean => {
 };
 
 const VIDEO_SIZE_MULTIPLIER = 0.3;
-const VIDEO_INNER_CONTENT_MULTIPLIER = 0.9;
-const EMBED_VIDEO_VERTICAL_OFFSET = 0; 
+const VIDEO_INNER_CONTENT_MULTIPLIER = 0.85;
+const EMBED_VIDEO_VERTICAL_OFFSET = 0.3; 
 const MOTION_WALL_BACKING_MULTIPLIER = 2.5; 
 
+// NEW: Small screen specific Y offset for motion videos
+const SMALL_SCREEN_MOTION_Y_OFFSET = 2;
+
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
-  artworkPosition, artworkRotation, artworkType, onArtworkClickedHtml
+  artworkPosition, artworkRotation, artworkType, onArtworkClickedHtml, isSmallScreen // NEW: Destructure isSmallScreen
 }) => {
   let maxDimension = 3.0; 
   
@@ -61,28 +67,16 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
   const WALL_DEPTH = 0.4;
 
   const [artworkInfo, setArtworkInfo] = useState<ArtworkDimensions | null>(null);
-  const [internalFaultyVideo, setInternalFaultyVideo] = useState(false);
   
-  const mountedRef = useRef(false);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
   const handleArtworkDimensions = useCallback((width: number, height: number, artworkSurfaceZ: number, artworkCenterY: number) => {
-    if (mountedRef.current) {
-      setArtworkInfo({ artworkRenderWidth: width, artworkRenderHeight: height, artworkSurfaceZ, artworkCenterY });
-      if (onDimensionsCalculated) {
-        onDimensionsCalculated(width, height, artworkSurfaceZ, artworkCenterY);
-      }
+    setArtworkInfo({ artworkRenderWidth: width, artworkRenderHeight: height, artworkSurfaceZ, artworkCenterY });
+    if (onDimensionsCalculated) {
+      onDimensionsCalculated(width, height, artworkSurfaceZ, artworkCenterY);
     }
   }, [onDimensionsCalculated]);
 
   
-  const showFaultyVideo = isFaultyMotionVideo || internalFaultyVideo;
+  const showFaultyVideo = isFaultyMotionVideo;
 
   if (showFaultyVideo) {
     const placeholderSize = maxDimension * 0.4;
@@ -102,21 +96,23 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
 
     return (
       <group>
-        <mesh ref={wallRef} receiveShadow position={[0, yPosition, 0]}>
-          <boxGeometry args={[placeholderSize * 1.5, placeholderSize * 1.5, WALL_DEPTH]} />
-          <meshStandardMaterial color="#333333" roughness={0.5} metalness={0} />
+        {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+        <mesh ref={wallRef} receiveShadow position={new THREE.Vector3(0, yPosition, 0)}>
+          <boxGeometry attach="geometry" args={[placeholderSize * 1.5, placeholderSize * 1.5, WALL_DEPTH]} />
+          <meshStandardMaterial attach="material" color={new THREE.Color("#333333")} roughness={0.5} metalness={0} />
         </mesh>
         
-        <mesh position={[0, yPosition, zPosition - 0.005]} castShadow>
-          <planeGeometry args={[placeholderSize, placeholderSize]} />
-          <meshStandardMaterial color="#444444" roughness={0.8} />
+        {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+        <mesh position={new THREE.Vector3(0, yPosition, zPosition - 0.005)} castShadow>
+          <planeGeometry attach="geometry" args={[placeholderSize, placeholderSize]} />
+          <meshStandardMaterial attach="material" color={new THREE.Color("#444444")} roughness={0.8} />
         </mesh>
 
+        {/* FIX: Removed occlude prop as HTML is not a THREE.Object3D */}
         <Html
-          position={[0, yPosition, zPosition]}
+          position={new THREE.Vector3(0, yPosition, zPosition)}
           wrapperClass="faulty-video-html"
           center
-          occlude={[wallRef]}
         >
           <div className="flex items-center justify-center w-[100px] h-[100px] text-6xl font-bold text-white bg-red-500 rounded-full shadow-lg">
             ?
@@ -140,7 +136,13 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
 
     const zPosition = WALL_DEPTH / 2 + 0.01;
 
-    const htmlContentCenterY = backingWallMeshCenterY + EMBED_VIDEO_VERTICAL_OFFSET;
+    // NEW: Apply conditional Y offset for small screens
+    let adjustedYOffset = EMBED_VIDEO_VERTICAL_OFFSET;
+    if (isSmallScreen) {
+      adjustedYOffset += SMALL_SCREEN_MOTION_Y_OFFSET;
+    }
+    const htmlContentCenterY = backingWallMeshCenterY + adjustedYOffset;
+
 
     const HTML_SCALE_FACTOR = 100;
     const iframeWidthPx = videoContentBaseWidth * VIDEO_INNER_CONTENT_MULTIPLIER * HTML_SCALE_FACTOR;
@@ -159,13 +161,14 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
 
     return (
       <group>
-        <mesh ref={wallRef} receiveShadow castShadow position={[0, backingWallMeshCenterY, 0]}>
-          <boxGeometry args={[backingWallWidth, backingWallHeight, WALL_DEPTH]} />
-          <meshStandardMaterial color="#1a1a1a" roughness={0.5} metalness={0} />
+        {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+        <mesh ref={wallRef} receiveShadow castShadow position={new THREE.Vector3(0, backingWallMeshCenterY, 0)}>
+          <boxGeometry attach="geometry" args={[backingWallWidth, backingWallHeight, WALL_DEPTH]} />
+          <meshStandardMaterial attach="material" color={new THREE.Color("#1a1a1a")} roughness={0.5} metalness={0} />
         </mesh>
         
         <Html
-          position={[0, htmlContentCenterY, zPosition]}
+          position={new THREE.Vector3(0, htmlContentCenterY, zPosition)}
           wrapperClass="youtube-video-html"
           center
           occlude={[wallRef]}

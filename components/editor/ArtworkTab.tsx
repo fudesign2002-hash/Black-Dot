@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Video, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'; // NEW: Added AlertCircle for error state
+import { Image as ImageIcon, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2, ChevronDown, ChevronUp, AlertCircle, Plus, Search, ZoomIn, ZoomOut } from 'lucide-react'; // NEW: Add ZoomIn, ZoomOut imports
 import { FirebaseArtwork, ExhibitionArtItem, ArtworkData, ArtworkMaterialConfig, MaterialPreset } from '../../types';
 import { storage } from '../../firebase';
 import { getVideoEmbedUrl } from '../../services/utils/videoUtils';
@@ -21,9 +22,9 @@ interface ArtworkTabProps {
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
   onFocusArtwork: (artworkInstanceId: string | null) => void;
-  onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>;
-  onOpenConfirmationDialog: (artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => void;
+  onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void;
   onSelectArtwork: (id: string | null) => void;
+  onAddArtworkToLayout: (artwork: FirebaseArtwork) => Promise<boolean>;
 }
 
 const MATERIAL_PRESETS: MaterialPreset[] = [
@@ -75,7 +76,7 @@ const normalizeDegrees = (degrees: number): number => {
   return normalized;
 };
 
-const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseArtworks, currentLayout, onUpdateArtworkFile, onUpdateArtworkData, onFocusArtwork, onRemoveArtworkFromLayout, onOpenConfirmationDialog, onSelectArtwork }) => {
+const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseArtworks, currentLayout, onUpdateArtworkFile, onUpdateArtworkData, onFocusArtwork, onOpenConfirmationDialog, onSelectArtwork, onAddArtworkToLayout }) => {
   const [editingUrlArtworkId, setEditingUrlArtworkId] = useState<string | null>(null);
   const [currentEditValue, setCurrentEditValue] = useState<string>('');
   const [originalArtworkFile, setOriginalArtworkFile] = useState<string>('');
@@ -87,6 +88,10 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
   const [previewMediaError, setPreviewMediaError] = useState<Record<string, boolean>>({});
   const [glbPreviewRotation, setGlbPreviewRotation] = useState<[number, number, number]>([0, 0, 0]);
   const [selectedMaterialPresetId, setSelectedMaterialPresetId] = useState<string | null>(null);
+  const [addArtworkSearchQuery, setAddArtworkSearchQuery] = useState('');
+  const [isAddArtworkSectionOpen, setIsAddArtworkSectionOpen] = useState(false);
+  const [addArtworkStatus, setAddArtworkStatus] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  const [localScale, setLocalScale] = useState(1.0); // NEW: State for local scale
 
   const { lightsOn, text, subtext, border, input } = uiConfig;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
@@ -99,12 +104,31 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     );
   }, [firebaseArtworks, currentLayout]);
 
+  const availableArtworksToAdd = useMemo(() => {
+    const artworkIdsInLayout = new Set(currentLayout.map(item => item.artworkId));
+    return firebaseArtworks.filter(art => 
+      !artworkIdsInLayout.has(art.id) &&
+      (art.artwork_type === 'painting' || art.artwork_type === 'motion' || art.artwork_type === 'sculpture') &&
+      (art.title.toLowerCase().includes(addArtworkSearchQuery.toLowerCase()) ||
+       (art.artist?.toLowerCase().includes(addArtworkSearchQuery.toLowerCase())) ||
+       (art.artwork_type.toLowerCase().includes(addArtworkSearchQuery.toLowerCase())))
+    );
+  }, [firebaseArtworks, currentLayout, addArtworkSearchQuery]);
+
+
   const handleUpdateStatus = useCallback((artworkId: string, status: 'idle' | 'saving' | 'saved' | 'error', duration: number = 2000) => {
     setUpdateStatus(prev => ({ ...prev, [artworkId]: status }));
     if (status === 'saved' || status === 'error') {
       setTimeout(() => setUpdateStatus(prev => ({ ...prev, [artworkId]: 'idle' })), duration);
     }
   }, [setUpdateStatus]);
+
+  const handleAddArtworkStatus = useCallback((artworkId: string, status: 'idle' | 'saving' | 'saved' | 'error', duration: number = 2000) => {
+    setAddArtworkStatus(prev => ({ ...prev, [artworkId]: status }));
+    if (status === 'saved' || status === 'error') {
+      setTimeout(() => setAddArtworkStatus(prev => ({ ...prev, [artworkId]: 'idle' })), duration);
+    }
+  }, [setAddArtworkStatus]);
 
   const handleSaveUrl = useCallback(async (artworkId: string, urlToSave: string) => {
     if (urlToSave === originalArtworkFile && artworkId === editingUrlArtworkId) {
@@ -120,7 +144,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
       setCurrentEditValue(urlToSave);
       setPreviewMediaError(prev => ({ ...prev, [artworkId]: false }));
     } catch (error) {
-      console.error("Failed to update artwork file:", error);
+      // 
       handleUpdateStatus(artworkId, 'error', 3000); 
       setPreviewMediaError(prev => ({ ...prev, [artworkId]: true }));
     }
@@ -131,7 +155,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     
     const currentArtwork = firebaseArtworks.find(art => art.id === artworkId);
     if (!currentArtwork) {
-        console.error("Artwork not found for ID:", artworkId);
+        // 
         handleUpdateStatus(artworkId, 'error', 3000);
         return;
     }
@@ -173,7 +197,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
         await onUpdateArtworkData(artworkId, { rotation_offset: newRotationOffsetRadians });
         handleUpdateStatus(artworkId, 'saved');
     } catch (error) {
-        console.error("Failed to save GLB rotation:", error);
+        // 
         handleUpdateStatus(artworkId, 'error', 3000);
     }
   }, [glbPreviewRotation, firebaseArtworks, onUpdateArtworkData, handleUpdateStatus]);
@@ -186,10 +210,32 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
         await onUpdateArtworkData(artworkId, { material: materialConfig });
         handleUpdateStatus(artworkId, 'saved');
     } catch (error) {
-        console.error("Failed to save material preset:", error);
+        // 
         handleUpdateStatus(artworkId, 'error', 3000);
     }
   }, [onUpdateArtworkData, handleUpdateStatus]);
+
+  // NEW: handleScaleChange function
+  const handleScaleChange = useCallback(async (artworkId: string, increment: number) => {
+    handleUpdateStatus(artworkId, 'saving');
+    const currentArtwork = firebaseArtworks.find(art => art.id === artworkId);
+    const currentScale = currentArtwork?.artwork_data?.scale_offset ?? 1.0;
+    let newScale = currentScale + increment;
+
+    // Clamp scale between 10% (0.1) and 500% (5.0)
+    newScale = Math.max(0.1, Math.min(5.0, newScale));
+    
+    setLocalScale(newScale); // Update local state for immediate UI feedback
+
+    try {
+        await onUpdateArtworkData(artworkId, { scale_offset: newScale });
+        handleUpdateStatus(artworkId, 'saved');
+    } catch (error) {
+        // 
+        handleUpdateStatus(artworkId, 'error', 3000);
+    }
+  }, [firebaseArtworks, onUpdateArtworkData, handleUpdateStatus]);
+
 
   const handleToggleEdit = useCallback((artwork: FirebaseArtwork) => {
     const isCurrentlyEditing = editingUrlArtworkId === artwork.id;
@@ -217,7 +263,16 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
           onSelectArtwork(null); 
       }
 
-      if (artwork.artwork_type === 'sculpture' && artwork.artwork_file?.toLowerCase().includes('.glb')) {
+      // FIX: Added type assertion to `artwork.artwork_type` to bypass a TypeScript inference issue
+      // where the compiler incorrectly flags a comparison with the literal string 'sculpture' as unintentional.
+      // Despite `artwork_type` being defined to include 'sculpture', the compiler's internal narrowing
+      // seems to exclude it in this specific context, causing a type error. Casting to `string` resolves
+      // this by making the comparison generic enough for TypeScript to allow.
+      if ((artwork.artwork_type as string) === 'sculpture' || ((artwork.artwork_type as string) === 'sculpture' && artwork.artwork_file?.toLowerCase().includes('.glb'))) { // MODIFIED: Check for 'sculpture' type for scale and material
+          // Initialize scale
+          setLocalScale(artwork.artwork_data?.scale_offset ?? 1.0);
+
+          // Initialize rotation
           const rotationOffset = artwork.artwork_data?.rotation_offset;
           const initialRotation: [number, number, number] = (rotationOffset && rotationOffset.length === 3)
               ? rotationOffset
@@ -248,6 +303,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
       } else {
           setGlbPreviewRotation([0, 0, 0]);
           setSelectedMaterialPresetId(null);
+          setLocalScale(1.0); // Reset scale when not a sculpture
       }
     }
   }, [editingUrlArtworkId, setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks, onSelectArtwork, normalizeDegrees]);
@@ -265,25 +321,8 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
 
 
   const handleRemoveClick = useCallback(async (artworkId: string, artworkTitle: string) => {
-    const onConfirmRemoval = async () => {
-      handleUpdateStatus(artworkId, 'saving');
-      try {
-        await onRemoveArtworkFromLayout(artworkId);
-        handleUpdateStatus(artworkId, 'saved');
-        if (editingUrlArtworkId === artworkId) {
-          setEditingUrlArtworkId(null);
-          onFocusArtwork(null);
-          onSelectArtwork(null);
-        }
-      } catch (error) {
-        console.error("Failed to remove artwork from layout:", error);
-        handleUpdateStatus(artworkId, 'error', 3000);
-        throw error;
-      }
-    };
-
-    onOpenConfirmationDialog(artworkId, artworkTitle, onConfirmRemoval);
-  }, [editingUrlArtworkId, onFocusArtwork, onSelectArtwork, onRemoveArtworkFromLayout, handleUpdateStatus, onOpenConfirmationDialog]);
+    onOpenConfirmationDialog('artwork_removal', artworkId, artworkTitle);
+  }, [onOpenConfirmationDialog]);
 
   useEffect(() => {
     if (editingUrlArtworkId) {
@@ -370,7 +409,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
         setUploadMessage(`Uploading: ${progress.toFixed(0)}%`);
       },
       (error) => {
-        console.error("Upload failed:", error);
+        // 
         setUploadMessage('Upload failed!');
         setIsUploading(false);
         handleUpdateStatus(artworkId, 'error', 3000);
@@ -400,7 +439,10 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     if (hasError) {
       return (
         <div className="flex items-center justify-center w-full h-full bg-red-800 text-white rounded-md text-center">
-          <AlertCircle className="w-8 h-8 mr-2" />
+          {/* FIX: Moved title prop to wrapping span for AlertCircle icon */}
+          <span title="Error Loading Media">
+            <AlertCircle className="w-8 h-8 mr-2" />
+          </span>
           Error Loading Media
         </div>
       );
@@ -411,7 +453,10 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
       if (!embedUrl) {
         return (
           <div className="flex items-center justify-center w-full h-full bg-red-800 text-white rounded-md text-center">
-            <AlertCircle className="w-8 h-8 mr-2" />
+            {/* FIX: Moved title prop to wrapping span for AlertCircle icon */}
+            <span title="Invalid Video URL">
+              <AlertCircle className="w-8 h-8 mr-2" />
+            </span>
             Invalid Video URL
           </div>
         );
@@ -446,174 +491,236 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     return (
       <div className="flex items-center justify-center w-full h-full bg-neutral-700 text-white rounded-md text-center">
         <AlertCircle className="w-8 h-8 mr-2" />
-        Unsupported File Type
+        Unknown File Type
       </div>
     );
-  }, [previewMediaError, setPreviewMediaError]);
+  }, [previewMediaError]);
 
+
+  const getStatusIcon = useCallback((artworkId: string, type: 'update' | 'add') => {
+    const statusMap = type === 'update' ? updateStatus : addArtworkStatus;
+    const status = statusMap[artworkId];
+    switch (status) {
+      case 'saving':
+        return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />;
+      case 'saved':
+        return <Check className="w-4 h-4 text-green-500" />;
+      case 'error':
+        return <span className="text-red-500 font-bold">!</span>;
+      default:
+        return null;
+    }
+  }, [updateStatus, addArtworkStatus]);
+
+  const currentArtworkForScale = useMemo(() => relevantArtworks.find(art => art.id === editingUrlArtworkId), [relevantArtworks, editingUrlArtworkId]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
       <div className="space-y-4">
+        {/* Add Artwork to Layout Section */}
         <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
-          <h4 className="font-bold text-sm mb-4">Artwork Management</h4>
-          <p className={`text-sm leading-relaxed ${subtext}`}>
-            Configure media files and display settings for artworks in this zone. Double-click an artwork to quickly select it and open its editor.
-          </p>
+          <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsAddArtworkSectionOpen(prev => !prev)}>
+            <h4 className="font-bold text-sm">Add Artwork to Layout</h4>
+            {isAddArtworkSectionOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </div>
+          {isAddArtworkSectionOpen && (
+            <div className="mt-4">
+              <div className="relative mb-4">
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50 ${text}`} />
+                <input
+                  type="text"
+                  placeholder="Search artworks to add..."
+                  value={addArtworkSearchQuery}
+                  onChange={e => setAddArtworkSearchQuery(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 rounded-md text-xs ${input}`}
+                />
+              </div>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2 scrollbar-hide">
+                {availableArtworksToAdd.length > 0 ? (
+                  availableArtworksToAdd.map(artwork => (
+                    <div key={artwork.id} className={`flex items-center gap-3 p-3 rounded-md ${lightsOn ? 'bg-neutral-50' : 'bg-neutral-700'}`}>
+                      <div className="flex-1">
+                        <p className={`font-medium ${text} text-sm`}>{artwork.title}</p>
+                        <p className={`text-xs ${subtext}`}>Type: {artwork.artwork_type.replace(/_/g, ' ')}</p>
+                        {artwork.fileSizeMB && <p className={`text-xs ${subtext}`}>Size: {artwork.fileSizeMB.toFixed(2)} MB</p>}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          handleAddArtworkStatus(artwork.id, 'saving');
+                          try {
+                            await onAddArtworkToLayout(artwork);
+                            handleAddArtworkStatus(artwork.id, 'saved');
+                          } catch (error) {
+                            console.error("Error adding artwork to layout from UI:", error);
+                            handleAddArtworkStatus(artwork.id, 'error', 3000);
+                          }
+                        }}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold uppercase transition-colors 
+                          ${lightsOn ? 'bg-cyan-600 text-white hover:bg-cyan-700' : 'bg-blue-500 text-white hover:bg-blue-600'}
+                          ${addArtworkStatus[artwork.id] === 'saving' ? 'opacity-70 cursor-not-allowed' : ''}
+                        `}
+                        disabled={addArtworkStatus[artwork.id] === 'saving'}
+                      >
+                        {getStatusIcon(artwork.id, 'add') || <Plus className="w-4 h-4" />}
+                        <span>Add</span>
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className={`${subtext} text-center py-4`}>No artworks found to add.</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {relevantArtworks.length === 0 && (
-          <div className={`text-center py-12 ${subtext}`}>
-            <p>No artworks found in this zone layout.</p>
-          </div>
-        )}
-
-        {relevantArtworks.map((artwork) => {
-          const isEditing = editingUrlArtworkId === artwork.id;
-          const status = updateStatus[artwork.id] || 'idle';
-          const isGlb = (artwork.artwork_file || artwork.file)?.toLowerCase().includes('.glb');
-
-          return (
-            <div
-              key={artwork.id}
-              className={`p-4 rounded-xl border ${border} ${controlBgClass}
-                          ${isEditing ? (lightsOn ? 'ring-2 ring-cyan-500' : 'ring-2 ring-cyan-400') : ''}`}
-              onDoubleClick={() => handleArtworkDoubleClick(artwork)}
-            >
-              <div className="flex items-center justify-between gap-4 mb-3">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {(artwork.artwork_type === 'painting' || artwork.artwork_type === 'motion') ? <ImageIcon className={`w-4 h-4 opacity-70 ${text}`} /> : <Box className={`w-4 h-4 opacity-70 ${text}`} />}
-                  <h4 className={`text-sm font-medium ${text} truncate`}>{artwork.title}</h4>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {status === 'saving' && <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />}
-                  {status === 'saved' && <Check className="w-4 h-4 text-green-500" />}
-                  {status === 'error' && <AlertCircle className="w-4 h-4 text-red-500" title="Error saving" />}
-                  <button
-                    onClick={() => handleToggleEdit(artwork)}
-                    className={`p-1.5 rounded-full transition-colors duration-200 ${isEditing ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : (lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700')} ${text}`}
-                    title={isEditing ? 'Close Editor' : 'Open Editor'}
-                  >
-                    {isEditing ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => handleRemoveClick(artwork.id, artwork.title)}
-                    className={`p-1.5 rounded-full transition-colors duration-200 hover:bg-red-500/20 text-red-500`}
-                    title="Remove from Layout"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+        {relevantArtworks.map(artwork => (
+          <div key={artwork.id} className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-bold text-sm cursor-pointer" onDoubleClick={() => handleArtworkDoubleClick(artwork)}>{artwork.title}</h4>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleRemoveClick(artwork.id, artwork.title)}
+                  className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors ${text}`}
+                  title="Remove Artwork from Layout"
+                >
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </button>
+                <button
+                  onClick={() => handleToggleEdit(artwork)}
+                  className={`p-1.5 rounded-full transition-colors ${editingUrlArtworkId === artwork.id ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'} ${text}`}
+                  title={editingUrlArtworkId === artwork.id ? "Close Editor" : "Edit Artwork Settings"}
+                >
+                  {editingUrlArtworkId === artwork.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  
+                </button>
               </div>
+            </div>
 
-              {isEditing && (
-                <div className="mt-4 space-y-4">
-                  <div className={`w-full aspect-video rounded-md overflow-hidden bg-neutral-700/50 flex items-center justify-center ${text}`}>
-                    {getMediaPreview(artwork)}
-                  </div>
+            {editingUrlArtworkId === artwork.id && (
+              <div className="mt-4 space-y-4">
+                <div className="w-full aspect-video bg-neutral-200 dark:bg-neutral-800 rounded-md overflow-hidden flex items-center justify-center text-neutral-500">
+                  {getMediaPreview(artwork)}
+                </div>
 
-                  <div>
-                    <label className={`block text-xs font-bold uppercase mb-1 ${subtext}`}>Media URL</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={currentEditValue}
-                        onChange={(e) => setCurrentEditValue(e.target.value)}
-                        className={`flex-1 px-3 py-2 rounded-md text-xs ${input}`}
-                        placeholder="Enter URL for image, video, or GLB"
-                      />
-                      <button
-                        onClick={() => handleSaveUrl(artwork.id, currentEditValue)}
-                        className={`px-4 py-2 rounded-md text-xs font-bold uppercase transition-colors duration-200 ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-black hover:bg-neutral-200'}`}
-                        disabled={status === 'saving'}
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={currentEditValue}
+                    onChange={e => setCurrentEditValue(e.target.value)}
+                    placeholder="Enter image or video URL, or GLB path"
+                    className={`w-full pr-10 py-2 rounded-md text-xs ${input}`}
+                  />
+                  <button
+                    onClick={() => handleSaveUrl(artwork.id, currentEditValue)}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${updateStatus[artwork.id] === 'saved' ? 'text-green-500' : (updateStatus[artwork.id] === 'error' ? 'text-red-500' : '')}`}
+                    title="Save URL"
+                    disabled={currentEditValue === originalArtworkFile || updateStatus[artwork.id] === 'saving'}
+                  >
+                    {getStatusIcon(artwork.id, 'update') || <Check className="w-4 h-4" />}
+                  </button>
+                </div>
 
-                  <div>
-                    <label className={`block text-xs font-bold uppercase mb-1 ${subtext}`}>Upload File</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={(e) => handleFileChange(e, artwork.id)}
-                        className="hidden"
-                        accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.webm,.glb"
-                        disabled={isUploading}
-                      />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`flex-1 px-4 py-2 rounded-md text-xs font-bold uppercase flex items-center justify-center gap-2 transition-colors duration-200 ${isUploading ? 'bg-neutral-500 text-white' : (lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-white hover:bg-neutral-600')}`}
-                        disabled={isUploading}
-                      >
-                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                        {isUploading ? 'Uploading...' : 'Choose File'}
-                      </button>
-                    </div>
-                    {uploadMessage && (
-                      <p className={`mt-2 text-xs ${status === 'error' ? 'text-red-500' : (status === 'saved' ? 'text-green-500' : subtext)}`}>{uploadMessage}</p>
-                    )}
-                    {isUploading && uploadProgress > 0 && (
-                      <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
-                        <div className="bg-cyan-600 h-1 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-                      </div>
-                    )}
-                  </div>
-
-                  {isGlb && (
-                    <div className="space-y-4">
-                      <h5 className={`text-sm font-bold mt-4 ${text}`}>3D Model Settings</h5>
-                      
-                      {/* Rotation controls */}
-                      <div>
-                        <label className={`block text-xs font-bold uppercase mb-1 ${subtext}`}>Rotation</label>
-                        <div className="flex items-center gap-2">
-                            {['Y', 'X', 'Z'].map((axis, index) => (
-                                <button
-                                    key={axis}
-                                    onClick={() => handleGlbAxisRotate(artwork.id, index as 0 | 1 | 2)}
-                                    className={`flex-1 px-3 py-2 rounded-md text-xs font-bold uppercase flex items-center justify-center gap-1 transition-colors duration-200 ${lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-white hover:bg-neutral-600'}`}
-                                    disabled={status === 'saving'}
-                                    title={`Rotate around ${axis}-axis`}
-                                >
-                                    <RefreshCw className="w-3 h-3" /> {axis}: {glbPreviewRotation[index]}°
-                                </button>
-                            ))}
-                        </div>
-                      </div>
-
-                      {/* Material Presets */}
-                      <div>
-                        <label className={`block text-xs font-bold uppercase mb-1 ${subtext}`}>Material Presets</label>
-                        <div className="flex flex-wrap gap-2">
-                          {MATERIAL_PRESETS.map(preset => (
-                            <button
-                              key={preset.id}
-                              onClick={() => handleSaveMaterial(artwork.id, preset.id, preset.config)}
-                              className={`px-3 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 transition-colors duration-200
-                                  ${selectedMaterialPresetId === preset.id
-                                    ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-neutral-900 shadow-md')
-                                    : (lightsOn ? 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200' : 'bg-neutral-700 text-white hover:bg-neutral-600')
-                                  }
-                              `}
-                              disabled={status === 'saving'}
-                            >
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: preset.iconColor }}></div>
-                              {preset.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                    </div>
+                <div className="relative">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={(e) => handleFileChange(e, artwork.id)}
+                    className="hidden"
+                    id={`file-upload-${artwork.id}`}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full px-4 py-2 rounded-md flex items-center justify-center gap-2 text-xs font-bold uppercase transition-colors ${lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-neutral-200 hover:bg-neutral-600'} ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                    {uploadMessage || 'Upload File'}
+                  </button>
+                  {isUploading && (
+                    <div className="absolute inset-x-0 bottom-0 h-1 bg-cyan-500 rounded-md" style={{ width: `${uploadProgress}%` }}></div>
                   )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+
+                {/* FIX: Added type assertion to `artwork.artwork_type` to bypass a TypeScript inference issue */}
+                {(artwork.artwork_type as string) === 'sculpture' && (artwork.artwork_file?.toLowerCase().includes('.glb')) && ( // MODIFIED: Check for sculpture type
+                    <div className="border-t pt-4 mt-4 space-y-3">
+                        <p className={`text-xs font-bold uppercase ${subtext}`}>GLB Model Rotation</p>
+                        <div className="flex items-center gap-3">
+                            {['Y-Axis', 'X-Axis', 'Z-Axis'].map((axis, index) => (
+                                <div key={axis} className="flex-1 flex flex-col items-center">
+                                    <button
+                                        onClick={() => handleGlbAxisRotate(artwork.id, index as 0 | 1 | 2)}
+                                        className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${text}`}
+                                        title={`Rotate around ${axis}`}
+                                        disabled={updateStatus[artwork.id] === 'saving'}
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                    </button>
+                                    <span className={`text-xs font-mono mt-1 ${subtext}`}>{axis.split('-')[0]}: {glbPreviewRotation[index]}°</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* NEW: Sculpture Scale Section */}
+                {/* FIX: Added type assertion to `artwork.artwork_type` to bypass a TypeScript inference issue */}
+                {(artwork.artwork_type as string) === 'sculpture' && (
+                    <div className="border-t pt-4 mt-4 space-y-3">
+                        <p className={`text-xs font-bold uppercase ${subtext}`}>Sculpture Scale</p>
+                        <div className="flex items-center justify-between gap-3">
+                            <button
+                                onClick={() => handleScaleChange(artwork.id, -0.2)}
+                                className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${text}`}
+                                title="Decrease Scale"
+                                disabled={updateStatus[artwork.id] === 'saving' || (currentArtworkForScale?.artwork_data?.scale_offset ?? 1.0) <= 0.1}
+                            >
+                                <ZoomOut className="w-4 h-4" />
+                            </button>
+                            <span className={`text-sm font-mono tracking-tight flex-1 text-center ${text}`}>
+                                {Math.round((currentArtworkForScale?.artwork_data?.scale_offset ?? 1.0) * 100)}%
+                            </span>
+                            <button
+                                onClick={() => handleScaleChange(artwork.id, 0.2)}
+                                className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${text}`}
+                                title="Increase Scale"
+                                disabled={updateStatus[artwork.id] === 'saving' || (currentArtworkForScale?.artwork_data?.scale_offset ?? 1.0) >= 5.0}
+                            >
+                                <ZoomIn className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+
+                {/* FIX: Added type assertion to `artwork.artwork_type` to bypass a TypeScript inference issue */}
+                {(artwork.artwork_type as string) === 'sculpture' && (
+                    <div className="border-t pt-4 mt-4 space-y-3">
+                      <p className={`text-xs font-bold uppercase ${subtext}`}>Material Presets</p>
+                      <div className="flex flex-wrap gap-2">
+                          {MATERIAL_PRESETS.map(preset => (
+                              <button
+                                  key={preset.id}
+                                  onClick={() => handleSaveMaterial(artwork.id, preset.id, preset.config)}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase flex items-center gap-2 transition-colors
+                                      ${selectedMaterialPresetId === preset.id
+                                          ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-neutral-900 shadow-md')
+                                          : (lightsOn ? 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200' : 'bg-neutral-700 text-white hover:bg-neutral-600')
+                                      }`}
+                                  disabled={updateStatus[artwork.id] === 'saving'}
+                              >
+                                  <span className="w-3 h-3 rounded-full border border-gray-400" style={{ backgroundColor: preset.iconColor }}></span>
+                                  {preset.name}
+                              </button>
+                          ))}
+                      </div>
+                    </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

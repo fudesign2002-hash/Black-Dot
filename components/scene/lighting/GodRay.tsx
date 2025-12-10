@@ -1,3 +1,6 @@
+
+
+
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -9,10 +12,10 @@ interface GodRayProps {
   color?: string;
   artworkType: ArtType;
   isEditorMode: boolean;
-  isMotionVideo?: boolean;
+  // REMOVED: isMotionVideo?: boolean;
 }
 
-const GodRay: React.FC<GodRayProps> = ({ isActive, lightsOn, color = "#ffffff", artworkType, isEditorMode, isMotionVideo }) => {
+const GodRay: React.FC<GodRayProps> = ({ isActive, lightsOn, color = "#ffffff", artworkType, isEditorMode }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   const { rayRadiusBottom, rayHeight } = useMemo(() => {
@@ -50,11 +53,15 @@ const GodRay: React.FC<GodRayProps> = ({ isActive, lightsOn, color = "#ffffff", 
   });
 
   return (
-    <group position={[0, 19, 0]}> 
-      <mesh ref={meshRef} position={[0, -10, 0]}>
-        <cylinderGeometry args={[0.2, rayRadiusBottom, rayHeight, 32, 1, true]} />
+    // FIX: Use THREE.Vector3 for position and ensure direct children are THREE.Object3D instances
+    <group position={new THREE.Vector3(0, 19, 0)}> 
+      {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
+      <mesh ref={meshRef} position={new THREE.Vector3(0, -10, 0)}>
+        <cylinderGeometry attach="geometry" args={[0.2, rayRadiusBottom, rayHeight, 32, 1, true]} />
+        {/* FIX: Use THREE.Color for color */}
         <meshBasicMaterial 
-          color={color} 
+          attach="material"
+          color={new THREE.Color(color)} 
           transparent 
           opacity={0} 
           side={THREE.DoubleSide} 

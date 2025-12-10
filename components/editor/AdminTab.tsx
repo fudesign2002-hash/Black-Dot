@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition } from '../../types';
 import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Image } from 'lucide-react'; // NEW: Import Image icon
@@ -179,7 +180,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
           // FIX: Call the defined handleUpdateStatus
           handleUpdateStatus(field, 'saved');
         } catch (error) {
-          console.error(`Failed to update ${field}:`, error);
+          // 
           // FIX: Call the defined handleUpdateStatus
           handleUpdateStatus(field, 'error', 3000);
         }
@@ -208,7 +209,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
       setCopyStatus('copied');
       setTimeout(() => setCopyStatus('idle'), 2000);
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      // 
       setCopyStatus('error');
       setTimeout(() => setCopyStatus('idle'), 3000);
     }

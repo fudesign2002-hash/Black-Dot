@@ -1,3 +1,4 @@
+
 import firebase from 'firebase/compat/app';
 import { Exhibition, ExhibitionZone, FirebaseArtwork, ExhibitionArtItem, ArtType, ZoneArtworkItem, ArtworkData } from '../types';
 import { storage } from '../firebase';
@@ -18,7 +19,7 @@ const parseArtworkData = (rawData: any): ArtworkData | undefined => {
       const parsed = JSON.parse(cleanedString);
       return parsed as ArtworkData;
     } catch (e) {
-      console.error("Error parsing artwork_data string:", e, rawData);
+      // 
       return undefined;
     }
   }
@@ -43,8 +44,9 @@ export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocu
             size: data.size,
             artwork_data: parseArtworkData(data.artwork_data),
             fileSizeMB: typeof data.artwork_filesize === 'number' ? data.artwork_filesize / (1024 * 1024) : undefined,
-            artwork_liked: typeof data.artwork_liked === 'number' ? data.artwork_liked : undefined,
+            artwork_liked: typeof data.artwork_liked === 'number' ? data.artwork_liked : 0,
             artwork_shared: typeof data.artwork_shared === 'number' ? data.artwork_shared : undefined,
+            artwork_gravity: typeof data.artwork_gravity === 'number' ? data.artwork_gravity : Math.floor(Math.random() * 101), // NEW: Assign random 0-100 if not present
         };
     });
 
@@ -65,10 +67,11 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
         let itemType: ArtType = 'sculpture_base';
         let textureUrl: string | undefined = undefined;
         let aspectRatio: number | undefined = undefined;
-            let artworkData: ArtworkData | undefined = undefined;
+        let artworkData: ArtworkData | undefined = undefined;
         let isMotionVideo: boolean = false;
         let isFaultyMotionVideo: boolean = false;
 
+        // FIX: Define fileUrl, isVideoFile, isImageFile, isGlbFile
         const fileUrl = firebaseArt.artwork_file || firebaseArt.file;
         const isVideoFile = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)$/i.test(fileUrl.split('?')[0]));
         const isImageFile = fileUrl && (/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(fileUrl.split('?')[0]));
@@ -130,6 +133,7 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
             artworkData: artworkData,
             isMotionVideo: isMotionVideo,
             isFaultyMotionVideo: isFaultyMotionVideo,
+            artworkGravity: firebaseArt.artwork_gravity, // NEW: Copy artwork_gravity
         };
     }).filter((item): item is ExhibitionArtItem => item !== null);
 };
@@ -151,10 +155,11 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
         let itemType: ArtType = 'canvas_square';
         let textureUrl: string | undefined = undefined;
         let aspectRatio: number | undefined = undefined;
-            let artworkData: ArtworkData | undefined = undefined;
+        let artworkData: ArtworkData | undefined = undefined;
         let isMotionVideo: boolean = false;
         let isFaultyMotionVideo: boolean = false;
 
+        // FIX: Define fileUrl, isVideoFile, isImageFile, isGlbFile
         const fileUrl = firebaseArt.artwork_file || firebaseArt.file;
         const isVideoFile = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)$/i.test(fileUrl.split('?')[0]));
         const isImageFile = fileUrl && (/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(fileUrl.split('?')[0]));
@@ -216,6 +221,7 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
             artworkData: artworkData,
             isMotionVideo: isMotionVideo,
             isFaultyMotionVideo: isFaultyMotionVideo,
+            artworkGravity: firebaseArt.artwork_gravity, // NEW: Copy artwork_gravity
         });
     });
 
@@ -265,6 +271,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             defaultLayout: createFirebaseLayout(exhibitArtworksList, allFirebaseArtworks),
             isActive: typeof data.isActive === 'boolean' ? data.isActive : false,
             exhibit_poster: data.exhibit_poster || undefined,
+            exhibit_background: data.exhibit_background || undefined, // NEW: Add exhibit_background from Firestore
         };
         return exhibition;
     });
@@ -288,10 +295,14 @@ export const processFirebaseZones = (docs: firebase.firestore.QueryDocumentSnaps
                     colorTemperature: 5500,
                     keyLightPosition: [-2, 7, 10],
                     fillLightPosition: [5, 2, 5],
+                    useExhibitionBackground: false, // NEW: Default for new zones
+                    floorColor: '#000000', // NEW: Default floor color for new zones
                 },
                 recommendedPresets: [],
             },
             zone_capacity: data.zone_capacity || 100,
+            zone_theme: data.zone_theme || undefined, // NEW: Read zone_theme from Firestore
+            zone_gravity: typeof data.zone_gravity === 'number' ? data.zone_gravity : undefined, // NEW: Read zone_gravity from Firestore
         };
         return zone;
     });

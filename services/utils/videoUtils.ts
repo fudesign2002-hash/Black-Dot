@@ -1,3 +1,5 @@
+
+
 export const getVideoEmbedUrl = (watchUrl: string): string | null => {
   try {
     const url = new URL(watchUrl);
@@ -58,7 +60,7 @@ export const getVideoEmbedUrl = (watchUrl: string): string | null => {
         return `${url.origin}${url.pathname}?${directVideoParams.toString()}`;
     }
   } catch (e) {
-    console.error("Error parsing video URL:", e, watchUrl);
+    // 
     return null;
   }
   return null;

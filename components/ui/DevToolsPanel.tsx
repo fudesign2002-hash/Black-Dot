@@ -1,7 +1,5 @@
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react'; // NEW: Import useRef, useEffect, useCallback
-import { X, Cpu, Info, Loader2, Focus, Check, Users } from 'lucide-react';
+import { X, Cpu, Info, Loader2, Focus, Check, Users, AlertCircle } from 'lucide-react'; // NEW: Import AlertCircle
 import { FirebaseArtwork } from '../../types';
 
 interface DevToolsPanelProps {
@@ -28,6 +26,9 @@ interface DevToolsPanelProps {
   zoneCapacity: number;
   isDebugMode: boolean; // NEW: Add isDebugMode prop
   setIsDebugMode: (debug: boolean) => void; // NEW: Add setIsDebugMode prop
+  isSnapshotEnabled: boolean; // NEW: Add isSnapshotEnabled prop
+  onToggleSnapshot: (enabled: boolean) => void; // NEW: Add onToggleSnapshot prop
+  effectRegistryError: string | null; // NEW: Add effectRegistryError prop
 }
 
 const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
@@ -47,6 +48,9 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
   zoneCapacity,
   isDebugMode, // NEW: Destructure isDebugMode
   setIsDebugMode, // NEW: Destructure setIsDebugMode
+  isSnapshotEnabled, // NEW: Destructure isSnapshotEnabled
+  onToggleSnapshot, // NEW: Destructure onToggleSnapshot
+  effectRegistryError, // NEW: Destructure effectRegistryError
 }) => {
   const panelRef = useRef<HTMLDivElement>(null); // NEW: Ref for the panel
   const [position, setPosition] = useState({ x: 0, y: 0 }); // NEW: State for panel position
@@ -144,6 +148,52 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
               {isLoading ? 'Active' : 'Idle'}
             </span>
           </div>
+
+          {/* NEW: Firebase Snapshots Toggle */}
+          <div className={`border-t pt-2 mt-2 space-y-1 ${uiConfig.border}`}>
+            <p className={`${uiConfig.subtext} flex items-center gap-2`}><Cpu className="w-4 h-4" /> Firebase Snapshots</p>
+            <div className="ml-4 space-y-0.5">
+              <div className="flex justify-between items-center">
+                <span className={`${uiConfig.subtext}`}>Status:</span>
+                <button
+                  onClick={() => onToggleSnapshot(!isSnapshotEnabled)}
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${
+                    isSnapshotEnabled
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
+                >
+                  {isSnapshotEnabled ? 'Enabled' : 'Disabled'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* NEW: Effect Registry Status */}
+          <div className={`border-t pt-2 mt-2 space-y-1 ${uiConfig.border}`}>
+            <p className={`${uiConfig.subtext} flex items-center gap-2`}><Cpu className="w-4 h-4" /> Effect Registry</p>
+            <div className="ml-4 space-y-0.5">
+              <div className="flex justify-between items-center">
+                <span className={`${uiConfig.subtext}`}>Status:</span>
+                {effectRegistryError ? (
+                  <span className={`${uiConfig.text} flex items-center gap-1 text-red-500`}>
+                    <AlertCircle className="w-4 h-4" /> Error
+                  </span>
+                ) : (
+                  <span className={`${uiConfig.text} flex items-center gap-1 ${isLoading ? 'text-amber-500' : 'text-green-500'}`}>
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    {isLoading ? 'Loading' : 'Loaded'}
+                  </span>
+                )}
+              </div>
+              {effectRegistryError && (
+                <div className="text-red-500 text-xs mt-1 break-words max-w-full">
+                  {effectRegistryError}
+                </div>
+              )}
+            </div>
+          </div>
+
 
           <div className={`border-t pt-2 mt-2 space-y-1 ${uiConfig.border}`}>
             <p className={`${uiConfig.subtext} flex items-center gap-2`}><Users className="w-4 h-4" /> Online Users</p>

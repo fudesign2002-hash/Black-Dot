@@ -1,12 +1,13 @@
 
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Check, Sun, Map, Brush, Settings } from 'lucide-react'; // NEW: Added Settings icon
-import { SimplifiedLightingConfig, ExhibitionArtItem, ZoneLightingDesign, FirebaseArtwork, ArtworkData, Exhibition } from '../../types';
+import { X, Check, Sun, Map, Brush, Settings, Camera, SquarePen } from 'lucide-react';
+import { SimplifiedLightingConfig, ExhibitionArtItem, ZoneLightingDesign, FirebaseArtwork, ArtworkData, Exhibition, EffectRegistryType } from '../../types';
 import LightingTab from './LightingTab';
 import LayoutTab from './LayoutTab';
 import ArtworkTab from './ArtworkTab';
-import AdminTab from './AdminTab'; // NEW: Import AdminTab
+import AdminTab from './AdminTab';
+import SceneTab from './SceneTab'; // NEW: Import SceneTab
 
 interface FloorPlanEditorProps {
   isOpen: boolean;
@@ -24,8 +25,8 @@ interface FloorPlanEditorProps {
   firebaseArtworks: FirebaseArtwork[];
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
-  onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>; // NEW: Add onUpdateExhibition prop
-  activeExhibition: Exhibition; // NEW: Add activeExhibition prop
+  onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>;
+  activeExhibition: Exhibition;
   uiConfig: {
     lightsOn: boolean;
     bg: string;
@@ -34,10 +35,20 @@ interface FloorPlanEditorProps {
     border: string;
     input: string;
   };
-  onActiveTabChange: (tab: 'lighting' | 'layout' | 'artworks' | 'admin') => void; // NEW: Updated tab type
+  // FIX: Update onActiveTabChange prop type to include 'scene'
+  onActiveTabChange: (tab: 'lighting' | 'scene' | 'layout' | 'artworks' | 'admin') => void;
   onFocusArtwork: (artworkInstanceId: string | null) => void;
-  onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>;
-  onOpenConfirmationDialog: (artworkId: string, artworkTitle: string, onConfirm: () => Promise<void>) => void;
+  // FIX: Modified `onOpenConfirmationDialog` signature to match `App.tsx`
+  onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void;
+  onAddArtworkToLayout: (artwork: FirebaseArtwork) => Promise<boolean>;
+  useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground
+  activeZoneTheme: string | null; // NEW: Add activeZoneTheme
+  onUpdateZoneTheme: (themeName: string | null) => Promise<void>; // NEW: Add onUpdateZoneTheme
+  activeExhibitionBackgroundUrl?: string; // NEW: Pass activeExhibitionBackgroundUrl to LightingTab and SceneTab
+  effectRegistry: EffectRegistryType | null; // NEW: Add effectRegistry
+  isEffectRegistryLoading: boolean; // NEW: Add isEffectRegistryLoading
+  activeZoneGravity: number | undefined; // NEW: Add activeZoneGravity
+  onUpdateZoneGravity: (gravity: number | undefined) => Promise<void>; // NEW: Add onUpdateZoneGravity
 }
 
 const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
@@ -56,19 +67,29 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   firebaseArtworks,
   onUpdateArtworkFile,
   onUpdateArtworkData,
-  onUpdateExhibition, // NEW: Destructure prop
-  activeExhibition, // NEW: Destructure prop
+  onUpdateExhibition,
+  activeExhibition,
   uiConfig,
   onActiveTabChange,
   onFocusArtwork,
-  onRemoveArtworkFromLayout,
   onOpenConfirmationDialog,
+  onAddArtworkToLayout,
+  useExhibitionBackground, // NEW: Destructure useExhibitionBackground
+  activeZoneTheme, // NEW: Destructure activeZoneTheme
+  onUpdateZoneTheme, // NEW: Destructure onUpdateZoneTheme
+  activeExhibitionBackgroundUrl, // NEW: Destructure activeExhibitionBackgroundUrl
+  effectRegistry, // NEW: Destructure effectRegistry
+  isEffectRegistryLoading, // NEW: Destructure isEffectRegistryLoading
+  activeZoneGravity, // NEW: Destructure activeZoneGravity
+  onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<'lighting' | 'layout' | 'artworks' | 'admin'>('lighting'); // NEW: Added 'admin' to state
+  // FIX: Update activeTab state type to include 'scene'
+  const [activeTab, setActiveTab] = useState<'lighting' | 'scene' | 'layout' | 'artworks' | 'admin'>('lighting');
   
   const [showSaved, setShowSaved] = useState(false);
   const saveTimeoutRef = useRef<number | null>(null);
+  const [isAnyLayoutItemDragging, setIsAnyLayoutItemDragging] = useState(false); // NEW state
 
   const { lightsOn } = uiConfig;
 
@@ -78,10 +99,10 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     saveTimeoutRef.current = window.setTimeout(() => setShowSaved(false), 2000);
   }, []);
 
-  // Automatic save notification for lighting changes
   const isInitialMount = useRef(true);
   useEffect(() => {
-    if (activeTab !== 'lighting') return;
+    // Only trigger save notification for lighting and scene tabs when their configs change
+    if (activeTab !== 'lighting' && activeTab !== 'scene') return;
     if (isInitialMount.current) {
       isInitialMount.current = false;
     } else {
@@ -89,7 +110,6 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     }
   }, [lightingConfig, triggerSaveNotification, activeTab]);
   
-  // NEW: Effect to inform parent about active tab changes
   useEffect(() => {
     onActiveTabChange(activeTab);
   }, [activeTab, onActiveTabChange]);
@@ -100,26 +120,31 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     };
   }, []);
 
-  // Removed bgClass and borderClass definitions, will use explicit classes below
-
-  const handleTabClick = useCallback((tab: 'lighting' | 'layout' | 'artworks' | 'admin') => { // NEW: Added 'admin' to handler
+  // FIX: Update handleTabClick signature to include 'scene'
+  const handleTabClick = useCallback((tab: 'lighting' | 'scene' | 'layout' | 'artworks' | 'admin') => {
     setActiveTab(tab);
-    onActiveTabChange(tab); // Explicitly inform parent
+    onActiveTabChange(tab);
   }, [onActiveTabChange]);
+
+  // NEW: Handle clicks on the overlay to prevent closing during drag operations
+  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !isAnyLayoutItemDragging) { // MODIFIED: Add !isAnyLayoutItemDragging
+      onClose();
+    }
+  }, [onClose, isAnyLayoutItemDragging]); // MODIFIED: Add isAnyLayoutItemDragging to deps
 
   return (
     <React.Fragment>
       {isOpen && (
         <div
           className="absolute inset-0 z-40"
-          onClick={onClose}
+          onClick={handleOverlayClick} // MODIFIED: Use new handleOverlayClick
           aria-hidden="true"
         />
       )}
       <div 
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        // Updated className for explicit background color with opacity and uiConfig border/text
         className={`absolute top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${uiConfig.border} ${uiConfig.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className={`px-4 py-3 border-b flex justify-between items-center ${uiConfig.border}`}>
@@ -133,14 +158,20 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           <button onClick={onClose} className="p-2 hover:bg-neutral-500/10 rounded-full transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
         </div>
         
-        {/* Updated tab bar background to be semi-transparent */}
         <div className={`p-2 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'}`}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
                 <button
                     onClick={() => handleTabClick('lighting')}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'lighting' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
                 >
                     <Sun className="w-4 h-4" /> Lighting
+                </button>
+                {/* NEW: Scene Tab Button */}
+                <button
+                    onClick={() => handleTabClick('scene')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'scene' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
+                >
+                    <Camera className="w-4 h-4" /> Scene
                 </button>
                 <button
                     onClick={() => handleTabClick('layout')}
@@ -158,7 +189,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                     onClick={() => handleTabClick('admin')}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'admin' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
                 >
-                    <Settings className="w-4 h-4" /> Admin
+                    <SquarePen className="w-4 h-4" />
                 </button>
             </div>
         </div>
@@ -171,6 +202,22 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             fullZoneLightingDesign={fullZoneLightingDesign}
             currentZoneNameForEditor={currentZoneNameForEditor}
           />
+        ) : activeTab === 'scene' ? ( // NEW: Render SceneTab
+          <SceneTab
+            uiConfig={uiConfig}
+            lightingConfig={lightingConfig}
+            onUpdateLighting={onUpdateLighting}
+            fullZoneLightingDesign={fullZoneLightingDesign}
+            currentZoneNameForEditor={currentZoneNameForEditor}
+            activeExhibitionBackgroundUrl={activeExhibitionBackgroundUrl}
+            useExhibitionBackground={useExhibitionBackground}
+            activeZoneTheme={activeZoneTheme}
+            onUpdateZoneTheme={onUpdateZoneTheme}
+            effectRegistry={effectRegistry} // NEW: Pass effect registry
+            isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass loading state
+            activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
+            onUpdateZoneGravity={onUpdateZoneGravity} // NEW: Pass onUpdateZoneGravity
+          />
         ) : activeTab === 'layout' ? (
           <LayoutTab 
             uiConfig={uiConfig}
@@ -180,8 +227,9 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             onSelectArtwork={onSelectArtwork}
             selectedArtworkTitle={selectedArtworkTitle}
             selectedArtworkArtist={selectedArtworkArtist}
-            lightingConfig={lightingConfig} // NEW: Pass lightingConfig
-            onUpdateLighting={onUpdateLighting} // NEW: Pass onUpdateLighting
+            lightingConfig={lightingConfig}
+            onUpdateLighting={onUpdateLighting}
+            setIsAnyLayoutItemDragging={setIsAnyLayoutItemDragging} // NEW: Pass setter
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab
@@ -197,11 +245,17 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
               triggerSaveNotification();
             }}
             onFocusArtwork={onFocusArtwork}
-            onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
             onOpenConfirmationDialog={onOpenConfirmationDialog}
             onSelectArtwork={onSelectArtwork}
+            onAddArtworkToLayout={async (artwork: FirebaseArtwork) => {
+              const success = await onAddArtworkToLayout(artwork);
+              if (success) {
+                triggerSaveNotification();
+              }
+              return success;
+            }}
           />
-        ) : ( // NEW: Render AdminTab
+        ) : (
             <AdminTab
                 uiConfig={uiConfig}
                 activeExhibition={activeExhibition}

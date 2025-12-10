@@ -1,9 +1,12 @@
-import React, { useMemo, useRef, useEffect, useState, Suspense } from 'react';
+
+import React, { useMemo, useRef, useEffect, useState, Suspense, useCallback } from 'react';
 import * as THREE from 'three';
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { ArtworkData, ArtworkGeometry, ArtType } from '../../../types';
+import { ArtworkData, ArtworkGeometry, ArtType, ArtworkMaterialConfig } from '../../../types';
 import Podium from './Podium';
+import { deepDispose } from '../../../utils/threeUtils'; // NEW: Import deepDispose
+import { shallowEqual } from '../../../utils/objectUtils'; // NEW: Import shallowEqual
 
 const getGeometryComponentTypeString = (type: ArtworkGeometry['type'] | string): string => {
   switch (type) {
@@ -13,7 +16,7 @@ const getGeometryComponentTypeString = (type: ArtworkGeometry['type'] | string):
     case 'torusGeometry': return 'torusGeometry';
     case 'torusKnotGeometry': return 'torusKnotGeometry';
     case 'sphereGeometry': return 'sphereGeometry';
-    case 'cone': return 'coneGeometry';
+    case 'coneGeometry': return 'coneGeometry';
     default: return 'boxGeometry';
   }
 };
@@ -43,21 +46,21 @@ const getSide = (sideString: string | undefined): THREE.Side => {
 interface SculptureExhibitProps {
   artworkData?: ArtworkData;
   textureUrl?: string;
-  isFocused: boolean;
-  lightsOn: boolean;
+  // REMOVED: isFocused: boolean;
+  // REMOVED: lightsOn: boolean;
   onDimensionsCalculated?: (width: number, height: number, depth: number, podiumHeight: number, finalGroupYPosition: number) => void;
   artworkPosition: [number, number, number];
   artworkRotation: [number, number, number];
   artworkType: ArtType;
-  onArtworkClickedHtml?: (e: React.MouseEvent<HTMLDivElement>, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType) => void;
+  // REMOVED: onArtworkClickedHtml?: (e: React.MouseEvent<HTMLDivElement>, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType) => void;
 }
 
 const DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT = 0; 
 
-const FADE_DURATION = 800;
+// REMOVED: const FADE_DURATION = 800;
 
-const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textureUrl, isFocused, lightsOn, onDimensionsCalculated,
-  artworkPosition, artworkRotation, artworkType, onArtworkClickedHtml
+const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textureUrl, onDimensionsCalculated,
+  artworkPosition, artworkRotation, artworkType
 }) => {
   const isGLB = useMemo(() => textureUrl && textureUrl.toLowerCase().includes('.glb'), [textureUrl]);
 
@@ -78,6 +81,13 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     clearcoatRoughness: 0,
   }), []);
 
+  // NEW: Ref to hold the GLB scene with materials applied, to avoid re-cloning on every render
+  const glbWithAppliedMaterialsRef = useRef<THREE.Group | null>(null);
+  // NEW: Ref to track the previous material config for efficient comparison
+  const prevMaterialConfigRef = useRef<ArtworkMaterialConfig | undefined>(undefined);
+  // NEW: Ref to track the previous GLTF scene object to detect changes
+  const prevGlbSceneRef = useRef<THREE.Group | null>(null);
+
   const cleanedGlbScene = useMemo(() => {
     if (!isGLB || !gltf?.scene) return null;
     const sceneClone = gltf.scene.clone();
@@ -93,91 +103,118 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     return sceneClone;
   }, [isGLB, gltf?.scene]);
 
-  const [clonedGlbWithMaterial, setClonedGlbWithMaterial] = useState<THREE.Group | null>(null);
-
+  // NEW: Effect to manage the lifecycle and material application of the cloned GLB scene.
+  // This useEffect now runs only when cleanedGlbScene or material properties actually change.
   useEffect(() => {
-    if (!isGLB || !cleanedGlbScene) {
-      setClonedGlbWithMaterial(null);
-      return;
-    }
+    // If the GLB scene object itself has changed or material config is different
+    const currentMaterialConfig = artworkData?.material;
+    const materialConfigChanged = !shallowEqual(prevMaterialConfigRef.current, currentMaterialConfig);
+    const glbSceneChanged = cleanedGlbScene !== prevGlbSceneRef.current;
 
-    const newScene = cleanedGlbScene.clone();
-    newScene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
+    if (!isGLB || !cleanedGlbScene || glbSceneChanged || materialConfigChanged) {
+      // Dispose of the existing model in the ref before potentially replacing it
+      if (glbWithAppliedMaterialsRef.current) {
+        deepDispose(glbWithAppliedMaterialsRef.current);
+        glbWithAppliedMaterialsRef.current = null;
+      }
 
-        const materials = Array.isArray(child.material) ? child.material : [child.material];
-        materials.forEach(originalMaterial => {
-          const config = artworkData?.material;
+      if (isGLB && cleanedGlbScene) {
+        const newScene = cleanedGlbScene.clone();
+        newScene.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
 
-          let newMaterial: THREE.Material;
-          const needsPhysicalMaterial = config && (
-                                         (config.transmission !== undefined && config.transmission > 0) ||
-                                         (config.clearcoat !== undefined && config.clearcoat > 0) ||
-                                         (config.thickness !== undefined && config.thickness > 0)
-                                        );
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            materials.forEach(originalMaterial => {
+              const config = artworkData?.material;
 
-          if (needsPhysicalMaterial) {
-              newMaterial = new THREE.MeshPhysicalMaterial();
-          } else if (originalMaterial instanceof THREE.MeshPhysicalMaterial) {
-              newMaterial = originalMaterial.clone();
-          } else if (originalMaterial instanceof THREE.MeshStandardMaterial) {
-              newMaterial = originalMaterial.clone();
-          } else {
-              newMaterial = new THREE.MeshStandardMaterial();
-          }
+              let newMaterial: THREE.Material;
+              const needsPhysicalMaterial = config && (
+                                             (config.transmission !== undefined && config.transmission > 0) ||
+                                             (config.clearcoat !== undefined && config.clearcoat > 0) ||
+                                             (config.thickness !== undefined && config.thickness > 0)
+                                            );
 
-          if (config && (newMaterial instanceof THREE.MeshStandardMaterial || newMaterial instanceof THREE.MeshPhysicalMaterial)) {
-            newMaterial.map = null;
-            newMaterial.color.set(config?.color ?? defaultMaterialPropsForGlb.color);
-            newMaterial.emissive.set(config?.emissive ?? defaultMaterialPropsForGlb.emissive);
-            newMaterial.emissiveIntensity = config?.emissiveIntensity ?? defaultMaterialPropsForGlb.emissiveIntensity;
-            newMaterial.metalness = config?.metalness ?? defaultMaterialPropsForGlb.metalness;
-            newMaterial.roughness = config?.roughness ?? defaultMaterialPropsForGlb.roughness;
-            newMaterial.side = getSide(config?.side);
-            
-            if (newMaterial instanceof THREE.MeshPhysicalMaterial) {
-                newMaterial.transmission = config?.transmission ?? defaultMaterialPropsForGlb.transmission;
-                newMaterial.thickness = config?.thickness ?? defaultMaterialPropsForGlb.thickness;
-                newMaterial.clearcoat = config?.clearcoat ?? defaultMaterialPropsForGlb.clearcoat;
-                newMaterial.clearcoatRoughness = config?.clearcoatRoughness ?? defaultMaterialPropsForGlb.clearcoatRoughness;
-            } else {
+              if (needsPhysicalMaterial) {
+                  newMaterial = new THREE.MeshPhysicalMaterial();
+              } else if (originalMaterial instanceof THREE.MeshPhysicalMaterial) {
+                  newMaterial = originalMaterial.clone();
+              } else if (originalMaterial instanceof THREE.MeshStandardMaterial) {
+                  newMaterial = originalMaterial.clone();
+              } else {
+                  newMaterial = new THREE.MeshStandardMaterial();
+              }
+
+              if (config && (newMaterial instanceof THREE.MeshStandardMaterial || newMaterial instanceof THREE.MeshPhysicalMaterial)) {
+                newMaterial.map = null;
+                // FIX: Convert color and emissive hex strings to THREE.Color instances
+                newMaterial.color.set(new THREE.Color(config?.color ?? defaultMaterialPropsForGlb.color));
+                newMaterial.emissive.set(new THREE.Color(config?.emissive ?? defaultMaterialPropsForGlb.emissive));
+                newMaterial.emissiveIntensity = config?.emissiveIntensity ?? defaultMaterialPropsForGlb.emissiveIntensity;
+                newMaterial.metalness = config?.metalness ?? defaultMaterialPropsForGlb.metalness;
+                newMaterial.roughness = config?.roughness ?? defaultMaterialPropsForGlb.roughness;
+                newMaterial.side = getSide(config?.side);
                 
-                if ('transmission' in newMaterial) (newMaterial as any).transmission = 0;
-                if ('thickness' in newMaterial) (newMaterial as any).thickness = 0;
-                if ('clearcoat' in newMaterial) (newMaterial as any).clearcoat = 0;
-                if ('clearcoatRoughness' in newMaterial) (newMaterial as any).clearcoatRoughness = 0;
-            }
-            
-            newMaterial.transparent = config?.transparent ?? false;
-            newMaterial.opacity = config?.opacity ?? 1;
+                if (newMaterial instanceof THREE.MeshPhysicalMaterial) {
+                    newMaterial.transmission = config?.transmission ?? defaultMaterialPropsForGlb.transmission;
+                    newMaterial.thickness = config?.thickness ?? defaultMaterialPropsForGlb.thickness;
+                    newMaterial.clearcoat = config?.clearcoat ?? defaultMaterialPropsForGlb.clearcoat;
+                    newMaterial.clearcoatRoughness = config?.clearcoatRoughness ?? defaultMaterialPropsForGlb.clearcoatRoughness;
+                } else {
+                    
+                    if ('transmission' in newMaterial) (newMaterial as any).transmission = 0;
+                    if ('thickness' in newMaterial) (newMaterial as any).thickness = 0;
+                    if ('clearcoat' in newMaterial) (newMaterial as any).clearcoat = 0;
+                    if ('clearcoatRoughness' in newMaterial) (newMaterial as any).clearcoatRoughness = 0;
+                }
+                
+                newMaterial.transparent = config?.transparent ?? false;
+                newMaterial.opacity = config?.opacity ?? 1;
 
 
-            child.material = newMaterial;
-            child.material.needsUpdate = true;
+                child.material = newMaterial;
+                child.material.needsUpdate = true;
+              }
+            });
           }
         });
+        glbWithAppliedMaterialsRef.current = newScene;
       }
-    });
-    setClonedGlbWithMaterial(newScene);
+    }
+
+    // Update refs for the next comparison
+    prevMaterialConfigRef.current = currentMaterialConfig;
+    prevGlbSceneRef.current = cleanedGlbScene;
+    
+    // Return a cleanup function to dispose the model when the component unmounts or dependencies change
+    return () => {
+      if (glbWithAppliedMaterialsRef.current) {
+        deepDispose(glbWithAppliedMaterialsRef.current);
+        glbWithAppliedMaterialsRef.current = null;
+      }
+      prevMaterialConfigRef.current = undefined;
+      prevGlbSceneRef.current = null;
+    };
   }, [isGLB, cleanedGlbScene, artworkData?.material, defaultMaterialPropsForGlb]);
 
 
-  const defaultMaterialProps = useMemo(() => ({
-    color: '#ffffff',
-    emissive: '#000000',
-    emissiveIntensity: 0,
-    metalness: 0,
-    roughness: 0.5,
-    side: THREE.FrontSide,
-    transparent: false,
-    opacity: 1,
-    transmission: 0,
-    thickness: 0,
-    clearcoat: 0,
-    clearcoatRoughness: 0,
-  }), []);
+  const defaultMaterialProps = useMemo(() => {
+    return {
+      color: '#ffffff',
+      emissive: '#000000',
+      emissiveIntensity: 0,
+      metalness: 0,
+      roughness: 0.5,
+      side: THREE.FrontSide,
+      transparent: false,
+      opacity: 1,
+      transmission: 0,
+      thickness: 0,
+      clearcoat: 0,
+      clearcoatRoughness: 0,
+    };
+  }, []);
 
   const geometryComponent = useMemo(() => {
     if (!artworkData?.geometry) {
@@ -197,12 +234,14 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     const geometry = createGeometryInstance(geometryComponent.type, geometryComponent.args);
     geometry.computeBoundingBox();
     const box = geometry.boundingBox!;
+    geometry.dispose(); // NEW: Dispose transient geometry used for bounding box calculation
     return [box.min.x, box.max.x, box.min.y, box.max.y, box.min.z, box.max.z];
   }, [artworkData?.geometry, geometryComponent.type, geometryComponent.args]);
 
 
   const positionOffset = artworkData?.position_offset || [0, 0, 0]; 
   const rotationOffset = artworkData?.rotation_offset || [0, 0, 0]; 
+  const scaleOffset = artworkData?.scale_offset ?? 1.0; // NEW: Read scale_offset
 
   const glbRotationEuler = useMemo(() => {
     
@@ -215,6 +254,9 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
   }, [rotationOffset]);
 
   const glbRenderProps = useMemo(() => {
+    // This memo computes the base scaling factor for the GLB model
+    // and its intrinsic dimensions (height, footprint) when unscaled by `scaleOffset`.
+    // It should *not* depend on `scaleOffset` itself, as `scaleOffset` is applied separately.
     if (!isGLB || !cleanedGlbScene) {
       return { scale: 1, yOffset: 0, horizontalFootprint: 0, height: 0, xCenterOffset: 0, zCenterOffset: 0 };
     }
@@ -224,7 +266,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     const localBoxUnscaled = new THREE.Box3().setFromObject(tempScaleObject);
     const localSizeUnscaled = localBoxUnscaled.getSize(new THREE.Vector3());
 
-    const targetDisplaySize = 3;
+    const targetDisplaySize = 3; // Base target size before `scaleOffset` is applied
     const currentMaxHorizontalLocal = Math.max(localSizeUnscaled.x, localSizeUnscaled.z);
 
     let scaleFactor = 1;
@@ -239,9 +281,9 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
         scaleFactor = (6 / maxOverallDimensionLocal);
     }
     
+    // Create a temporary object with `scaleFactor` to determine scaled dimensions
     const tempBoundsObject = new THREE.Group();
-    
-    tempBoundsObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    tempBoundsObject.scale.set(scaleFactor, scaleFactor, scaleFactor); // Apply base scaleFactor only
     tempBoundsObject.rotation.copy(glbRotationEuler);
     
     tempBoundsObject.add(cleanedGlbScene.clone()); 
@@ -261,15 +303,27 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
 
 
     return { scale: scaleFactor, yOffset, horizontalFootprint, height, xCenterOffset, zCenterOffset };
-  }, [isGLB, cleanedGlbScene, glbRotationEuler]);
+  }, [isGLB, cleanedGlbScene, glbRotationEuler]); // Removed scaleOffset from dependencies here
+
+  // NEW: Calculate dynamic GLB dimensions by applying scaleOffset here
+  const scaledGlbRenderProps = useMemo(() => {
+    if (!isGLB || !cleanedGlbScene) {
+      return { horizontalFootprint: 0, height: 0 };
+    }
+    // Apply scaleOffset to the dimensions calculated in glbRenderProps
+    return {
+      horizontalFootprint: glbRenderProps.horizontalFootprint * scaleOffset,
+      height: glbRenderProps.height * scaleOffset,
+    };
+  }, [isGLB, cleanedGlbScene, glbRenderProps, scaleOffset]);
 
 
-  const sculptureVisualHeight = isGLB ? glbRenderProps.height : (geometryMaxY - geometryMinY);
-  const sculptureVisualWidth = isGLB ? glbRenderProps.horizontalFootprint : (geometryMaxX - geometryMinX);
-  const sculptureVisualDepth = isGLB ? glbRenderProps.horizontalFootprint : (geometryMaxZ - geometryMinZ);
+  const sculptureVisualHeight = isGLB ? scaledGlbRenderProps.height : (geometryMaxY - geometryMinY) * scaleOffset; // MODIFIED: Apply scaleOffset
+  const sculptureVisualWidth = isGLB ? scaledGlbRenderProps.horizontalFootprint : (geometryMaxX - geometryMinX) * scaleOffset; // MODIFIED: Apply scaleOffset
+  const sculptureVisualDepth = isGLB ? scaledGlbRenderProps.horizontalFootprint : (geometryMaxZ - geometryMinZ) * scaleOffset; // MODIFIED: Apply scaleOffset
   const parametricHorizontalFootprint = Math.max(sculptureVisualWidth, sculptureVisualDepth);
 
-  const finalSculptureHorizontalFootprint = isGLB ? glbRenderProps.horizontalFootprint : parametricHorizontalFootprint;
+  const finalSculptureHorizontalFootprint = isGLB ? scaledGlbRenderProps.horizontalFootprint : parametricHorizontalFootprint;
 
 
   const MIN_SCULPTURE_HEIGHT_FOR_PODIUM = 0.1;
@@ -320,11 +374,15 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
   const actualPodiumHeight = dynamicPodiumHeight;
   const actualPodiumWidth = dynamicPodiumWidth; 
 
+  // NEW: Determine if podium should be rendered
+  const shouldRenderPodium = scaleOffset <= 3.0; // 3.0 represents 300%
+
   const materialProps = useMemo(() => {
     const config = artworkData?.material; 
     return {
-      color: config?.color ?? defaultMaterialProps.color,
-      emissive: new THREE.Color(config?.emissive ?? defaultMaterialProps.emissive).getHex(),
+      // FIX: Convert color and emissive hex strings to THREE.Color instances
+      color: new THREE.Color(config?.color ?? defaultMaterialProps.color),
+      emissive: new THREE.Color(config?.emissive ?? defaultMaterialProps.emissive),
       emissiveIntensity: config?.emissiveIntensity ?? defaultMaterialProps.emissiveIntensity,
       metalness: config?.metalness ?? defaultMaterialProps.metalness,
       roughness: config?.roughness ?? defaultMaterialProps.roughness,
@@ -339,14 +397,20 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
   }, [artworkData, defaultMaterialProps]);
 
   const finalGroupYPosition = useMemo(() => {
+    // If podium is not rendered, the base Y position should be 0 (ground level) instead of actualPodiumHeight.
+    const baseHeight = shouldRenderPodium ? actualPodiumHeight : 0;
+
     if (isGLB) {
-      
-      return actualPodiumHeight + glbRenderProps.yOffset + DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT;
+      // For GLB, glbRenderProps.yOffset already accounts for the lowest point of the *base-scaled* model.
+      // We need to multiply this offset by `scaleOffset` to get its correct position for the overall scaling.
+      const baseGlbY = glbRenderProps.yOffset * scaleOffset;
+      return baseHeight + baseGlbY + DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT;
     }
-    const autoGroundingY = -geometryMinY; 
-    const additionalUserOffset = positionOffset[1] || 0;
-    return actualPodiumHeight + autoGroundingY + additionalUserOffset + DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT;
-  }, [isGLB, glbRenderProps.yOffset, actualPodiumHeight, geometryMinY, positionOffset]);
+    // For primitives, apply scale to autoGroundingY and additionalUserOffset
+    const autoGroundingY = -geometryMinY * scaleOffset; // MODIFIED: Apply scaleOffset
+    const additionalUserOffset = (positionOffset[1] || 0); // Position offset is in world units, already scaled by parent group if needed.
+    return baseHeight + autoGroundingY + additionalUserOffset + DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT;
+  }, [isGLB, glbRenderProps.yOffset, actualPodiumHeight, geometryMinY, positionOffset, scaleOffset, shouldRenderPodium]); // MODIFIED: Add shouldRenderPodium to dependencies
 
   useEffect(() => {
     if (onDimensionsCalculated) {
@@ -362,46 +426,43 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
 
 
   if (!artworkData && !isGLB) {
-    return (
-      <group position={[0, 0, 0]}>
-        <Podium height={MAX_DYNAMIC_PODIUM_HEIGHT} shape="box" width={2.5} />
-        <mesh position={[0, MAX_DYNAMIC_PODIUM_HEIGHT + 0.5 + DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1, 1, 1]} />
-          <meshStandardMaterial color="#888888" roughness={0.9} metalness={0} />
-        </mesh>
-      </group>
-    );
+    // MODIFIED: Return null when artworkData is missing and it's not a GLB
+    return null;
   }
   
   return (
-    <group position={[0, 0, 0]}>
-      <Podium height={actualPodiumHeight} shape="box" width={actualPodiumWidth} />
+    <group>
+      {shouldRenderPodium && <Podium height={actualPodiumHeight} shape="box" width={actualPodiumWidth} />}
       
-      {isGLB && clonedGlbWithMaterial ? (
+      {isGLB && glbWithAppliedMaterialsRef.current ? (
         <Suspense fallback={null}>
           <group
-            position={[
-              positionOffset[0] - glbRenderProps.xCenterOffset,
+            position={new THREE.Vector3( // FIX: Use THREE.Vector3 for position
+              positionOffset[0] - (glbRenderProps.xCenterOffset * scaleOffset), // MODIFIED: Multiply by scaleOffset to correct centering
               finalGroupYPosition,
-              positionOffset[2] - glbRenderProps.zCenterOffset
-            ]}
-            scale={glbRenderProps.scale}
+              positionOffset[2] - (glbRenderProps.zCenterOffset * scaleOffset)  // MODIFIED: Multiply by scaleOffset to correct centering
+            )}
+            scale={glbRenderProps.scale * scaleOffset} // MODIFIED: Apply overall scale to GLB group
             rotation={glbRotationEuler}
           >
-            <primitive object={clonedGlbWithMaterial} castShadow receiveShadow />
+            <primitive object={glbWithAppliedMaterialsRef.current} castShadow receiveShadow />
           </group>
         </Suspense>
       ) : (
-        <group position={[positionOffset[0], finalGroupYPosition, positionOffset[2]]}>
-          <mesh castShadow receiveShadow>
-            {geometryComponent.type === 'boxGeometry' && <boxGeometry args={geometryComponent.args as [number?, number?, number?, number?, number?, number?]} />}
-            {geometryComponent.type === 'cylinderGeometry' && <cylinderGeometry args={geometryComponent.args as [number?, number?, number?, number?, number?, boolean?, number?, number?]} />}
-            {geometryComponent.type === 'icosahedronGeometry' && <icosahedronGeometry args={geometryComponent.args as [number?, number?]} />}
-            {geometryComponent.type === 'torusGeometry' && <torusGeometry args={geometryComponent.args as [number?, number?, number?, number?, number?]} />}
-            {geometryComponent.type === 'torusKnotGeometry' && <torusKnotGeometry args={geometryComponent.args as [number?, number?, number?, number?, number?, number?]} />}
-            {geometryComponent.type === 'sphereGeometry' && <sphereGeometry args={geometryComponent.args as [number?, number?, number?, number?, number?, number?, number?]} />}
-            {geometryComponent.type === 'coneGeometry' && <coneGeometry args={geometryComponent.args as [number?, number?, number?, number?, boolean?, number?, number?]} />}
-            <meshPhysicalMaterial {...materialProps} transparent={materialProps.transparent} opacity={materialProps.opacity} />
+        // FIX: Use THREE.Vector3 for position
+        <group position={new THREE.Vector3(positionOffset[0], finalGroupYPosition, positionOffset[2])}>
+          {/* FIX: Apply scaleOffset to primitive mesh */}
+          <mesh castShadow receiveShadow scale={scaleOffset}> 
+            {geometryComponent.type === 'boxGeometry' && <boxGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?, number?]} />}
+            {geometryComponent.type === 'cylinderGeometry' && <cylinderGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?, boolean?, number?, number?]} />}
+            {geometryComponent.type === 'icosahedronGeometry' && <icosahedronGeometry attach="geometry" args={geometryComponent.args as [number?, number?]} />}
+            {geometryComponent.type === 'torusGeometry' && <torusGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?]} />}
+            {geometryComponent.type === 'torusKnotGeometry' && <torusKnotGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?, number?]} />}
+            {geometryComponent.type === 'sphereGeometry' && <sphereGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?, number?, number?]} />}
+            {geometryComponent.type === 'coneGeometry' && <coneGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, boolean?, number?, number?]} />}
+            {/* NEW: Explicitly define MeshPhysicalMaterial instance and dispose of it if it's dynamic */}
+            {/* FIX: Use attach="material" for meshPhysicalMaterial */}
+            <meshPhysicalMaterial attach="material" {...materialProps} transparent={materialProps.transparent} opacity={materialProps.opacity} />
           </mesh>
         </group>
       )}

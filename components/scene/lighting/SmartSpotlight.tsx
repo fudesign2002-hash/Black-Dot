@@ -1,3 +1,6 @@
+
+
+
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -8,14 +11,14 @@ interface SmartSpotlightProps {
   isActive: boolean;
   lightsOn: boolean;
   color?: string;
-  spotlightMode: 'auto' | 'manual' | 'off';
+  // REMOVED: spotlightMode: 'auto' | 'manual' | 'off';
   artworkType: ArtType;
   isEditorMode: boolean;
-  isMotionVideo?: boolean;
+  // REMOVED: isMotionVideo?: boolean;
   artworkRotation?: [number, number, number];
 }
 
-const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, color = "white", spotlightMode, artworkType, isEditorMode, isMotionVideo, artworkRotation }) => {
+const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, color = "white", artworkType, isEditorMode, artworkRotation }) => {
   const lightRef = useRef<THREE.SpotLight>(null);
 
   const { spotlightAngle, spotlightDistance, spotlightHeight } = useMemo(() => {
@@ -64,31 +67,33 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
 
   return (
     <group>
+      {/* FIX: Use THREE.Vector3 for position and THREE.Color for color */}
       <spotLight 
         ref={lightRef}
-        position={[0, 100, 0]}
+        position={new THREE.Vector3(0, 100, 0)}
         angle={spotlightAngle}
         penumbra={0.4} 
         distance={spotlightDistance}
         decay={1} 
         castShadow 
-        color={color}
+        color={new THREE.Color(color)}
         shadow-bias={-0.0001}
         shadow-normalBias={0.03}
         shadow-mapSize={[512, 512]}
       />
       {shouldShowEffects && <pointLight 
-        position={pointLightLocalPosition.toArray()} 
+        // FIX: Use THREE.Vector3 for position and THREE.Color for color
+        position={pointLightLocalPosition} 
         intensity={isActive ? 6.5 : 0} 
         distance={8} 
         decay={0.7} 
-        color={color} 
+        color={new THREE.Color(color)} 
         castShadow 
         shadow-mapSize={[512, 512]}
         shadow-bias={-0.0001}
         shadow-normalBias={0.05}
       />}
-      {shouldShowEffects && <GodRay isActive={isActive} lightsOn={lightsOn} color={color} artworkType={artworkType} isEditorMode={isEditorMode} isMotionVideo={isMotionVideo} />}
+      {shouldShowEffects && <GodRay isActive={isActive} lightsOn={lightsOn} color={color} artworkType={artworkType} isEditorMode={isEditorMode} />}
     </group>
   );
 };

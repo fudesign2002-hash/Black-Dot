@@ -1,5 +1,6 @@
 
 
+
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 
@@ -13,7 +14,7 @@ interface SceneAxisHelperProps {
 }
 
 const SceneAxisHelper: React.FC<SceneAxisHelperProps> = ({
-  sizeX = 24,
+  sizeX = 12,
   sizeZ = 12,
   color = '#888888',
   lineWidth = 0.1,
@@ -35,12 +36,17 @@ const SceneAxisHelper: React.FC<SceneAxisHelperProps> = ({
 
   return (
     // FIX: Use JSX intrinsic elements explicitly declared or extended in r3f-declarations.ts
-    <group position={[0, offsetY, 0]}>
+    // FIX: Use THREE.Vector3 for position
+    <group position={new THREE.Vector3(0, offsetY, 0)}>
+      {/* FIX: Explicitly assign a single material to lineSegments */}
       <lineSegments geometry={xAxisGeometry}>
-        <lineBasicMaterial attach="material" color={color} linewidth={lineWidth} transparent opacity={0.5} />
+        {/* FIX: Use attach="material" for lineBasicMaterial and THREE.Color for color */}
+        <lineBasicMaterial attach="material" color={new THREE.Color(color)} linewidth={lineWidth} transparent opacity={0.5} />
       </lineSegments>
+      {/* FIX: Explicitly assign a single material to lineSegments */}
       <lineSegments geometry={zAxisGeometry}>
-        <lineBasicMaterial attach="material" color={color} linewidth={lineWidth} transparent opacity={0.5} />
+        {/* FIX: Use attach="material" for lineBasicMaterial and THREE.Color for color */}
+        <lineBasicMaterial attach="material" color={new THREE.Color(color)} linewidth={lineWidth} transparent opacity={0.5} />
       </lineSegments>
     </group>
   );

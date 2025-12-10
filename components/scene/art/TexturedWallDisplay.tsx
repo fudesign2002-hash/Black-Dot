@@ -1,3 +1,6 @@
+
+
+
 import React, { useMemo, useState, useEffect, Suspense, useRef } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -25,11 +28,26 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
       loader.crossOrigin = 'anonymous';
     },
     (errorEvent) => {
-      console.error(`[TexturedWallDisplay] Image texture loading error for URL: ${textureUrl}`, errorEvent);
+      // 
       setIsInternalLoadingError(true);
     }
   );
 
+  // NEW: Effect to dispose of the previous image texture when `imageTexture` changes or component unmounts.
+  // This handles situations where a new texture is loaded (imageTexture instance changes)
+  // or when the component entirely unmounts (final cleanup).
+  useEffect(() => {
+    const prevTexture = imageTexture; // Capture the current texture instance for cleanup
+    return () => {
+      // This cleanup runs when `imageTexture` dependency changes *or* component unmounts.
+      // If a new texture is loaded, prevTexture will be the *old* one.
+      // If component unmounts, prevTexture will be the *last* one.
+      if (prevTexture) {
+        prevTexture.dispose();
+      }
+    };
+  }, [imageTexture]); // Re-run when imageTexture instance changes
+  
   const finalMapTexture = useMemo(() => {
     if (mapTexture) return mapTexture;
     if (imageTexture) return imageTexture;
@@ -152,36 +170,41 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
       <group>
         {isPainting ? (
             <React.Fragment>
-                <mesh position={[0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05]} receiveShadow castShadow>
-                    <boxGeometry args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
-                    <meshStandardMaterial color={PAINTING_FRAME_COLOR} roughness={0.8} metalness={0} />
+                {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+                <mesh position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow castShadow>
+                    <boxGeometry attach="geometry" args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
+                    <meshStandardMaterial attach="material" color={new THREE.Color(PAINTING_FRAME_COLOR)} roughness={0.8} metalness={0} />
                 </mesh>
+                {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
                 <mesh 
-                  position={[0, wallHeight / 2, wallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05]} 
+                  position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05)} 
                   receiveShadow
                 >
-                    <boxGeometry args={[redPlaneWidth, redPlaneHeight, 0.02]} />
-                    <meshStandardMaterial color="#cccccc" roughness={1} metalness={0} />
+                    <boxGeometry attach="geometry" args={[redPlaneWidth, redPlaneHeight, 0.02]} />
+                    <meshStandardMaterial attach="material" color={new THREE.Color("#cccccc")} roughness={1} metalness={0} />
                 </mesh>
             </React.Fragment>
         ) : (
             <React.Fragment>
+                {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
                 <mesh 
-                  receiveShadow position={[0, wallHeight / 2, wallBackingDepth / 2]}
+                  receiveShadow position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth / 2)}
                 >
-                    <boxGeometry args={[wallWidth, wallHeight, wallBackingDepth]} />
-                    <meshStandardMaterial color="#ffffff" roughness={1.0} metalness={0} />
+                    <boxGeometry attach="geometry" args={[wallWidth, wallHeight, wallBackingDepth]} />
+                    <meshStandardMaterial attach="material" color={new THREE.Color("#ffffff")} roughness={1.0} metalness={0} />
                 </mesh>
-                <group position={[0, artGroupY, wallBackingDepth + matDepth / 2]}>
+                {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
+                <group position={new THREE.Vector3(0, artGroupY, wallBackingDepth + matDepth / 2)}>
                      <mesh receiveShadow castShadow>
-                        <boxGeometry args={[matWidth, matHeight, matDepth]} />
-                        <meshStandardMaterial color="#333333" roughness={0.5} />
+                        <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
+                        <meshStandardMaterial attach="material" color={new THREE.Color("#333333")} roughness={0.5} />
                     </mesh>
+                    {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
                     <mesh 
-                      position={[0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME]}
+                      position={new THREE.Vector3(0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME)}
                     >
-                        <planeGeometry args={[artWidth, artHeight]} />
-                        <meshStandardMaterial color="#cccccc" roughness={1} />
+                        <planeGeometry attach="geometry" args={[artWidth, artHeight]} />
+                        <meshStandardMaterial attach="material" color={new THREE.Color("#cccccc")} roughness={1} />
                     </mesh>
                 </group>
             </React.Fragment>
@@ -192,13 +215,15 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
   
   return (
     <group>
+        {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
         <mesh 
           receiveShadow 
-          position={[0, wallHeight / 2, wallBackingDepth / 2]} 
+          position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth / 2)} 
         >
-            <boxGeometry args={[wallWidth, wallHeight, wallBackingDepth]} />
+            <boxGeometry attach="geometry" args={[wallWidth, wallHeight, wallBackingDepth]} />
             <meshStandardMaterial 
-              color="#ffffff" 
+              attach="material"
+              color={new THREE.Color("#ffffff")} 
               roughness={1.0} 
               metalness={0} 
             />
@@ -206,17 +231,21 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
 
         {isPainting && (
           <React.Fragment>
-            <mesh position={[0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05]} receiveShadow castShadow>
-              <boxGeometry args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
-              <meshStandardMaterial color={PAINTING_FRAME_COLOR} roughness={0.8} metalness={0} />
+            {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+            <mesh position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow castShadow>
+              <boxGeometry attach="geometry" args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
+              <meshStandardMaterial attach="material" color={new THREE.Color(PAINTING_FRAME_COLOR)} roughness={0.8} metalness={0} />
             </mesh>
 
+            {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
             <mesh 
-              position={[0, wallHeight / 2, wallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05]} 
+              position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05)} 
               receiveShadow
             >
-              <boxGeometry args={[redPlaneWidth, redPlaneHeight, 0.02]} />
+              <boxGeometry attach="geometry" args={[redPlaneWidth, redPlaneHeight, 0.02]} />
+              {/* FIX: Use attach="material" for meshStandardMaterial when directly inside mesh to prevent type errors */}
               <meshStandardMaterial 
+                attach="material"
                 map={finalMapTexture}
                 roughness={1}
                 metalness={0}
@@ -226,16 +255,19 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         )}
 
         {!isPainting && (
-          <group position={[0, artGroupY, wallBackingDepth + matDepth / 2]}>
+          // FIX: Use THREE.Vector3 for position and args prop for geometry
+          <group position={new THREE.Vector3(0, artGroupY, wallBackingDepth + matDepth / 2)}>
               <mesh receiveShadow castShadow>
-                    <boxGeometry args={[matWidth, matHeight, matDepth]} />
-                    <meshStandardMaterial color="#1a1a1a" roughness={0.5} />
+                    <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
+                    <meshStandardMaterial attach="material" color={new THREE.Color("#1a1a1a")} roughness={0.5} />
               </mesh>
+              {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
               <mesh 
-                position={[0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME]}
+                position={new THREE.Vector3(0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME)}
               >
-                <planeGeometry args={[artWidth, artHeight]} />
-                <meshStandardMaterial map={finalMapTexture} roughness={1} metalness={0} />
+                <planeGeometry attach="geometry" args={[artWidth, artHeight]} />
+                {/* FIX: Use attach="material" for meshStandardMaterial when directly inside mesh to prevent type errors */}
+                <meshStandardMaterial attach="material" map={finalMapTexture} roughness={1} metalness={0} />
               </mesh>
           </group>
         )}

@@ -1,6 +1,10 @@
+
+
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { RefreshCw, Lightbulb, Sun } from 'lucide-react';
-import { ExhibitionArtItem, ArtType, SimplifiedLightingConfig } from '../../types'; 
+import { RefreshCw, Lightbulb, Sun, Video, Sparkles, X } from 'lucide-react'; // NEW: Add Sparkles and X import
+// FIX: Added missing imports for types
+import { ExhibitionArtItem, SimplifiedLightingConfig, ArtType } from '../../types';
+// REMOVED: import { EffectRegistry } from '../../effect_bundle'; // NEW: Import EffectRegistry
 
 interface LayoutTabProps {
   uiConfig: {
@@ -17,11 +21,14 @@ interface LayoutTabProps {
   selectedArtworkArtist: string;
   lightingConfig: SimplifiedLightingConfig;
   onUpdateLighting: (newConfig: SimplifiedLightingConfig) => void;
+  setIsAnyLayoutItemDragging: (isDragging: boolean) => void; // NEW prop
+  // REMOVED: activeZoneTheme: string | null; // NEW: Add activeZoneTheme
+  // REMOVED: onUpdateZoneTheme: (themeName: string | null) => Promise<void>; // NEW: Add onUpdateZoneTheme
 }
 
 const PADDING_PERCENT = 3;
 const SCENE_BOUNDS_X = 24;
-const SCENE_BOUNDS_Z = 12;
+const SCENE_BOUNDS_Z = 24; // MODIFIED: Changed from 12 to 24 to shorten perceived distance and make grid denser.
 
 const ARTWORK_DIMENSIONS_2D: Record<ArtType, { width: number; depth: number }> = {
   canvas_portrait: { width: 8.0, depth: 1.0 },
@@ -33,19 +40,13 @@ const ARTWORK_DIMENSIONS_2D: Record<ArtType, { width: number; depth: number }> =
 };
 
 const DIRECTIONAL_LIGHT_Y = 5; 
+const CAMERA_FIXED_Y_POSITION = 4; // NEW: Fixed Y position for the camera on the map
 
 interface CollisionBox {
   minX: number;
   maxX: number;
   minZ: number;
   maxZ: number;
-}
-
-interface Ripple {
-  id: string;
-  left: number;
-  top: number;
-  timestamp: number;
 }
 
 const getArtworkCollisionBox = (
@@ -79,6 +80,8 @@ const checkCollision = (
 
     if (movingBox.maxX > staticBox.minX &&
         movingBox.minX < staticBox.maxX &&
+        movingBox.maxX > staticBox.minX &&
+        movingBox.minX < staticBox.maxX &&
         movingBox.maxZ > staticBox.minZ &&
         movingBox.minZ < staticBox.maxZ) {
       return { collided: true, id: staticArt.id };
@@ -97,12 +100,14 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   selectedArtworkArtist,
   lightingConfig,
   onUpdateLighting,
+  setIsAnyLayoutItemDragging, // Destructure new prop
+  // REMOVED: activeZoneTheme, // NEW: Destructure activeZoneTheme
+  // REMOVED: onUpdateZoneTheme, // NEW: Destructure onUpdateZoneTheme
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
   const [collidingArtworkId, setCollidingArtworkId] = useState<string | null>(null);
-  const [ripples, setRipples] = useState<Ripple[]>([]);
-  const nextRippleId = useRef(0);
+  const [cameraIconRotation, setCameraIconRotation] = useState(0); // NEW: State for camera icon rotation in degrees
 
   const { lightsOn, text, subtext, border } = uiConfig;
 
@@ -133,17 +138,30 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
   const handleElementPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, id: string) => {
     e.stopPropagation();
-    if (id !== 'keyLight' && id !== 'fillLight') {
+    // FIX: Only call onSelectArtwork if it's an artwork, not a light
+    if (id !== 'keyLight' && id !== 'fillLight' && id !== 'customCamera') { // MODIFIED: Add customCamera
       onSelectArtwork(id);      
     } else {
-      onSelectArtwork(null);
-      if (!lightsOn) {
+      // onSelectArtwork(null); // Deselect artwork when interacting with lights - REMOVED for simplification
+      if (!lightsOn && (id === 'keyLight' || id === 'fillLight')) { // Only disable lights if lights are off
         setDraggedElementId(null);
         return;
       }
     }
+    // NEW: Add null check for setIsAnyLayoutItemDragging
+    if (typeof setIsAnyLayoutItemDragging === 'function') {
+      setIsAnyLayoutItemDragging(true); // NEW: Set dragging state to true
+    }
     setDraggedElementId(id);      
-  }, [onSelectArtwork, lightsOn]);
+  }, [onSelectArtwork, lightsOn, setIsAnyLayoutItemDragging]); // Add setIsAnyLayoutItemDragging to deps
+
+  // NEW: Effect to set initial camera icon rotation
+  useEffect(() => {
+    const initialX = lightingConfig.customCameraPosition?.[0] || -8;
+    const initialZ = lightingConfig.customCameraPosition?.[2] || 25;
+    const initialAngleRadians = Math.atan2(0 - initialZ, 0 - initialX); // Angle from camera to origin
+    setCameraIconRotation(initialAngleRadians * (180 / Math.PI));
+  }, [lightingConfig.customCameraPosition]);
 
 
   useEffect(() => {
@@ -176,6 +194,14 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
         const currentFillLight = lightingConfig.fillLightPosition || [5, 2, 5];
         const newFillLightPosition: [number, number, number] = [newPosX, currentFillLight[1], newPosZ];
         onUpdateLighting({ ...lightingConfig, fillLightPosition: newFillLightPosition });
+      }
+      else if (draggedElementId === 'customCamera') { // NEW: Handle customCamera drag
+        const newCameraPosition: [number, number, number] = [newPosX, CAMERA_FIXED_Y_POSITION, newPosZ];
+        onUpdateLighting({ ...lightingConfig, customCameraPosition: newCameraPosition });
+        // NEW: Calculate and set rotation for the camera icon
+        const angleRadians = Math.atan2(0 - newPosZ, 0 - newPosX); // Angle from camera to origin
+        // FIX: Corrected variable name from `initialAngleRadians` to `angleRadians`
+        setCameraIconRotation(angleRadians * (180 / Math.PI));
       }
       else {
         const movingArt = currentLayout.find(art => art.id === draggedElementId);
@@ -212,6 +238,10 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     const handlePointerUp = () => {
       setDraggedElementId(null);
       setCollidingArtworkId(null);
+      // NEW: Add null check for setIsAnyLayoutItemDragging
+      if (typeof setIsAnyLayoutItemDragging === 'function') {
+        setIsAnyLayoutItemDragging(false); // NEW: Set dragging state to false
+      }
     };
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -220,8 +250,12 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      // NEW: Add null check for setIsAnyLayoutItemDragging
+      if (typeof setIsAnyLayoutItemDragging === 'function') {
+        setIsAnyLayoutItemDragging(false); // NEW: Reset dragging state on cleanup
+      }
     };
-  }, [draggedElementId, onEditorLayoutChange, mapRange, currentLayout, lightingConfig, onUpdateLighting]);
+  }, [draggedElementId, onEditorLayoutChange, mapRange, currentLayout, lightingConfig, onUpdateLighting, cameraIconRotation, setIsAnyLayoutItemDragging]); // Add setIsAnyLayoutItemDragging to deps
 
 
   const handleRotationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -300,6 +334,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
   const keyLightWorldPos = lightingConfig.keyLightPosition || [-2, DIRECTIONAL_LIGHT_Y, 10];
   const fillLightWorldPos = lightingConfig.fillLightPosition || [5, DIRECTIONAL_LIGHT_Y, 5];
+  const customCameraWorldPos = lightingConfig.customCameraPosition || [-8, CAMERA_FIXED_Y_POSITION, 25]; // NEW: Get custom camera position
 
   const keyLightLeft = mapRange(keyLightWorldPos[0], -SCENE_BOUNDS_X, SCENE_BOUNDS_X, PADDING_PERCENT, 100 - PADDING_PERCENT);
   const keyLightTop = mapRange(keyLightWorldPos[2], -SCENE_BOUNDS_Z, SCENE_BOUNDS_Z, PADDING_PERCENT, 100 - PADDING_PERCENT);
@@ -307,17 +342,23 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   const fillLightLeft = mapRange(fillLightWorldPos[0], -SCENE_BOUNDS_X, SCENE_BOUNDS_X, PADDING_PERCENT, 100 - PADDING_PERCENT);
   const fillLightTop = mapRange(fillLightWorldPos[2], -SCENE_BOUNDS_Z, SCENE_BOUNDS_Z, PADDING_PERCENT, 100 - PADDING_PERCENT);
 
+  // NEW: Calculate custom camera position for map display
+  const customCameraLeft = mapRange(customCameraWorldPos[0], -SCENE_BOUNDS_X, SCENE_BOUNDS_X, PADDING_PERCENT, 100 - PADDING_PERCENT);
+  const customCameraTop = mapRange(customCameraWorldPos[2], -SCENE_BOUNDS_Z, SCENE_BOUNDS_Z, PADDING_PERCENT, 100 - PADDING_PERCENT);
+
+
   return (
     <div className={`flex-1 flex flex-col p-4 overflow-hidden bg-neutral-500/5 ${text}`}>
       <div
         ref={containerRef}
-        className={`w-full aspect-[2/1] rounded-lg border-2 border-dashed relative overflow-hidden touch-none ${mapBgClass} ${mapBorderClass}`}
+        className={`w-full aspect-square rounded-lg border-2 border-dashed relative overflow-hidden touch-none ${mapBgClass} ${mapBorderClass}`}
       >
         <div className={`absolute inset-2 border border-dashed rounded-md pointer-events-none ${innerBorderClass}`} />
         <div className={`absolute top-1/2 left-0 w-full h-px pointer-events-none ${crosshairClass}`} />
         <div className={`absolute left-1/2 top-0 h-full w-px pointer-events-none ${crosshairClass}`} />
 
-        {ripples.map(ripple => (
+        {/* FIX: Removed ripple rendering for LayoutTab as per user request (3.4.81) */}
+        {/* {ripples.map(ripple => (
           <div
             key={ripple.id}
             className={`ripple-effect subtle ${rippleColorClass}`}
@@ -326,7 +367,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
               top: `${ripple.top}%`,
             }}
           />
-        ))}
+        ))} */}
 
         {currentLayout.map((art) => {
           const left = mapRange(art.position[0], -SCENE_BOUNDS_X, SCENE_BOUNDS_X, PADDING_PERCENT, 100 - PADDING_PERCENT);
@@ -388,6 +429,21 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
           </div>
           {draggedElementId === 'fillLight' && <div className={`absolute w-8 h-8 rounded-full ring-2 ring-blue-300 ring-offset-2 ${ringOffsetClass}`} />}
         </div>
+
+        {/* NEW: Custom Camera Position */}
+        <div
+          onPointerDown={(e) => handleElementPointerDown(e, 'customCamera')}
+          className={`absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center transition-transform cursor-grab z-20 ${draggedElementId === 'customCamera' ? 'scale-125' : ''}`}
+          style={{ top: `${customCameraTop}%`, left: `${customCameraLeft}%` }}
+          title="Custom Camera Position"
+        >
+          <div className="relative" style={{ transform: `rotate(${cameraIconRotation}deg)` }}> {/* NEW: Apply rotation here */}
+            {/* NEW: Lucide React Video icon */}
+            <Video className={`w-5 h-5 ${lightsOn ? 'text-neutral-700' : 'text-neutral-300'}`} />
+            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs font-mono whitespace-nowrap ${lightsOn ? 'text-neutral-700' : 'text-neutral-300'}`}>Camera</span>
+          </div>
+          {draggedElementId === 'customCamera' && <div className={`absolute w-8 h-8 rounded-full ring-2 ${lightsOn ? 'ring-neutral-700' : 'ring-neutral-300'} ring-offset-2 ${ringOffsetClass}`} />}
+        </div>
       </div>
 
       <div className={`flex-shrink-0 pt-4 mt-4 border-t ${border}`}>
@@ -414,6 +470,39 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
           </div>
         </div>
       </div>
+      
+      {/* REMOVED: Theme Selection Section */}
+      {/* <div className={`flex-shrink-0 pt-4 mt-4 border-t ${border}`}>
+        <p className={`text-[10px] font-bold tracking-[0.2em] uppercase ${subtext}`}>Environment Theme</p>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {Object.keys(EffectRegistry).map((effectName) => (
+            <button
+              key={effectName}
+              onClick={() => onUpdateZoneTheme(effectName)}
+              className={`px-4 py-2 rounded-full text-xs font-bold uppercase transition-colors 
+                ${activeZoneTheme === effectName 
+                  ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-neutral-900 shadow-md') 
+                  : (lightsOn ? 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700' : 'bg-neutral-700 hover:bg-neutral-600 text-white')
+                }`}
+            >
+              <Sparkles className={`inline-block w-3 h-3 mr-1 ${activeZoneTheme === effectName && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
+              {effectName}
+            </button>
+          ))}
+          {/* Button to deactivate all effects (No Theme) */}
+          {/* <button
+            onClick={() => onUpdateZoneTheme(null)}
+            className={`px-4 py-2 rounded-full text-xs font-bold uppercase transition-colors 
+              ${activeZoneTheme === null
+                ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-neutral-900 shadow-md') 
+                : (lightsOn ? 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700' : 'bg-neutral-700 hover:bg-neutral-600 text-white')
+              }`}
+          >
+            <X className={`inline-block w-3 h-3 mr-1 ${activeZoneTheme === null && (lightsOn ? 'text-red-500' : 'text-red-400')}`} />
+            No Theme
+          </button>
+        </div>
+      </div> */}
     </div>
   );
 });
