@@ -366,8 +366,6 @@ const SceneContent: React.FC<SceneProps> = ({
                   isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
                   zoneGravity={zoneGravity} // NEW: Pass zoneGravity
                   artworkGravity={art.artworkGravity} // NEW: Pass artworkGravity
-                  isFocused={isExplicitlyFocused} // NEW: Pass isFocused
-                  hasActiveFocus={!!focusedArtworkInstanceId} // NEW: Pass hasActiveFocus
                   onCanvasArtworkClick={(e) => {
                     e.stopPropagation();
                     if (!art.isMotionVideo) {

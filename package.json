@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "c": "bash ./scripts/c.sh"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",

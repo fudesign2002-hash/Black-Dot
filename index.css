@@ -1,6 +1,0 @@
-@import "tailwindcss";
-
-/* Ensure buttons and links use pointer cursor by default as a safety fallback */
-button, a, [role="button"], .cursor-pointer { cursor: pointer; }
-button[disabled], .disabled\:cursor-not-allowed[disabled] { cursor: not-allowed; }
-

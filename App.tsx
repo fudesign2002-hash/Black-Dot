@@ -286,7 +286,7 @@ function MuseumApp() {
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
     }
-  }, [isEditorMode]); // REMOVED currentLayout and lightingConfig.customCameraPosition to prevent unwanted resets
+  }, [isEditorMode, currentLayout, lightingConfig.customCameraPosition]); // ADDED cameraControlRef and lightingConfig.customCameraPosition to dependencies
 
 
   useEffect(() => {
@@ -761,24 +761,13 @@ function MuseumApp() {
         return;
     }
 
-    // Check if we are currently focused on this artwork
-    const isAlreadyFocused = focusedArtworkInstanceId === artworkInstanceId;
-
     // NEW: Hotspot map update for artwork clicks
     if (activeZone?.id && position) {
       updateHotspotPoint(activeZone.id, position[0], position[2], 1);
     }
 
-    // Only trigger likes and hearts if we are ALREADY focused on the artwork (or in special modes where focus doesn't apply the same way)
-    // If we are just zooming in (not yet focused), skip the like/heart trigger.
-    if (isAlreadyFocused || isRankingMode || isZeroGravityMode) {
-        // NEW: Artwork liked update for artwork clicks (additional 2 points)
-        updateArtworkHotspotLikes(actualArtworkId, 2);
-        
-        // Always trigger heart emitter for visual feedback on artwork click
-        setHeartEmitterArtworkId(artworkInstanceId);
-        setHeartEmitterTrigger(prev => prev + 1);
-    }
+    // NEW: Artwork liked update for artwork clicks (additional 2 points)
+    updateArtworkHotspotLikes(actualArtworkId, 2);
 
     // Existing logic after handling the new updates
     if (isRankingMode) {
@@ -793,7 +782,10 @@ function MuseumApp() {
         cameraControlRef.current.moveCameraToArtwork(artworkInstanceId, position, rotation, artworkType, isMotionVideo);
       }
     }
-  }, [cameraControlRef, handleSelectArtwork, isRankingMode, isEditorMode, isZeroGravityMode, activeZone?.id, setHeartEmitterArtworkId, setHeartEmitterTrigger, focusedArtworkInstanceId]); // MODIFIED: Added focusedArtworkInstanceId to deps
+    // Always trigger heart emitter for visual feedback on artwork click
+    setHeartEmitterArtworkId(artworkInstanceId);
+    setHeartEmitterTrigger(prev => prev + 1);
+  }, [cameraControlRef, handleSelectArtwork, isRankingMode, isEditorMode, isZeroGravityMode, activeZone?.id, setHeartEmitterArtworkId, setHeartEmitterTrigger]); // MODIFIED: Removed onLikeTriggered from deps, added setHeartEmitterTrigger
 
   const handleDismissArtworkControls = useCallback(() => {
     setIsArtworkFocusedForControls(false);

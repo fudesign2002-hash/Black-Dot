@@ -3,8 +3,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { RefreshCw, Lightbulb, Sun, Video, Sparkles, X } from 'lucide-react'; // NEW: Add Sparkles and X import
 // FIX: Added missing imports for types
-import { ExhibitionArtItem, SimplifiedLightingConfig, ArtType, FirebaseArtwork, ArtworkData } from '../../types';
-import ArtworkSettingsForm from './ArtworkSettingsForm';
+import { ExhibitionArtItem, SimplifiedLightingConfig, ArtType } from '../../types';
 // REMOVED: import { EffectRegistry } from '../../effect_bundle'; // NEW: Import EffectRegistry
 
 interface LayoutTabProps {
@@ -13,10 +12,8 @@ interface LayoutTabProps {
     text: string;
     subtext: string;
     border: string;
-    input: string;
   };
   currentLayout: ExhibitionArtItem[];
-  firebaseArtworks: FirebaseArtwork[];
   onEditorLayoutChange: (updater: (prevLayout: ExhibitionArtItem[]) => ExhibitionArtItem[]) => void;
   selectedArtworkId: string | null;
   onSelectArtwork: (id: string | null) => void;
@@ -25,8 +22,6 @@ interface LayoutTabProps {
   lightingConfig: SimplifiedLightingConfig;
   onUpdateLighting: (newConfig: SimplifiedLightingConfig) => void;
   setIsAnyLayoutItemDragging: (isDragging: boolean) => void; // NEW prop
-  onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
-  onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
   // REMOVED: activeZoneTheme: string | null; // NEW: Add activeZoneTheme
   // REMOVED: onUpdateZoneTheme: (themeName: string | null) => Promise<void>; // NEW: Add onUpdateZoneTheme
 }
@@ -98,7 +93,6 @@ const checkCollision = (
 const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   uiConfig,
   currentLayout,
-  firebaseArtworks,
   onEditorLayoutChange,
   selectedArtworkId,
   onSelectArtwork,
@@ -107,8 +101,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   lightingConfig,
   onUpdateLighting,
   setIsAnyLayoutItemDragging, // Destructure new prop
-  onUpdateArtworkFile,
-  onUpdateArtworkData,
   // REMOVED: activeZoneTheme, // NEW: Destructure activeZoneTheme
   // REMOVED: onUpdateZoneTheme, // NEW: Destructure onUpdateZoneTheme
 }) => {
@@ -120,11 +112,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   const { lightsOn, text, subtext, border } = uiConfig;
 
   const selectedArt = currentLayout.find(art => art.id === selectedArtworkId);
-  const selectedFirebaseArtwork = useMemo(() => {
-    if (!selectedArt) return null;
-    return firebaseArtworks.find(art => art.id === selectedArt.artworkId);
-  }, [selectedArt, firebaseArtworks]);
-
   const currentRotationDegrees = selectedArt ? Math.round(selectedArt.rotation[1] * (180 / Math.PI)) : 0;
 
   const mapRange = useCallback((value: number, in_min: number, in_max: number, out_min: number, out_max: number) => {
@@ -482,18 +469,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
             <span className="font-mono text-sm w-12 text-right">{currentRotationDegrees}°</span>
           </div>
         </div>
-
-        {selectedFirebaseArtwork && (
-          <div className="mt-6 pt-4 border-t border-neutral-700/30">
-             <h4 className={`text-[10px] font-bold tracking-[0.2em] uppercase mb-3 ${subtext}`}>Artwork Settings</h4>
-             <ArtworkSettingsForm
-                artwork={selectedFirebaseArtwork}
-                uiConfig={uiConfig}
-                onUpdateArtworkFile={onUpdateArtworkFile}
-                onUpdateArtworkData={onUpdateArtworkData}
-             />
-          </div>
-        )}
       </div>
       
       {/* REMOVED: Theme Selection Section */}
