@@ -65,13 +65,13 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
     // State for immediate visual feedback on the text label next to the color picker
     const [displayedFloorColorHex, setDisplayedFloorColorHex] = useState(lightingConfig.floorColor || '#000000');
     const floorColorDebounceRef = useRef<number | null>(null);
-    const [isFloorEditing, setIsFloorEditing] = useState(false);
+    const isFloorEditingRef = useRef(false);
 
     // Background color local state and debounce
     const [localBackgroundColor, setLocalBackgroundColor] = useState(lightingConfig.backgroundColor || '#ffffff');
     const [displayedBackgroundColorHex, setDisplayedBackgroundColorHex] = useState(lightingConfig.backgroundColor || '#ffffff');
     const backgroundColorDebounceRef = useRef<number | null>(null);
-    const [isBackgroundEditing, setIsBackgroundEditing] = useState(false);
+    const isBackgroundEditingRef = useRef(false);
     // Validation error states for hex inputs
     const [floorColorError, setFloorColorError] = useState<string | null>(null);
     const [backgroundColorError, setBackgroundColorError] = useState<string | null>(null);
@@ -89,7 +89,6 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       setLocalBackgroundColor(newBgColor);
       setDisplayedBackgroundColorHex(newBgColor);
     }, [lightingConfig.backgroundColor]);
-
     const normalizeHex = (hex: string): string | null => {
       if (!hex) return null;
       let h = hex.trim().toUpperCase();
@@ -97,7 +96,6 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       const m = /^#([0-9A-F]{3}|[0-9A-F]{6})$/.exec(h);
       if (!m) return null;
       if (m[1].length === 3) {
-        // Expand shorthand #RGB to #RRGGBB
         const r = m[1][0];
         const g = m[1][1];
         const b = m[1][2];
@@ -106,52 +104,81 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       return h;
     };
 
-    const handleLightingValueChange = useCallback((key: keyof SimplifiedLightingConfig, value: any) => {
-      // For floorColor and backgroundColor, validate and debounce updates
-      if (key === 'floorColor') {
-        const input = (value as string) || '';
-        const normalized = normalizeHex(input);
-        setDisplayedFloorColorHex(input.toUpperCase()); // immediate text feedback
+    const LOG_SCENETAB = false;
 
+    // Text input handler: update local state; persist only if not actively editing
+    const handleLightingTextChange = useCallback((key: keyof SimplifiedLightingConfig, value: string) => {
+      const input = value || '';
+      const normalized = normalizeHex(input);
+      if (key === 'floorColor') {
+        setDisplayedFloorColorHex(input.toUpperCase());
         if (normalized) {
           setLocalFloorColor(normalized);
           setFloorColorError(null);
-          // Do not persist while editing to avoid focus loss
-          if (!isFloorEditing) {
+          if (!isFloorEditingRef.current) {
             if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
             floorColorDebounceRef.current = window.setTimeout(() => {
-              onUpdateLighting({ ...lightingConfig, [key]: normalized });
+              onUpdateLighting({ ...lightingConfig, floorColor: normalized });
             }, 250);
           }
         } else {
-          // If input came from the color picker it will always be valid; otherwise show error and don't save
           setFloorColorError('Invalid hex color');
         }
       } else if (key === 'backgroundColor') {
-        const input = (value as string) || '';
-        const normalized = normalizeHex(input);
         setDisplayedBackgroundColorHex(input.toUpperCase());
-
         if (normalized) {
           setLocalBackgroundColor(normalized);
           setBackgroundColorError(null);
-          // Do not persist while editing to avoid focus loss
-          if (!isBackgroundEditing) {
+          if (!isBackgroundEditingRef.current) {
             if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
             backgroundColorDebounceRef.current = window.setTimeout(() => {
-              onUpdateLighting({ ...lightingConfig, [key]: normalized });
+              onUpdateLighting({ ...lightingConfig, backgroundColor: normalized });
             }, 250);
           }
         } else {
           setBackgroundColorError('Invalid hex color');
         }
       } else {
-        onUpdateLighting({ ...lightingConfig, [key]: value });
+        onUpdateLighting({ ...lightingConfig, [key]: input });
       }
-    }, [onUpdateLighting, lightingConfig, isFloorEditing, isBackgroundEditing]);
+    }, [onUpdateLighting, lightingConfig]);
+
+    // Color picker handler: commit immediately (with debounce) to support dragging
+    const handleLightingPickerChange = useCallback((key: keyof SimplifiedLightingConfig, value: string) => {
+      const normalized = normalizeHex(value);
+      if (!normalized) return;
+      if (key === 'floorColor') {
+        setDisplayedFloorColorHex(normalized);
+        setLocalFloorColor(normalized);
+        setFloorColorError(null);
+        if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
+        floorColorDebounceRef.current = window.setTimeout(() => {
+          onUpdateLighting({ ...lightingConfig, floorColor: normalized });
+        }, 150);
+      } else if (key === 'backgroundColor') {
+        setDisplayedBackgroundColorHex(normalized);
+        setLocalBackgroundColor(normalized);
+        setBackgroundColorError(null);
+        if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
+        backgroundColorDebounceRef.current = window.setTimeout(() => {
+          onUpdateLighting({ ...lightingConfig, backgroundColor: normalized });
+        }, 150);
+      } else {
+        onUpdateLighting({ ...lightingConfig, [key]: normalized });
+      }
+    }, [onUpdateLighting, lightingConfig]);
+
+    // Boolean toggles or non-color fields
+    const handleLightingBooleanChange = useCallback((key: keyof SimplifiedLightingConfig, value: boolean) => {
+      onUpdateLighting({ ...lightingConfig, [key]: value });
+    }, [onUpdateLighting, lightingConfig]);
 
     // Handle blur event for floorColor to ensure immediate save when losing focus
     const handleFloorColorBlur = useCallback(() => {
+      if (LOG_SCENETAB) {
+        // eslint-disable-next-line no-console
+        console.log('[SceneTab] blur floorColor', displayedFloorColorHex);
+      }
       if (floorColorDebounceRef.current) {
         clearTimeout(floorColorDebounceRef.current);
       }
@@ -159,14 +186,22 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       if (normalized) {
         setLocalFloorColor(normalized);
         setFloorColorError(null);
+        if (LOG_SCENETAB) {
+          // eslint-disable-next-line no-console
+          console.log('[SceneTab] final commit floorColor', normalized);
+        }
         onUpdateLighting({ ...lightingConfig, floorColor: normalized });
       } else {
         setFloorColorError('Invalid hex color');
       }
-      setIsFloorEditing(false);
+      isFloorEditingRef.current = false;
     }, [onUpdateLighting, lightingConfig, displayedFloorColorHex]);
 
     const handleBackgroundColorBlur = useCallback(() => {
+      if (LOG_SCENETAB) {
+        // eslint-disable-next-line no-console
+        console.log('[SceneTab] blur backgroundColor', displayedBackgroundColorHex);
+      }
       if (backgroundColorDebounceRef.current) {
         clearTimeout(backgroundColorDebounceRef.current);
       }
@@ -174,11 +209,15 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       if (normalized) {
         setLocalBackgroundColor(normalized);
         setBackgroundColorError(null);
+        if (LOG_SCENETAB) {
+          // eslint-disable-next-line no-console
+          console.log('[SceneTab] final commit backgroundColor', normalized);
+        }
         onUpdateLighting({ ...lightingConfig, backgroundColor: normalized });
       } else {
         setBackgroundColorError('Invalid hex color');
       }
-      setIsBackgroundEditing(false);
+      isBackgroundEditingRef.current = false;
     }, [onUpdateLighting, lightingConfig, displayedBackgroundColorHex]);
 
     const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode }> = ({ label, value, children }) => (
@@ -227,7 +266,8 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
             type="color"
             value={pickerValue}
             onChange={(e) => onPickerChange(e.target.value)}
-            onFocus={() => label === 'Floor' ? setIsFloorEditing(true) : setIsBackgroundEditing(true)}
+            onFocus={() => { (label === 'Floor' ? isFloorEditingRef : isBackgroundEditingRef).current = true; }}
+            onMouseDown={(e) => { e.stopPropagation(); }}
             className={`w-10 h-10 rounded-md border-2 cursor-pointer transition-all duration-150 hover:scale-[1.02] ${lightsOn ? 'border-neutral-300 shadow-sm' : 'border-neutral-700 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]'}`}
             aria-label={`${label} color`}
           />
@@ -235,8 +275,9 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
             type="text"
             value={hexValue}
             onChange={(e) => onTextChange(e.target.value)}
-            onFocus={() => label === 'Floor' ? setIsFloorEditing(true) : setIsBackgroundEditing(true)}
+            onFocus={() => { (label === 'Floor' ? isFloorEditingRef : isBackgroundEditingRef).current = true; }}
             onBlur={onBlur}
+            onMouseDown={(e) => { e.stopPropagation(); }}
             className={`w-24 text-xs font-mono px-2 py-1 rounded border ${error ? 'border-red-500' : lightsOn ? 'border-neutral-300 bg-white' : 'border-neutral-700 bg-neutral-900'} ${textClass}`}
             maxLength={7}
             placeholder="#FFFFFF"
@@ -259,7 +300,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                           id="exhibition-background-toggle"
                           className="sr-only peer"
                           checked={useExhibitionBackground}
-                          onChange={(e) => handleLightingValueChange('useExhibitionBackground', e.target.checked)}
+                          onChange={(e) => handleLightingBooleanChange('useExhibitionBackground', e.target.checked)}
                           disabled={!activeExhibitionBackgroundUrl} // Disable if no URL is provided
                       />
                       <div className="w-14 h-8 bg-neutral-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[6px] after:left-[6px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
@@ -282,8 +323,8 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                       icon={Palette}
                       pickerValue={localFloorColor}
                       hexValue={displayedFloorColorHex}
-                      onPickerChange={(value) => handleLightingValueChange('floorColor', value)}
-                      onTextChange={(value) => handleLightingValueChange('floorColor', value)}
+                      onPickerChange={(value) => handleLightingPickerChange('floorColor', value)}
+                      onTextChange={(value) => handleLightingTextChange('floorColor', value)}
                       onBlur={handleFloorColorBlur}
                       error={floorColorError}
                       lightsOn={lightsOn}
@@ -295,8 +336,8 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                       icon={Palette}
                       pickerValue={localBackgroundColor}
                       hexValue={displayedBackgroundColorHex}
-                      onPickerChange={(value) => handleLightingValueChange('backgroundColor', value)}
-                      onTextChange={(value) => handleLightingValueChange('backgroundColor', value)}
+                      onPickerChange={(value) => handleLightingPickerChange('backgroundColor', value)}
+                      onTextChange={(value) => handleLightingTextChange('backgroundColor', value)}
                       onBlur={handleBackgroundColorBlur}
                       error={backgroundColorError}
                       lightsOn={lightsOn}

@@ -455,7 +455,12 @@ function MuseumApp() {
   }, [lightsOn, isFirstLightToggleOff, lightingConfig, setLightingOverride, activeZone.id, useExhibitionBackground, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
 
   // NEW: Handle update for lighting config including useExhibitionBackground
+  const LOG_APP_LIGHTING = false;
   const handleLightingUpdate = useCallback(async (newConfig: SimplifiedLightingConfig) => {
+    if (LOG_APP_LIGHTING) {
+      // eslint-disable-next-line no-console
+      console.log('[App] handleLightingUpdate', newConfig);
+    }
     setLightingOverride(activeZone.id, newConfig);
     setUseExhibitionBackground(newConfig.useExhibitionBackground || false); // Update local state for consistency
 
@@ -466,11 +471,18 @@ function MuseumApp() {
     if (!activeZone?.id || activeZone.id === 'fallback_zone_id') return;
 
     lightingUpdateTimeoutRef.current = window.setTimeout(async () => {
-      try {
+        try {
+            if (LOG_APP_LIGHTING) {
+              // eslint-disable-next-line no-console
+              console.log('[App] Firebase update lightingDesign.defaultConfig', activeZone.id, newConfig);
+            }
           const zoneDocRef = db.collection('zones').doc(activeZone.id);
           await zoneDocRef.update({ 'lightingDesign.defaultConfig': newConfig });
       } catch (error) {
-          // 
+            if (LOG_APP_LIGHTING) {
+              // eslint-disable-next-line no-console
+              console.error('[App] Firebase update error', error);
+            }
       }
     }, 500);
   }, [activeZone.id, setLightingOverride]);

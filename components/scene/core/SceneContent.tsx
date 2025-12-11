@@ -62,6 +62,7 @@ const SceneContent: React.FC<SceneProps> = ({
   zoneGravity, // NEW: Destructure zoneGravity
   isEffectRegistryLoading, // NEW: Destructure isEffectRegistryLoading
 }) => {
+  const LOG_COLORS = false; // Toggle debug logs for color updates
   const { lightsOn } = lightingConfig;
 
   const dirLight1Ref = useRef<THREE.DirectionalLight>(null);
@@ -212,6 +213,10 @@ const SceneContent: React.FC<SceneProps> = ({
 
   useFrame((state, delta) => {
     const lerpSpeed = delta * 10;
+    if (LOG_COLORS) {
+      // eslint-disable-next-line no-console
+      console.log('[SceneContent] frame lightsOn:', lightsOn, 'bg:', lightingConfig.backgroundColor, 'floor:', lightingConfig.floorColor, 'useExhibitionBackground:', useExhibitionBackground);
+    }
 
     // NEW: Update active effect if any
     // FIX: 這裡已經透過 EffectGroup 介面解決了 TypeScript 的類型檢查問題
@@ -245,6 +250,13 @@ const SceneContent: React.FC<SceneProps> = ({
       // Revert to solid color background if background texture is not used or loading
       const targetBgColor = new THREE.Color(lightingConfig.backgroundColor || (lightsOn ? lightBgColor : darkBgColor));
       const targetFloorColorSolid = new THREE.Color(lightingConfig.floorColor || (lightsOn ? lightFloorColor : darkFloorColor));
+      if (LOG_COLORS) {
+        // eslint-disable-next-line no-console
+        console.log('[SceneContent] target colors', {
+          bg: targetBgColor.getHexString(),
+          floor: targetFloorColorSolid.getHexString(),
+        });
+      }
 
       if (scene.background instanceof THREE.Color) scene.background.lerp(targetBgColor, lerpSpeed);
       // NEW: Enable fog if not using exhibition background
