@@ -222,6 +222,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           <LayoutTab 
             uiConfig={uiConfig}
             currentLayout={currentLayout}
+            firebaseArtworks={firebaseArtworks}
             onEditorLayoutChange={onEditorLayoutChange}
             selectedArtworkId={selectedArtworkId}
             onSelectArtwork={onSelectArtwork}
@@ -230,6 +231,14 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             lightingConfig={lightingConfig}
             onUpdateLighting={onUpdateLighting}
             setIsAnyLayoutItemDragging={setIsAnyLayoutItemDragging} // NEW: Pass setter
+            onUpdateArtworkFile={async (artworkId: string, newFileUrl: string) => {
+              await onUpdateArtworkFile(artworkId, newFileUrl);
+              triggerSaveNotification();
+            }}
+            onUpdateArtworkData={async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {
+              await onUpdateArtworkData(artworkId, updatedArtworkData);
+              triggerSaveNotification();
+            }}
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab
