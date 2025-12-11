@@ -577,7 +577,18 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
         {relevantArtworks.map(artwork => (
           <div key={artwork.id} className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-bold text-sm cursor-pointer" onDoubleClick={() => handleArtworkDoubleClick(artwork)}>{artwork.title}</h4>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-sm cursor-pointer" onDoubleClick={() => handleArtworkDoubleClick(artwork)}>{artwork.title} 123</h4>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  artwork.artwork_type === 'painting' 
+                    ? 'bg-cyan-100 text-cyan-700' 
+                    : artwork.artwork_type === 'sculpture' 
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-violet-100 text-violet-700'
+                }`}>
+                  {artwork.artwork_type.charAt(0).toUpperCase() + artwork.artwork_type.slice(1)}
+                </span>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleRemoveClick(artwork.id, artwork.title)}
@@ -599,48 +610,52 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
 
             {editingUrlArtworkId === artwork.id && (
               <div className="mt-4 space-y-4">
-                <div className="w-full aspect-video bg-neutral-200 dark:bg-neutral-800 rounded-md overflow-hidden flex items-center justify-center text-neutral-500">
-                  {getMediaPreview(artwork)}
-                </div>
+                {artwork.artwork_type === 'painting' && (
+                  <>
+                    <div className="w-full aspect-video bg-neutral-200 dark:bg-neutral-800 rounded-md overflow-hidden flex items-center justify-center text-neutral-500">
+                      {getMediaPreview(artwork)}
+                    </div>
 
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={currentEditValue}
-                    onChange={e => setCurrentEditValue(e.target.value)}
-                    placeholder="Enter image or video URL, or GLB path"
-                    className={`w-full pr-10 py-2 rounded-md text-xs ${input}`}
-                  />
-                  <button
-                    onClick={() => handleSaveUrl(artwork.id, currentEditValue)}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${updateStatus[artwork.id] === 'saved' ? 'text-green-500' : (updateStatus[artwork.id] === 'error' ? 'text-red-500' : '')}`}
-                    title="Save URL"
-                    disabled={currentEditValue === originalArtworkFile || updateStatus[artwork.id] === 'saving'}
-                  >
-                    {getStatusIcon(artwork.id, 'update') || <Check className="w-4 h-4" />}
-                  </button>
-                </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={currentEditValue}
+                        onChange={e => setCurrentEditValue(e.target.value)}
+                        placeholder="Enter image or video URL, or GLB path"
+                        className={`w-full pr-10 py-2 rounded-md text-xs ${input}`}
+                      />
+                      <button
+                        onClick={() => handleSaveUrl(artwork.id, currentEditValue)}
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${updateStatus[artwork.id] === 'saved' ? 'text-green-500' : (updateStatus[artwork.id] === 'error' ? 'text-red-500' : '')}`}
+                        title="Save URL"
+                        disabled={currentEditValue === originalArtworkFile || updateStatus[artwork.id] === 'saving'}
+                      >
+                        {getStatusIcon(artwork.id, 'update') || <Check className="w-4 h-4" />}
+                      </button>
+                    </div>
 
-                <div className="relative">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={(e) => handleFileChange(e, artwork.id)}
-                    className="hidden"
-                    id={`file-upload-${artwork.id}`}
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`w-full px-4 py-2 rounded-md flex items-center justify-center gap-2 text-xs font-bold uppercase transition-colors ${lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-neutral-200 hover:bg-neutral-600'} ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                    disabled={isUploading}
-                  >
-                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                    {uploadMessage || 'Upload File'}
-                  </button>
-                  {isUploading && (
-                    <div className="absolute inset-x-0 bottom-0 h-1 bg-cyan-500 rounded-md" style={{ width: `${uploadProgress}%` }}></div>
-                  )}
-                </div>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={(e) => handleFileChange(e, artwork.id)}
+                        className="hidden"
+                        id={`file-upload-${artwork.id}`}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`w-full px-4 py-2 rounded-md flex items-center justify-center gap-2 text-xs font-bold uppercase transition-colors ${lightsOn ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' : 'bg-neutral-700 text-neutral-200 hover:bg-neutral-600'} ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                        {uploadMessage || 'Upload File'}
+                      </button>
+                      {isUploading && (
+                        <div className="absolute inset-x-0 bottom-0 h-1 bg-cyan-500 rounded-md" style={{ width: `${uploadProgress}%` }}></div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {/* FIX: Added type assertion to `artwork.artwork_type` to bypass a TypeScript inference issue */}
                 {(artwork.artwork_type as string) === 'sculpture' && (artwork.artwork_file?.toLowerCase().includes('.glb')) && ( // MODIFIED: Check for sculpture type

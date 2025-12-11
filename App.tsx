@@ -1093,6 +1093,7 @@ function MuseumApp() {
             onFocusArtwork={handleFocusArtworkInstance}
             onOpenConfirmationDialog={openConfirmationDialog}
             onAddArtworkToLayout={onAddArtworkToLayout}
+            onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
             useExhibitionBackground={useExhibitionBackground} // NEW: Pass useExhibitionBackground
             activeZoneTheme={activeEffectName} // NEW: Pass activeZone.zone_theme as activeZoneTheme
             onUpdateZoneTheme={handleUpdateZoneTheme} // NEW: Pass handler for updating zone theme

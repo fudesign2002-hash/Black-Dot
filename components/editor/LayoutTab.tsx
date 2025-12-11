@@ -1,10 +1,10 @@
 
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { RefreshCw, Lightbulb, Sun, Video, Sparkles, X } from 'lucide-react'; // NEW: Add Sparkles and X import
+import { RefreshCw, Lightbulb, Sun, Video, Sparkles, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'; // NEW: Add Trash2
 // FIX: Added missing imports for types
-import { ExhibitionArtItem, SimplifiedLightingConfig, ArtType } from '../../types';
-// REMOVED: import { EffectRegistry } from '../../effect_bundle'; // NEW: Import EffectRegistry
+import { ExhibitionArtItem, SimplifiedLightingConfig, ArtType, FirebaseArtwork, ArtworkData } from '../../types';
+import ArtworkSettingsForm from './ArtworkSettingsForm'; // NEW: Import ArtworkSettingsForm
 
 interface LayoutTabProps {
   uiConfig: {
@@ -12,6 +12,7 @@ interface LayoutTabProps {
     text: string;
     subtext: string;
     border: string;
+    input: string;
   };
   currentLayout: ExhibitionArtItem[];
   onEditorLayoutChange: (updater: (prevLayout: ExhibitionArtItem[]) => ExhibitionArtItem[]) => void;
@@ -22,8 +23,11 @@ interface LayoutTabProps {
   lightingConfig: SimplifiedLightingConfig;
   onUpdateLighting: (newConfig: SimplifiedLightingConfig) => void;
   setIsAnyLayoutItemDragging: (isDragging: boolean) => void; // NEW prop
-  // REMOVED: activeZoneTheme: string | null; // NEW: Add activeZoneTheme
-  // REMOVED: onUpdateZoneTheme: (themeName: string | null) => Promise<void>; // NEW: Add onUpdateZoneTheme
+  firebaseArtworks: FirebaseArtwork[]; // NEW: Add firebaseArtworks
+  onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>; // NEW: Add onUpdateArtworkFile
+  onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>; // NEW: Add onUpdateArtworkData
+  onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>; // NEW: Add onRemoveArtworkFromLayout
+  onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void; // NEW: Add onOpenConfirmationDialog
 }
 
 const PADDING_PERCENT = 3;
@@ -100,16 +104,21 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   selectedArtworkArtist,
   lightingConfig,
   onUpdateLighting,
-  setIsAnyLayoutItemDragging, // Destructure new prop
-  // REMOVED: activeZoneTheme, // NEW: Destructure activeZoneTheme
-  // REMOVED: onUpdateZoneTheme, // NEW: Destructure onUpdateZoneTheme
+  setIsAnyLayoutItemDragging,
+  firebaseArtworks, // NEW: Destructure firebaseArtworks
+  onUpdateArtworkFile, // NEW: Destructure onUpdateArtworkFile
+  onUpdateArtworkData, // NEW: Destructure onUpdateArtworkData
+  onRemoveArtworkFromLayout, // NEW: Destructure onRemoveArtworkFromLayout
+  onOpenConfirmationDialog, // NEW: Destructure onOpenConfirmationDialog
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
+  const [isEditingArtwork, setIsEditingArtwork] = useState<boolean>(false); // NEW: State for edit panel
   const [collidingArtworkId, setCollidingArtworkId] = useState<string | null>(null);
   const [cameraIconRotation, setCameraIconRotation] = useState(0); // NEW: State for camera icon rotation in degrees
 
   const { lightsOn, text, subtext, border } = uiConfig;
+  const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
 
   const selectedArt = currentLayout.find(art => art.id === selectedArtworkId);
   const currentRotationDegrees = selectedArt ? Math.round(selectedArt.rotation[1] * (180 / Math.PI)) : 0;
@@ -469,6 +478,61 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
             <span className="font-mono text-sm w-12 text-right">{currentRotationDegrees}°</span>
           </div>
         </div>
+
+        {selectedArt && firebaseArtworks.find(fw => fw.id === selectedArt.artworkId) && (
+          <div key={selectedArt.id} className={`my-4 p-4 rounded-xl border ${border} ${controlBgClass}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-sm">{selectedArtworkTitle}</h4>
+                {(() => {
+                  const artwork = firebaseArtworks.find(fw => fw.id === selectedArt.artworkId);
+                  return artwork ? (
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      artwork.artwork_type === 'painting' 
+                        ? 'bg-cyan-100 text-cyan-700' 
+                        : artwork.artwork_type === 'sculpture' 
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-violet-100 text-violet-700'
+                    }`}>
+                      {artwork.artwork_type.charAt(0).toUpperCase() + artwork.artwork_type.slice(1)}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    onOpenConfirmationDialog('artwork_removal', selectedArt.artworkId, selectedArtworkTitle);
+                  }}
+                  className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors ${text}`}
+                  title="Remove Artwork from Layout"
+                >
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </button>
+                <button
+                  onClick={() => setIsEditingArtwork(!isEditingArtwork)}
+                  className={`p-1.5 rounded-full transition-colors ${isEditingArtwork ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'} ${text}`}
+                  title={isEditingArtwork ? "Close Editor" : "Edit Artwork Settings"}
+                >
+                  {isEditingArtwork ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            {isEditingArtwork && (
+              <div className="mt-4 space-y-3">
+                {firebaseArtworks.find(fw => fw.id === selectedArt.artworkId) && (
+                  <ArtworkSettingsForm
+                    artwork={firebaseArtworks.find(fw => fw.id === selectedArt.artworkId)!}
+                    uiConfig={uiConfig}
+                    onUpdateArtworkFile={onUpdateArtworkFile}
+                    onUpdateArtworkData={onUpdateArtworkData}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       
       {/* REMOVED: Theme Selection Section */}

@@ -41,6 +41,7 @@ interface FloorPlanEditorProps {
   // FIX: Modified `onOpenConfirmationDialog` signature to match `App.tsx`
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void;
   onAddArtworkToLayout: (artwork: FirebaseArtwork) => Promise<boolean>;
+  onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>; // NEW: Add onRemoveArtworkFromLayout
   useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground
   activeZoneTheme: string | null; // NEW: Add activeZoneTheme
   onUpdateZoneTheme: (themeName: string | null) => Promise<void>; // NEW: Add onUpdateZoneTheme
@@ -74,6 +75,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   onFocusArtwork,
   onOpenConfirmationDialog,
   onAddArtworkToLayout,
+  onRemoveArtworkFromLayout, // NEW: Destructure onRemoveArtworkFromLayout
   useExhibitionBackground, // NEW: Destructure useExhibitionBackground
   activeZoneTheme, // NEW: Destructure activeZoneTheme
   onUpdateZoneTheme, // NEW: Destructure onUpdateZoneTheme
@@ -229,7 +231,18 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             selectedArtworkArtist={selectedArtworkArtist}
             lightingConfig={lightingConfig}
             onUpdateLighting={onUpdateLighting}
-            setIsAnyLayoutItemDragging={setIsAnyLayoutItemDragging} // NEW: Pass setter
+            setIsAnyLayoutItemDragging={setIsAnyLayoutItemDragging}
+            firebaseArtworks={firebaseArtworks}
+            onUpdateArtworkFile={async (artworkId: string, newFileUrl: string) => {
+              await onUpdateArtworkFile(artworkId, newFileUrl);
+              triggerSaveNotification();
+            }}
+            onUpdateArtworkData={async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {
+              await onUpdateArtworkData(artworkId, updatedArtworkData);
+              triggerSaveNotification();
+            }}
+            onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
+            onOpenConfirmationDialog={onOpenConfirmationDialog} // NEW: Pass onOpenConfirmationDialog
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab
