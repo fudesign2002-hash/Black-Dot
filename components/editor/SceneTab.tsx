@@ -1,7 +1,7 @@
 
 
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { Activity,Waves,Zap,Image, FlameKindling, Palette, Camera, Sparkles, X, Loader2, AlertCircle, Snowflake, Leaf, CloudRain, Wind, MoonStar,Bubbles, Umbrella,PartyPopper, Anchor } from 'lucide-react'; // NEW: Add Anchor for Zone Gravity
+import { Activity,Waves,Zap,Image, FlameKindling, Palette, Camera, Sparkles, X, Loader2, AlertCircle, Snowflake, Leaf, CloudRain, Wind, MoonStar,Bubbles, Umbrella,PartyPopper } from 'lucide-react'; // Icons for effects and controls
 import { SimplifiedLightingConfig, SimplifiedLightingPreset, ZoneLightingDesign, EffectRegistryType } from '../../types';
 
 interface SceneTabProps {
@@ -65,35 +65,79 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
     const [displayedFloorColorHex, setDisplayedFloorColorHex] = useState(lightingConfig.floorColor || '#000000');
     const floorColorDebounceRef = useRef<number | null>(null);
 
-    // NEW: Local state for zone gravity slider, for immediate UI feedback
-    const [localZoneGravity, setLocalZoneGravity] = useState<number>(activeZoneGravity ?? 50); // Default to 50
-    const zoneGravityDebounceRef = useRef<number | null>(null);
+    // Background color local state and debounce
+    const [localBackgroundColor, setLocalBackgroundColor] = useState(lightingConfig.backgroundColor || '#ffffff');
+    const [displayedBackgroundColorHex, setDisplayedBackgroundColorHex] = useState(lightingConfig.backgroundColor || '#ffffff');
+    const backgroundColorDebounceRef = useRef<number | null>(null);
+    // Validation error states for hex inputs
+    const [floorColorError, setFloorColorError] = useState<string | null>(null);
+    const [backgroundColorError, setBackgroundColorError] = useState<string | null>(null);
 
 
-    // Sync local states with prop when lightingConfig.floorColor changes from outside
+    // Sync local states with prop when lightingConfig.floorColor or background changes from outside
     useEffect(() => {
       const newColor = lightingConfig.floorColor || '#000000';
       setLocalFloorColor(newColor);
       setDisplayedFloorColorHex(newColor);
     }, [lightingConfig.floorColor]);
 
-    // NEW: Sync local zone gravity with prop
     useEffect(() => {
-      setLocalZoneGravity(activeZoneGravity ?? 50);
-    }, [activeZoneGravity]);
+      const newBgColor = lightingConfig.backgroundColor || '#ffffff';
+      setLocalBackgroundColor(newBgColor);
+      setDisplayedBackgroundColorHex(newBgColor);
+    }, [lightingConfig.backgroundColor]);
+
+    const normalizeHex = (hex: string): string | null => {
+      if (!hex) return null;
+      let h = hex.trim().toUpperCase();
+      if (!h.startsWith('#')) h = `#${h}`;
+      const m = /^#([0-9A-F]{3}|[0-9A-F]{6})$/.exec(h);
+      if (!m) return null;
+      if (m[1].length === 3) {
+        // Expand shorthand #RGB to #RRGGBB
+        const r = m[1][0];
+        const g = m[1][1];
+        const b = m[1][2];
+        return `#${r}${r}${g}${g}${b}${b}`;
+      }
+      return h;
+    };
 
     const handleLightingValueChange = useCallback((key: keyof SimplifiedLightingConfig, value: any) => {
-      // For floorColor, we need special handling to avoid immediate re-renders
+      // For floorColor and backgroundColor, validate and debounce updates
       if (key === 'floorColor') {
-        setDisplayedFloorColorHex(value); // Update text display immediately
+        const input = (value as string) || '';
+        const normalized = normalizeHex(input);
+        setDisplayedFloorColorHex(input.toUpperCase()); // immediate text feedback
 
-        if (floorColorDebounceRef.current) {
-          clearTimeout(floorColorDebounceRef.current);
+        if (normalized) {
+          setLocalFloorColor(normalized);
+          setFloorColorError(null);
+
+          if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
+          floorColorDebounceRef.current = window.setTimeout(() => {
+            onUpdateLighting({ ...lightingConfig, [key]: normalized });
+          }, 300);
+        } else {
+          // If input came from the color picker it will always be valid; otherwise show error and don't save
+          setFloorColorError('Invalid hex color');
         }
-        floorColorDebounceRef.current = window.setTimeout(() => {
-          // This update will eventually flow back to localFloorColor via useEffect
-          onUpdateLighting({ ...lightingConfig, [key]: value });
-        }, 300); // Debounce floor color updates
+      } else if (key === 'backgroundColor') {
+        const input = (value as string) || '';
+        const normalized = normalizeHex(input);
+        setDisplayedBackgroundColorHex(input.toUpperCase());
+
+        if (normalized) {
+          setLocalBackgroundColor(normalized);
+          setBackgroundColorError(null);
+
+          if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
+          backgroundColorDebounceRef.current = window.setTimeout(() => {
+            onUpdateLighting({ ...lightingConfig, [key]: normalized });
+          }, 300);
+        } else {
+          setBackgroundColorError('Invalid hex color');
+        }
       } else {
         onUpdateLighting({ ...lightingConfig, [key]: value });
       }
@@ -104,31 +148,29 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       if (floorColorDebounceRef.current) {
         clearTimeout(floorColorDebounceRef.current);
       }
-      // Use the last value from displayedFloorColorHex as the final value to commit
-      // This ensures the value committed is what the user visually saw
-      onUpdateLighting({ ...lightingConfig, floorColor: displayedFloorColorHex });
+      const normalized = normalizeHex(displayedFloorColorHex);
+      if (normalized) {
+        setLocalFloorColor(normalized);
+        setFloorColorError(null);
+        onUpdateLighting({ ...lightingConfig, floorColor: normalized });
+      } else {
+        setFloorColorError('Invalid hex color');
+      }
     }, [onUpdateLighting, lightingConfig, displayedFloorColorHex]);
 
-    // NEW: Handle zone gravity change with debounce
-    const handleZoneGravityChange = useCallback((value: number) => {
-      setLocalZoneGravity(value); // Update local state immediately for slider
-
-      if (zoneGravityDebounceRef.current) {
-        clearTimeout(zoneGravityDebounceRef.current);
+    const handleBackgroundColorBlur = useCallback(() => {
+      if (backgroundColorDebounceRef.current) {
+        clearTimeout(backgroundColorDebounceRef.current);
       }
-      zoneGravityDebounceRef.current = window.setTimeout(() => {
-        onUpdateZoneGravity(value); // Debounce Firebase update
-      }, 300);
-    }, [onUpdateZoneGravity]);
-
-    // NEW: Handle zone gravity blur to ensure immediate save on focus loss
-    const handleZoneGravityBlur = useCallback(() => {
-      if (zoneGravityDebounceRef.current) {
-        clearTimeout(zoneGravityDebounceRef.current);
+      const normalized = normalizeHex(displayedBackgroundColorHex);
+      if (normalized) {
+        setLocalBackgroundColor(normalized);
+        setBackgroundColorError(null);
+        onUpdateLighting({ ...lightingConfig, backgroundColor: normalized });
+      } else {
+        setBackgroundColorError('Invalid hex color');
       }
-      onUpdateZoneGravity(localZoneGravity); // Commit current local value
-    }, [onUpdateZoneGravity, localZoneGravity]);
-
+    }, [onUpdateLighting, lightingConfig, displayedBackgroundColorHex]);
 
     const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode }> = ({ label, value, children }) => (
         <div className={`p-4 rounded-xl border flex flex-col items-start gap-3 ${border} ${controlBgClass}`}>
@@ -166,44 +208,60 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                   )}
                 </ControlRow>
 
-                {/* NEW: Floor Color Selector, visible only if useExhibitionBackground is true */}
-                {useExhibitionBackground && (
-                  <ControlRow label="Floor Color" value={displayedFloorColorHex.toUpperCase() || '#000000'}>
-                    <div className="w-full flex items-center gap-3">
+                {/* Floor + Background Color selectors, always visible */}
+                <ControlRow label="Colors">
+                  <div className="w-full grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium w-16">Floor</span>
                       <Palette className="w-4 h-4" />
                       <input
                         type="color"
-                        value={localFloorColor} // This value is updated by useEffect from lightingConfig or onBlur
-                        onChange={e => handleLightingValueChange('floorColor', e.target.value)} // This updates displayedFloorColorHex and debounces
-                        onBlur={handleFloorColorBlur} // This commits the final value immediately on blur
+                        value={localFloorColor}
+                        onChange={e => handleLightingValueChange('floorColor', e.target.value)}
+                        onBlur={handleFloorColorBlur}
                         className={`w-12 h-8 rounded-md border-2 cursor-pointer ${lightsOn ? 'border-neutral-300' : 'border-neutral-700'}`}
                         title="Select floor color"
                       />
-                      <span className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>
-                        {displayedFloorColorHex.toUpperCase() || '#000000'}
-                      </span>
+                      <div className="flex flex-col">
+                        <input
+                          type="text"
+                          value={displayedFloorColorHex}
+                          onChange={e => handleLightingValueChange('floorColor', e.target.value)}
+                          onBlur={handleFloorColorBlur}
+                          className={`w-24 text-xs font-mono px-2 py-1 rounded ${floorColorError ? 'border-red-500' : 'border'} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} ${uiConfig.text}`}
+                          maxLength={7}
+                          placeholder="#FFFFFF"
+                          title="Edit hex code"
+                        />
+                        {floorColorError && <p className="text-xs text-red-500 mt-1">{floorColorError}</p>}
+                      </div>
                     </div>
-                  </ControlRow>
-                )}
 
-                {/* NEW: Zone Gravity Control */}
-                <ControlRow label="Zone Gravity" value={`${localZoneGravity}`}>
-                  <div className="w-full flex items-center gap-3">
-                    <Anchor className="w-4 h-4 opacity-70" />
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={localZoneGravity}
-                      onChange={e => handleZoneGravityChange(Number(e.target.value))}
-                      onBlur={handleZoneGravityBlur}
-                      className="w-full h-1 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-cyan-500 dark:bg-neutral-700"
-                      title="Adjust zone gravity for floating artworks"
-                    />
-                    <span className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>
-                      {localZoneGravity}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium w-16">Background</span>
+                      <Palette className="w-4 h-4" />
+                      <input
+                        type="color"
+                        value={localBackgroundColor}
+                        onChange={e => handleLightingValueChange('backgroundColor', e.target.value)}
+                        onBlur={handleBackgroundColorBlur}
+                        className={`w-12 h-8 rounded-md border-2 cursor-pointer ${lightsOn ? 'border-neutral-300' : 'border-neutral-700'}`}
+                        title="Select background color"
+                      />
+                      <div className="flex flex-col">
+                        <input
+                          type="text"
+                          value={displayedBackgroundColorHex}
+                          onChange={e => handleLightingValueChange('backgroundColor', e.target.value)}
+                          onBlur={handleBackgroundColorBlur}
+                          className={`w-24 text-xs font-mono px-2 py-1 rounded ${backgroundColorError ? 'border-red-500' : 'border'} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} ${uiConfig.text}`}
+                          maxLength={7}
+                          placeholder="#FFFFFF"
+                          title="Edit hex code"
+                        />
+                        {backgroundColorError && <p className="text-xs text-red-500 mt-1">{backgroundColorError}</p>}
+                      </div>
+                    </div>
                   </div>
                 </ControlRow>
 

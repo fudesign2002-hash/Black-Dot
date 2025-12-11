@@ -320,7 +320,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
         </div>
     </div>
     </React.Fragment>
-  );
-});
+      );
+    });
 
 export default MainControls;

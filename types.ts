@@ -29,6 +29,7 @@ export interface SimplifiedLightingConfig {
   rankingCameraTarget?: [number, number, number];   // NEW
   useExhibitionBackground?: boolean; // NEW: Add toggle for exhibition background
   floorColor?: string; // NEW: Add floorColor for custom background
+  backgroundColor?: string; // NEW: Add backgroundColor for scene background
 }
 
 export interface ArtworkGeometry {
