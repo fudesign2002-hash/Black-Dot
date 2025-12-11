@@ -164,7 +164,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
                         }}
                         className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold uppercase transition-colors 
                           ${lightsOn ? 'bg-cyan-600 text-white hover:bg-cyan-700' : 'bg-blue-500 text-white hover:bg-blue-600'}
-                          ${addArtworkStatus[artwork.id] === 'saving' ? 'opacity-70 cursor-not-allowed' : ''}
+                          ${addArtworkStatus[artwork.id] === 'saving' ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}
                         `}
                         disabled={addArtworkStatus[artwork.id] === 'saving'}
                       >
@@ -201,14 +201,14 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleRemoveClick(artwork.id, artwork.title)}
-                  className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors ${text}`}
+                  className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors cursor-pointer ${text}`}
                   title="Remove Artwork from Layout"
                 >
                   <Trash2 className="w-4 h-4 text-red-500" />
                 </button>
                 <button
                   onClick={() => handleToggleEdit(artwork)}
-                  className={`p-1.5 rounded-full transition-colors ${editingUrlArtworkId === artwork.id ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'} ${text}`}
+                  className={`p-1.5 rounded-full transition-colors cursor-pointer ${editingUrlArtworkId === artwork.id ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'} ${text}`}
                   title={editingUrlArtworkId === artwork.id ? "Close Editor" : "Edit Artwork Settings"}
                 >
                   {editingUrlArtworkId === artwork.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}

@@ -321,97 +321,101 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
   const isImage = !isGlb && !isVideo;
 
   return (
-    <div className="space-y-4">
-      {/* Preview Area */}
-      <div className={`w-full aspect-video ${controlBgClass} rounded-lg overflow-hidden flex items-center justify-center relative border ${border}`}>
-        {isGlb ? (
-          <div className="flex flex-col items-center justify-center text-neutral-500">
-            <Box size={48} className="mb-2 opacity-50" />
-            <span className="text-xs font-medium">GLB Model</span>
-          </div>
-        ) : isVideo ? (
-          previewMediaError ? (
-            <div className="flex flex-col items-center justify-center text-red-500 p-4 text-center">
-              <AlertCircle size={24} className="mb-2" />
-              <span className="text-xs">Failed to load video</span>
+    <div className="space-y-3">
+      {/* Preview Area (only for paintings) */}
+      {artwork.artwork_type === 'painting' && (
+        <div className={`w-full aspect-video ${controlBgClass} rounded-lg overflow-hidden flex items-center justify-center relative border ${border}`}>
+          {isGlb ? (
+            <div className="flex flex-col items-center justify-center text-neutral-500">
+              <Box size={48} className="mb-2 opacity-50" />
+              <span className="text-xs font-medium">GLB Model</span>
             </div>
+          ) : isVideo ? (
+            previewMediaError ? (
+              <div className="flex flex-col items-center justify-center text-red-500 p-4 text-center">
+                <AlertCircle size={24} className="mb-2" />
+                <span className="text-xs">Failed to load video</span>
+              </div>
+            ) : (
+              <video 
+                src={currentEditValue} 
+                className="w-full h-full object-contain" 
+                controls 
+                onError={() => setPreviewMediaError(true)}
+              />
+            )
           ) : (
-            <video 
-              src={currentEditValue} 
-              className="w-full h-full object-contain" 
-              controls 
-              onError={() => setPreviewMediaError(true)}
-            />
-          )
-        ) : (
-          previewMediaError ? (
-            <div className="flex flex-col items-center justify-center text-red-500 p-4 text-center">
-              <AlertCircle size={24} className="mb-2" />
-              <span className="text-xs">Failed to load image</span>
+            previewMediaError ? (
+              <div className="flex flex-col items-center justify-center text-red-500 p-4 text-center">
+                <AlertCircle size={24} className="mb-2" />
+                <span className="text-xs">Failed to load image</span>
+              </div>
+            ) : (
+              <img 
+                src={currentEditValue} 
+                alt={artwork.title} 
+                className="w-full h-full object-contain"
+                onError={() => setPreviewMediaError(true)}
+              />
+            )
+          )}
+          
+          {isUploading && (
+            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white z-10">
+              <Loader2 className="animate-spin mb-2" size={24} />
+              <span className="text-xs font-medium">{Math.round(uploadProgress)}%</span>
+              {uploadMessage && <span className="text-[10px] mt-1 opacity-80">{uploadMessage}</span>}
             </div>
-          ) : (
-            <img 
-              src={currentEditValue} 
-              alt={artwork.title} 
-              className="w-full h-full object-contain"
-              onError={() => setPreviewMediaError(true)}
-            />
-          )
-        )}
-        
-        {isUploading && (
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white z-10">
-            <Loader2 className="animate-spin mb-2" size={24} />
-            <span className="text-xs font-medium">{Math.round(uploadProgress)}%</span>
-            {uploadMessage && <span className="text-[10px] mt-1 opacity-80">{uploadMessage}</span>}
-          </div>
-        )}
-      </div>
-
-      {/* URL Input */}
-      <div className="space-y-2">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={currentEditValue}
-            onChange={(e) => setCurrentEditValue(e.target.value)}
-            onBlur={() => handleSaveUrl(currentEditValue)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSaveUrl(currentEditValue)}
-            className={`flex-1 px-3 py-2 text-xs rounded border ${input} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} ${text} focus:outline-none focus:ring-1 focus:ring-blue-500`}
-            placeholder="https://..."
-          />
-          <div className="flex items-center justify-center w-8">
-            {updateStatus === 'saving' && <Loader2 size={14} className={`animate-spin ${subtext}`} />}
-            {updateStatus === 'saved' && <Check size={14} className="text-green-500" />}
-            {updateStatus === 'error' && <AlertCircle size={14} className="text-red-500" />}
-          </div>
+          )}
         </div>
-        
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          accept="image/*,video/*,.glb"
-        />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-          className={`w-full py-2 px-3 rounded border ${border} ${controlBgClass} ${text} text-xs font-medium hover:opacity-80 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          <UploadCloud size={14} />
-          UPLOAD FILE
-        </button>
-      </div>
+      )}
+
+      {/* URL Input (only for paintings) */}
+      {artwork.artwork_type === 'painting' && (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={currentEditValue}
+              onChange={(e) => setCurrentEditValue(e.target.value)}
+              onBlur={() => handleSaveUrl(currentEditValue)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveUrl(currentEditValue)}
+              className={`flex-1 px-3 py-2 text-xs rounded border ${input} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} ${text} focus:outline-none focus:ring-1 focus:ring-blue-500`}
+              placeholder="https://..."
+            />
+            <div className="flex items-center justify-center w-8">
+              {updateStatus === 'saving' && <Loader2 size={14} className={`animate-spin ${subtext}`} />}
+              {updateStatus === 'saved' && <Check size={14} className="text-green-500" />}
+              {updateStatus === 'error' && <AlertCircle size={14} className="text-red-500" />}
+            </div>
+          </div>
+          
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept="image/*,video/*,.glb"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className={`w-full py-2 px-3 rounded border ${border} ${controlBgClass} ${text} text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            <UploadCloud size={14} />
+            UPLOAD FILE
+          </button>
+        </div>
+      )}
 
       {/* GLB Controls */}
       {isGlb && (
         <>
-          <div className={`pt-4 border-t ${border}`}>
-            <label className={`text-[10px] font-bold ${subtext} uppercase tracking-wider mb-3 block`}>
+          <div className={`pt-3 border-t ${border}`}>
+            <label className={`text-[10px] font-bold ${subtext} uppercase tracking-wider mb-2 block`}>
               GLB Model Rotation
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1">
               {[
                 { label: 'Y', axis: 0 },
                 { label: 'X', axis: 1 },
@@ -420,7 +424,7 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
                 <div key={item.label} className="flex flex-col items-center gap-1">
                   <button
                     onClick={() => handleGlbAxisRotate(item.axis as 0 | 1 | 2)}
-                    className={`w-full aspect-square rounded border ${border} ${controlBgClass} flex items-center justify-center hover:bg-blue-500/10 hover:border-blue-500/50 transition-colors group`}
+                    className={`w-16 h-16 rounded border ${border} ${controlBgClass} flex items-center justify-center hover:bg-blue-500/10 hover:border-blue-500/50 transition-colors group cursor-pointer`}
                   >
                     <RefreshCw size={16} className={`${subtext} group-hover:text-blue-500 transition-colors`} />
                   </button>
@@ -430,16 +434,16 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
             </div>
           </div>
 
-          <div className={`pt-4 border-t ${border}`}>
-            <div className="flex items-center justify-between mb-3">
+          <div className={`pt-3 border-t ${border}`}>
+            <div className="flex items-center justify-between mb-2">
                 <label className={`text-[10px] font-bold ${subtext} uppercase tracking-wider block`}>
                 Sculpture Scale
                 </label>
             </div>
-            <div className={`flex items-center justify-between px-3 py-2 rounded border ${border} ${controlBgClass}`}>
+            <div className={`flex items-center justify-between px-2 py-1 rounded border ${border} ${controlBgClass}`}>
                 <button 
                     onClick={() => handleScaleChange(-0.1)}
-                    className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${text}`}
+                    className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${text} cursor-pointer`}
                 >
                     <span className="text-lg font-bold">-</span>
                 </button>
@@ -448,23 +452,23 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
                 </span>
                 <button 
                     onClick={() => handleScaleChange(0.1)}
-                    className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${text}`}
+                    className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${text} cursor-pointer`}
                 >
                     <span className="text-lg font-bold">+</span>
                 </button>
             </div>
           </div>
 
-          <div className={`pt-4 border-t ${border}`}>
-            <label className={`text-[10px] font-bold ${subtext} uppercase tracking-wider mb-3 block`}>
+          <div className={`pt-3 border-t ${border}`}>
+            <label className={`text-[10px] font-bold ${subtext} uppercase tracking-wider mb-2 block`}>
               Material Presets
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1">
               {MATERIAL_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
                   onClick={() => handleSaveMaterial(preset.id, preset.config)}
-                  className={`flex items-center gap-2 p-2 rounded border text-left transition-all ${
+                  className={`flex items-center gap-2 p-1 rounded border text-left transition-all cursor-pointer ${
                     selectedMaterialPresetId === preset.id
                       ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500'
                       : `${border} ${controlBgClass} hover:border-blue-500/50`
