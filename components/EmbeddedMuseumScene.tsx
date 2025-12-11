@@ -440,7 +440,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
         isRankingMode={isRankingMode} // FIX: Pass isRankingMode to SideNavigation
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
       />
-      <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex gap-4 transition-opacity duration-500 ${isLoading || focusedArtworkInstanceId ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex gap-4 transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
         <div className={`backdrop-blur-xl border p-1.5 rounded-full flex gap-2 shadow-2xl transition-colors duration-700 ${lightsOn ? 'bg-white/80 border-white/60' : 'bg-black/50 border-white/10'}`}>
           {showLightToggle && (
             <button onClick={handleLightToggle} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${!lightsOn ? uiConfig.glassActive : uiConfig.glass}`} title="Toggle Lights">
