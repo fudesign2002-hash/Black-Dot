@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
+import React, { useRef, useEffect, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ArtType } from '../../../types'; // NEW: Import ArtType
 
@@ -16,6 +16,10 @@ interface ArtworkWrapperProps {
   artworkGravity: number | undefined; // NEW: Add artworkGravity
   onCanvasArtworkClick: (e: React.MouseEvent<HTMLDivElement>) => void; // Pass click handler
   artworkType: ArtType; // NEW: Add artworkType prop
+  // NEW: Add isFocused prop
+  isFocused?: boolean;
+  // NEW: Add hasActiveFocus prop to know if *any* artwork is focused (zoomed in)
+  hasActiveFocus?: boolean;
 }
 
 const SLIDE_DURATION = 600; // 0.8 seconds
@@ -81,8 +85,86 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
   artworkGravity, // NEW: Destructure artworkGravity
   onCanvasArtworkClick,
   artworkType, // NEW: Destructure artworkType
+  isFocused, // NEW: Destructure isFocused
+  hasActiveFocus, // NEW: Destructure hasActiveFocus
 }) => {
   const groupRef = useRef<THREE.Group>(null);
+  const { camera } = useThree(); // NEW: Get camera
+  const [isVisible, setIsVisible] = useState(true); // NEW: Visibility state
+
+  // NEW: Simple occlusion check
+  useFrame(() => {
+    if (!groupRef.current) return;
+
+    // Only run check if we are in "focus mode" (zoomed in), and THIS artwork is NOT the focused one
+    // And we are not in special modes like ranking or zero gravity where layout is different
+    if (hasActiveFocus && isFocused === false && !isRankingMode && !isZeroGravityMode) {
+      const thisPos = groupRef.current.position;
+      const camPos = camera.position;
+      
+      // Calculate vector from camera to this object
+      const vecToObj = new THREE.Vector3().subVectors(thisPos, camPos);
+      
+      // Get camera's forward direction
+      const camDir = new THREE.Vector3();
+      camera.getWorldDirection(camDir);
+      
+      // Project object vector onto camera direction to get "distance along view"
+      // This tells us how far in front of the camera the object is
+      const distAlongView = vecToObj.dot(camDir);
+
+      // Calculate lateral distance (distance from the center line of sight)
+      // We project the vector onto the camera direction, then subtract that from the original vector
+      // to get the perpendicular (lateral) component.
+      const projectedOnCamDir = camDir.clone().multiplyScalar(distAlongView);
+      const lateralVec = vecToObj.clone().sub(projectedOnCamDir);
+      const lateralDist = lateralVec.length();
+
+      // Check if object is:
+      // 1. In front of the camera (distAlongView > 0.2) - Reduced buffer to catch things just in front
+      // 2. Closer than the focused artwork (distAlongView < 4.8) - Increased to catch things closer to target (target is ~5.0)
+      // 3. Within the central view cylinder (lateralDist < 2.5) - Only hide things that are actually blocking the center view
+      if (distAlongView > 0.2 && distAlongView < 4.8 && lateralDist < 2.5) {
+        if (isVisible) {
+            console.log(`[Occlusion] Hiding artwork ${id}. Dist: ${distAlongView.toFixed(2)}, Lateral: ${lateralDist.toFixed(2)}`);
+            setIsVisible(false);
+        }
+      } else {
+        // Only show again if we are NOT in the occlusion zone
+        // AND we are sure we want to show it.
+        // However, the user requested: "showing logic changed to only reappear when leaving focus"
+        // This implies that once hidden during a focus session, it should stay hidden until focus is lost?
+        // OR, it means "don't flicker".
+        
+        // If the user means "only reappear when leaving focus mode completely", we can just check !hasActiveFocus.
+        // But this block only runs IF hasActiveFocus is true.
+        
+        // Let's interpret "離開了focus才重新出現" as:
+        // If it was hidden, keep it hidden as long as we are in focus mode, UNLESS it is clearly behind the camera or very far away.
+        // But simpler interpretation: If we are in focus mode, and it was hidden, keep it hidden.
+        // Wait, if we move the camera slightly while focused, we might want it to stay hidden.
+        
+        // Actually, the prompt says "showing logic changed to only reappear when leaving focus".
+        // This means inside this `if (hasActiveFocus ...)` block, we should NEVER set isVisible to true if it was false.
+        // We should only set isVisible to true in the `else` block of the outer `if (hasActiveFocus ...)` check.
+        
+        // So, inside this block (while focused), we only HIDE. We never SHOW.
+        // This prevents flickering completely while focused.
+        
+        // if (!isVisible) {
+        //    console.log(`[Occlusion] Showing artwork ${id}. Dist: ${distAlongView.toFixed(2)}, Lateral: ${lateralDist.toFixed(2)}`);
+        //    setIsVisible(true);
+        // }
+      }
+    } else {
+      // Always visible if focused or in special modes, or if no artwork is focused (just walking around)
+      // This is the "leaving focus" state.
+      if (!isVisible) {
+          console.log(`[Occlusion] Showing artwork ${id} because focus mode ended.`);
+          setIsVisible(true);
+      }
+    }
+  });
   
   // Animation state for ranking transitions
   const isAnimating = useRef(false);
@@ -524,7 +606,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
   });
 
   return (
-    <group ref={groupRef} onClick={onCanvasArtworkClick}>
+    <group ref={groupRef} onClick={onCanvasArtworkClick} visible={isVisible}>
       {children}
     </group>
   );
