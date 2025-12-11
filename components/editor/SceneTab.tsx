@@ -41,6 +41,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Activity: Activity,
 };
 
+
 const SceneTab: React.FC<SceneTabProps> = React.memo(({
   uiConfig,
   lightingConfig,
@@ -64,11 +65,13 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
     // State for immediate visual feedback on the text label next to the color picker
     const [displayedFloorColorHex, setDisplayedFloorColorHex] = useState(lightingConfig.floorColor || '#000000');
     const floorColorDebounceRef = useRef<number | null>(null);
+    const [isFloorEditing, setIsFloorEditing] = useState(false);
 
     // Background color local state and debounce
     const [localBackgroundColor, setLocalBackgroundColor] = useState(lightingConfig.backgroundColor || '#ffffff');
     const [displayedBackgroundColorHex, setDisplayedBackgroundColorHex] = useState(lightingConfig.backgroundColor || '#ffffff');
     const backgroundColorDebounceRef = useRef<number | null>(null);
+    const [isBackgroundEditing, setIsBackgroundEditing] = useState(false);
     // Validation error states for hex inputs
     const [floorColorError, setFloorColorError] = useState<string | null>(null);
     const [backgroundColorError, setBackgroundColorError] = useState<string | null>(null);
@@ -113,11 +116,13 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
         if (normalized) {
           setLocalFloorColor(normalized);
           setFloorColorError(null);
-
-          if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
-          floorColorDebounceRef.current = window.setTimeout(() => {
-            onUpdateLighting({ ...lightingConfig, [key]: normalized });
-          }, 300);
+          // Do not persist while editing to avoid focus loss
+          if (!isFloorEditing) {
+            if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
+            floorColorDebounceRef.current = window.setTimeout(() => {
+              onUpdateLighting({ ...lightingConfig, [key]: normalized });
+            }, 250);
+          }
         } else {
           // If input came from the color picker it will always be valid; otherwise show error and don't save
           setFloorColorError('Invalid hex color');
@@ -130,18 +135,20 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
         if (normalized) {
           setLocalBackgroundColor(normalized);
           setBackgroundColorError(null);
-
-          if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
-          backgroundColorDebounceRef.current = window.setTimeout(() => {
-            onUpdateLighting({ ...lightingConfig, [key]: normalized });
-          }, 300);
+          // Do not persist while editing to avoid focus loss
+          if (!isBackgroundEditing) {
+            if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
+            backgroundColorDebounceRef.current = window.setTimeout(() => {
+              onUpdateLighting({ ...lightingConfig, [key]: normalized });
+            }, 250);
+          }
         } else {
           setBackgroundColorError('Invalid hex color');
         }
       } else {
         onUpdateLighting({ ...lightingConfig, [key]: value });
       }
-    }, [onUpdateLighting, lightingConfig]);
+    }, [onUpdateLighting, lightingConfig, isFloorEditing, isBackgroundEditing]);
 
     // Handle blur event for floorColor to ensure immediate save when losing focus
     const handleFloorColorBlur = useCallback(() => {
@@ -156,6 +163,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       } else {
         setFloorColorError('Invalid hex color');
       }
+      setIsFloorEditing(false);
     }, [onUpdateLighting, lightingConfig, displayedFloorColorHex]);
 
     const handleBackgroundColorBlur = useCallback(() => {
@@ -170,6 +178,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       } else {
         setBackgroundColorError('Invalid hex color');
       }
+      setIsBackgroundEditing(false);
     }, [onUpdateLighting, lightingConfig, displayedBackgroundColorHex]);
 
     const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode }> = ({ label, value, children }) => (
@@ -180,6 +189,63 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
             </div>
             {children}
         </div>
+    );
+
+    interface ColorFieldProps {
+      label: string;
+      icon?: React.ComponentType<{ className?: string }>;
+      pickerValue: string;
+      hexValue: string;
+      onPickerChange: (value: string) => void;
+      onTextChange: (value: string) => void;
+      onBlur: () => void;
+      error?: string | null;
+      lightsOn: boolean;
+      textClass: string;
+    }
+
+    const ColorField: React.FC<ColorFieldProps> = ({
+      label,
+      icon: Icon,
+      pickerValue,
+      hexValue,
+      onPickerChange,
+      onTextChange,
+      onBlur,
+      error,
+      lightsOn,
+      textClass,
+    }) => (
+      <div className={`w-full rounded-xl border px-3 py-3 ${controlBgClass}`}>
+        <div className="flex items-center gap-2 mb-2">
+          {Icon && <Icon className="w-4 h-4" />}
+          <span className="text-sm font-semibold">{label}</span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={pickerValue}
+            onChange={(e) => onPickerChange(e.target.value)}
+            onFocus={() => label === 'Floor' ? setIsFloorEditing(true) : setIsBackgroundEditing(true)}
+            className={`w-10 h-10 rounded-md border-2 cursor-pointer transition-all duration-150 hover:scale-[1.02] ${lightsOn ? 'border-neutral-300 shadow-sm' : 'border-neutral-700 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]'}`}
+            aria-label={`${label} color`}
+          />
+          <input
+            type="text"
+            value={hexValue}
+            onChange={(e) => onTextChange(e.target.value)}
+            onFocus={() => label === 'Floor' ? setIsFloorEditing(true) : setIsBackgroundEditing(true)}
+            onBlur={onBlur}
+            className={`w-24 text-xs font-mono px-2 py-1 rounded border ${error ? 'border-red-500' : lightsOn ? 'border-neutral-300 bg-white' : 'border-neutral-700 bg-neutral-900'} ${textClass}`}
+            maxLength={7}
+            placeholder="#FFFFFF"
+            title={`Edit ${label.toLowerCase()} hex code`}
+          />
+        </div>
+
+        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+      </div>
     );
 
     return (
@@ -210,58 +276,32 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
 
                 {/* Floor + Background Color selectors, always visible */}
                 <ControlRow label="Colors">
-                  <div className="w-full grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium w-16">Floor</span>
-                      <Palette className="w-4 h-4" />
-                      <input
-                        type="color"
-                        value={localFloorColor}
-                        onChange={e => handleLightingValueChange('floorColor', e.target.value)}
-                        onBlur={handleFloorColorBlur}
-                        className={`w-12 h-8 rounded-md border-2 cursor-pointer ${lightsOn ? 'border-neutral-300' : 'border-neutral-700'}`}
-                        title="Select floor color"
-                      />
-                      <div className="flex flex-col">
-                        <input
-                          type="text"
-                          value={displayedFloorColorHex}
-                          onChange={e => handleLightingValueChange('floorColor', e.target.value)}
-                          onBlur={handleFloorColorBlur}
-                          className={`w-24 text-xs font-mono px-2 py-1 rounded ${floorColorError ? 'border-red-500' : 'border'} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} ${uiConfig.text}`}
-                          maxLength={7}
-                          placeholder="#FFFFFF"
-                          title="Edit hex code"
-                        />
-                        {floorColorError && <p className="text-xs text-red-500 mt-1">{floorColorError}</p>}
-                      </div>
-                    </div>
+                  <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <ColorField
+                      label="Floor"
+                      icon={Palette}
+                      pickerValue={localFloorColor}
+                      hexValue={displayedFloorColorHex}
+                      onPickerChange={(value) => handleLightingValueChange('floorColor', value)}
+                      onTextChange={(value) => handleLightingValueChange('floorColor', value)}
+                      onBlur={handleFloorColorBlur}
+                      error={floorColorError}
+                      lightsOn={lightsOn}
+                      textClass={uiConfig.text}
+                    />
 
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium w-16">Background</span>
-                      <Palette className="w-4 h-4" />
-                      <input
-                        type="color"
-                        value={localBackgroundColor}
-                        onChange={e => handleLightingValueChange('backgroundColor', e.target.value)}
-                        onBlur={handleBackgroundColorBlur}
-                        className={`w-12 h-8 rounded-md border-2 cursor-pointer ${lightsOn ? 'border-neutral-300' : 'border-neutral-700'}`}
-                        title="Select background color"
-                      />
-                      <div className="flex flex-col">
-                        <input
-                          type="text"
-                          value={displayedBackgroundColorHex}
-                          onChange={e => handleLightingValueChange('backgroundColor', e.target.value)}
-                          onBlur={handleBackgroundColorBlur}
-                          className={`w-24 text-xs font-mono px-2 py-1 rounded ${backgroundColorError ? 'border-red-500' : 'border'} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} ${uiConfig.text}`}
-                          maxLength={7}
-                          placeholder="#FFFFFF"
-                          title="Edit hex code"
-                        />
-                        {backgroundColorError && <p className="text-xs text-red-500 mt-1">{backgroundColorError}</p>}
-                      </div>
-                    </div>
+                    <ColorField
+                      label="Background"
+                      icon={Palette}
+                      pickerValue={localBackgroundColor}
+                      hexValue={displayedBackgroundColorHex}
+                      onPickerChange={(value) => handleLightingValueChange('backgroundColor', value)}
+                      onTextChange={(value) => handleLightingValueChange('backgroundColor', value)}
+                      onBlur={handleBackgroundColorBlur}
+                      error={backgroundColorError}
+                      lightsOn={lightsOn}
+                      textClass={uiConfig.text}
+                    />
                   </div>
                 </ControlRow>
 

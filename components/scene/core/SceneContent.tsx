@@ -204,11 +204,11 @@ const SceneContent: React.FC<SceneProps> = ({
 
   // MODIFIED: initialFloorColor calculation now respects lightingConfig.floorColor
   const initialFloorColor = useMemo(() => {
-    if (useExhibitionBackground && lightingConfig.floorColor) {
+    if (lightingConfig.floorColor) {
       return lightingConfig.floorColor;
     }
     return lightsOn ? "#eeeeee" : "#000000";
-  }, [useExhibitionBackground, lightingConfig.floorColor, lightsOn]);
+  }, [lightingConfig.floorColor, lightsOn]);
 
   useFrame((state, delta) => {
     const lerpSpeed = delta * 10;
@@ -243,8 +243,8 @@ const SceneContent: React.FC<SceneProps> = ({
       // console.log(`[SceneContent-useFrame] Applying background texture. LightsOn: ${lightsOn}`);
     } else {
       // Revert to solid color background if background texture is not used or loading
-      const targetBgColor = lightsOn ? lightBgColor : darkBgColor;
-      const targetFloorColorSolid = lightsOn ? lightFloorColor : darkFloorColor; // Use the solid color defaults
+      const targetBgColor = new THREE.Color(lightingConfig.backgroundColor || (lightsOn ? lightBgColor : darkBgColor));
+      const targetFloorColorSolid = new THREE.Color(lightingConfig.floorColor || (lightsOn ? lightFloorColor : darkFloorColor));
 
       if (scene.background instanceof THREE.Color) scene.background.lerp(targetBgColor, lerpSpeed);
       // NEW: Enable fog if not using exhibition background
@@ -253,7 +253,7 @@ const SceneContent: React.FC<SceneProps> = ({
       } else if (scene.fog instanceof THREE.Fog) {
         scene.fog.color.lerp(targetBgColor, lerpSpeed);
       }
-      if (floorMatRef.current) floorMatRef.current.color.lerp(targetFloorColorSolid, lerpSpeed); // Use solid color here
+      if (floorMatRef.current) floorMatRef.current.color.lerp(targetFloorColorSolid, lerpSpeed); // Use configured or default color
       // scene.environment = null; // Clear environment map if not using custom background, now handled by Environment component
       // console.log(`[SceneContent-useFrame] Applying solid background color: ${targetBgColor.getHexString()}. LightsOn: ${lightsOn}`);
     }
@@ -276,7 +276,7 @@ const SceneContent: React.FC<SceneProps> = ({
   });
 
   // Determine initial colors based on lightsOn, but only if not using exhibition background
-  const initialBackgroundColor = (useExhibitionBackground && currentBackgroundTexture) ? undefined : (lightsOn ? "#e4e4e4" : '#050505');
+  const initialBackgroundColor = (useExhibitionBackground && currentBackgroundTexture) ? undefined : (lightingConfig.backgroundColor || (lightsOn ? "#e4e4e4" : '#050505'));
   // const initialFloorColor now comes from the useMemo above, which respects lightingConfig.floorColor
 
   const directionalLightColor = useMemo(() => new THREE.Color(kelvinToHex(lightingConfig.colorTemperature)), [lightingConfig.colorTemperature]);
