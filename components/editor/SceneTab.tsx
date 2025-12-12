@@ -168,6 +168,20 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       }
     }, [onUpdateLighting, lightingConfig]);
 
+    const handleClearColors = useCallback(() => {
+      if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
+      if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
+      const newConfig: SimplifiedLightingConfig = { ...lightingConfig, floorColor: undefined, backgroundColor: undefined } as any;
+      onUpdateLighting(newConfig);
+      // Local inputs will sync from props when lightingConfig updates via useEffect; provide immediate visual fallback
+      setLocalFloorColor('#000000');
+      setDisplayedFloorColorHex('#000000');
+      setFloorColorError(null);
+      setLocalBackgroundColor('#ffffff');
+      setDisplayedBackgroundColorHex('#ffffff');
+      setBackgroundColorError(null);
+    }, [onUpdateLighting, lightingConfig]);
+
     // Boolean toggles or non-color fields
     const handleLightingBooleanChange = useCallback((key: keyof SimplifiedLightingConfig, value: boolean) => {
       onUpdateLighting({ ...lightingConfig, [key]: value });
@@ -175,10 +189,6 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
 
     // Handle blur event for floorColor to ensure immediate save when losing focus
     const handleFloorColorBlur = useCallback(() => {
-      if (LOG_SCENETAB) {
-        // eslint-disable-next-line no-console
-        console.log('[SceneTab] blur floorColor', displayedFloorColorHex);
-      }
       if (floorColorDebounceRef.current) {
         clearTimeout(floorColorDebounceRef.current);
       }
@@ -186,10 +196,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       if (normalized) {
         setLocalFloorColor(normalized);
         setFloorColorError(null);
-        if (LOG_SCENETAB) {
-          // eslint-disable-next-line no-console
-          console.log('[SceneTab] final commit floorColor', normalized);
-        }
+        
         onUpdateLighting({ ...lightingConfig, floorColor: normalized });
       } else {
         setFloorColorError('Invalid hex color');
@@ -198,10 +205,6 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
     }, [onUpdateLighting, lightingConfig, displayedFloorColorHex]);
 
     const handleBackgroundColorBlur = useCallback(() => {
-      if (LOG_SCENETAB) {
-        // eslint-disable-next-line no-console
-        console.log('[SceneTab] blur backgroundColor', displayedBackgroundColorHex);
-      }
       if (backgroundColorDebounceRef.current) {
         clearTimeout(backgroundColorDebounceRef.current);
       }
@@ -209,10 +212,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       if (normalized) {
         setLocalBackgroundColor(normalized);
         setBackgroundColorError(null);
-        if (LOG_SCENETAB) {
-          // eslint-disable-next-line no-console
-          console.log('[SceneTab] final commit backgroundColor', normalized);
-        }
+        
         onUpdateLighting({ ...lightingConfig, backgroundColor: normalized });
       } else {
         setBackgroundColorError('Invalid hex color');
@@ -240,6 +240,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       onBlur: () => void;
       error?: string | null;
       lightsOn: boolean;
+      disabled?: boolean;
       textClass: string;
     }
 
@@ -253,6 +254,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       onBlur,
       error,
       lightsOn,
+      disabled = false,
       textClass,
     }) => (
       <div className={`w-full rounded-xl border px-3 py-3 ${controlBgClass}`}>
@@ -265,20 +267,22 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
           <input
             type="color"
             value={pickerValue}
-            onChange={(e) => onPickerChange(e.target.value)}
+            onChange={(e) => { if (!disabled) onPickerChange(e.target.value); }}
             onFocus={() => { (label === 'Floor' ? isFloorEditingRef : isBackgroundEditingRef).current = true; }}
             onMouseDown={(e) => { e.stopPropagation(); }}
-            className={`w-10 h-10 rounded-md border-2 cursor-pointer transition-all duration-150 hover:scale-[1.02] ${lightsOn ? 'border-neutral-300 shadow-sm' : 'border-neutral-700 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]'}`}
+            className={`w-10 h-10 rounded-md border-2 cursor-pointer transition-all duration-150 hover:scale-[1.02] ${lightsOn ? 'border-neutral-300 shadow-sm' : 'border-neutral-700 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={disabled}
             aria-label={`${label} color`}
           />
           <input
             type="text"
             value={hexValue}
-            onChange={(e) => onTextChange(e.target.value)}
+            onChange={(e) => { if (!disabled) onTextChange(e.target.value); }}
             onFocus={() => { (label === 'Floor' ? isFloorEditingRef : isBackgroundEditingRef).current = true; }}
             onBlur={onBlur}
             onMouseDown={(e) => { e.stopPropagation(); }}
-            className={`w-24 text-xs font-mono px-2 py-1 rounded border ${error ? 'border-red-500' : lightsOn ? 'border-neutral-300 bg-white' : 'border-neutral-700 bg-neutral-900'} ${textClass}`}
+            className={`w-24 text-xs font-mono px-2 py-1 rounded border ${error ? 'border-red-500' : lightsOn ? 'border-neutral-300 bg-white' : 'border-neutral-700 bg-neutral-900'} ${textClass} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={disabled}
             maxLength={7}
             placeholder="#FFFFFF"
             title={`Edit ${label.toLowerCase()} hex code`}
@@ -286,6 +290,9 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
         </div>
 
         {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+        {disabled && label === 'Background' && (
+          <p className="text-xs text-neutral-500 mt-2">Background is disabled when "Use Exhibition Background" is enabled.</p>
+        )}
       </div>
     );
 
@@ -336,13 +343,23 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                       icon={Palette}
                       pickerValue={localBackgroundColor}
                       hexValue={displayedBackgroundColorHex}
-                      onPickerChange={(value) => handleLightingPickerChange('backgroundColor', value)}
-                      onTextChange={(value) => handleLightingTextChange('backgroundColor', value)}
-                      onBlur={handleBackgroundColorBlur}
+                                onPickerChange={(value) => handleLightingPickerChange('backgroundColor', value)}
+                                onTextChange={(value) => handleLightingTextChange('backgroundColor', value)}
+                                onBlur={handleBackgroundColorBlur}
+                                disabled={useExhibitionBackground}
                       error={backgroundColorError}
                       lightsOn={lightsOn}
                       textClass={uiConfig.text}
                     />
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleClearColors(); }}
+                      className="text-xs px-2 py-1 rounded bg-neutral-200 hover:bg-neutral-300 text-neutral-800"
+                      title="Reset colors to zone defaults"
+                    >
+                      Reset Colors
+                    </button>
                   </div>
                 </ControlRow>
 

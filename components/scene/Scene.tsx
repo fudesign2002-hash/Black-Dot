@@ -33,7 +33,7 @@ export interface SceneProps {
     moveCameraToPrevious: () => void; // NEW
     moveCameraToInitial: (customCameraPosition?: [number, number, number]) => void;  // NEW
     moveCameraToRankingMode: (position: [number, number, number], target: [number, number, number]) => void; // NEW
-  }>;
+  }> | React.RefObject<any>;
   onArtworkClicked: (e: React.MouseEvent<HTMLDivElement>, artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => void; // MODIFIED: Add artworkInstanceId and isMotionVideo
   isDebugMode: boolean; // NEW: Add isDebugMode prop
   // REMOVED: onCameraInteraction?: () => void; // NEW: Add onCameraInteraction prop
@@ -46,9 +46,8 @@ export interface SceneProps {
   isSmallScreen: boolean;
   onCameraPositionChange: (isAtDefault: boolean) => void; // NEW: Add onCameraPositionChange prop
   isCameraMovingToArtwork: boolean; // NEW: Camera moving state
-  rankingCameraPosition?: [number, number, number]; // NEW
-  rankingCameraTarget?: [number, number, number];   // NEW
   useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground
+  onSaveCustomCamera?: (pos: [number, number, number]) => void; // NEW: Save custom camera callback
   // FIX: 新增 activeEffectName 屬性
   activeEffectName: string | null; 
   effectRegistry: EffectRegistryType | null; // NEW: Add effectRegistry

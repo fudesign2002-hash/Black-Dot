@@ -43,8 +43,7 @@ export interface SceneProps {
   // FIX: Add isSmallScreen prop to SceneProps
   isSmallScreen: boolean;
   onCameraPositionChange: (isAtDefault: boolean) => void; // NEW: Add onCameraPositionChange prop
-  rankingCameraPosition?: [number, number, number]; // NEW
-  rankingCameraTarget?: [number, number, number];   // NEW
+  onSaveCustomCamera?: (pos: [number, number, number]) => void; // NEW: Save custom camera callback
   useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground
   // FIX: 新增 activeEffectName 屬性
   activeEffectName: string | null; 

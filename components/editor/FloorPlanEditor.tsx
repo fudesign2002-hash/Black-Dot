@@ -12,6 +12,7 @@ import SceneTab from './SceneTab'; // NEW: Import SceneTab
 interface FloorPlanEditorProps {
   isOpen: boolean;
   onClose: () => void;
+  isEditorMode: boolean;
   lightingConfig: SimplifiedLightingConfig;
   onUpdateLighting: (newConfig: SimplifiedLightingConfig) => void;
   currentLayout: ExhibitionArtItem[];
@@ -55,6 +56,7 @@ interface FloorPlanEditorProps {
 const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   isOpen,
   onClose,
+  isEditorMode,
   lightingConfig,
   onUpdateLighting,
   currentLayout,
@@ -115,6 +117,11 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   useEffect(() => {
     onActiveTabChange(activeTab);
   }, [activeTab, onActiveTabChange]);
+
+  // DEBUG: Log isEditorMode value
+  useEffect(() => {
+    // Debug logging removed
+  }, [isEditorMode, isOpen, activeTab]);
 
   useEffect(() => {
     return () => {

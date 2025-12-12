@@ -18,7 +18,7 @@ interface DevToolsPanelProps {
   activeZoneName: string;
   focusedArtwork: FirebaseArtwork | null;
   isEditorMode: boolean;
-  activeEditorTab: 'lighting' | 'layout' | 'artworks' | 'admin';
+  activeEditorTab: 'lighting' | 'scene' | 'layout' | 'artworks' | 'admin';
   selectedArtworkTitle: string;
   fps: number;
   onlineUsers: number;

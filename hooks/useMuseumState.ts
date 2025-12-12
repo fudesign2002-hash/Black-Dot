@@ -8,8 +8,6 @@ import { processFirebaseExhibitions, processFirebaseZones, createLayoutFromZone 
 import { processFirebaseArtworks } from '../services/museumService';
 
 const INITIAL_CAMERA_POSITION: [number, number, number] = [-8, 4, 25]; // NEW: Define initial camera position
-const RANKING_CAMERA_POSITION: [number, number, number] = [-8, 3, 10]; // MODIFIED: Changed from [-15, 6, 0] to [-10, 6, 10]
-const RANKING_CAMERA_TARGET: [number, number, number] = [0, 1, 0];    // NEW: Define ranking camera target
 
 const DEFAULT_SIMPLIFIED_LIGHTING_CONFIG: SimplifiedLightingConfig = {
   lightsOn: true,
@@ -18,8 +16,6 @@ const DEFAULT_SIMPLIFIED_LIGHTING_CONFIG: SimplifiedLightingConfig = {
   manualSpotlightColor: '#ffffff',
   colorTemperature: 5500,
   customCameraPosition: INITIAL_CAMERA_POSITION, // NEW: Add initial customCameraPosition
-  rankingCameraPosition: RANKING_CAMERA_POSITION, // NEW
-  rankingCameraTarget: RANKING_CAMERA_TARGET,   // NEW
   useExhibitionBackground: false, // NEW: Default to not using exhibition background
   floorColor: '#000000', // NEW: Default floor color
   keyLightPosition: [-2, 7, 10],
@@ -167,12 +163,7 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
     if (!finalConfig.customCameraPosition) {
       finalConfig.customCameraPosition = INITIAL_CAMERA_POSITION;
     }
-    if (!finalConfig.rankingCameraPosition) {
-      finalConfig.rankingCameraPosition = RANKING_CAMERA_POSITION;
-    }
-    if (!finalConfig.rankingCameraTarget) {
-      finalConfig.rankingCameraTarget = RANKING_CAMERA_TARGET;
-    }
+    // Ranking camera is a fixed internal constant and is not stored on lighting configs.
     if (finalConfig.useExhibitionBackground === undefined) { // NEW: Ensure useExhibitionBackground is always defined
       finalConfig.useExhibitionBackground = false;
     }
@@ -211,9 +202,16 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
   }, []);
 
   const setLightingOverride = useCallback((zoneId: string, config: SimplifiedLightingConfig) => {
+    // Clone the provided config to avoid keeping references to nested objects/arrays
+    // (e.g. customCameraPosition). This prevents accidental shared-mutation between
+    // the lighting config and other UI pieces like the 2D layout editor.
+    const cloned: SimplifiedLightingConfig = {
+      ...config,
+      customCameraPosition: config.customCameraPosition ? [...config.customCameraPosition] as [number, number, number] : config.customCameraPosition,
+    };
     setLightingOverrides(prev => ({
         ...prev,
-        [zoneId]: config,
+        [zoneId]: cloned,
     }));
   }, []);
 

@@ -159,6 +159,8 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
   const handleResetCamera = useCallback(() => {
     if (cameraControlRef.current) {
       // NEW: Call CameraController method directly
+      console.log('[EmbeddedMuseumScene] handleResetCamera -> invoking moveCameraToInitial', { source: 'EmbeddedMuseumScene.handleResetCamera', customCameraPosition: lightingConfig.customCameraPosition });
+      try { console.trace('[EmbeddedMuseumScene] handleResetCamera trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
     setFocusedArtworkInstanceId(null); // NEW: Clear focused artwork on global reset
@@ -418,8 +420,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
         isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
         onCameraPositionChange={handleCameraPositionChange} // NEW: Pass the callback
-        rankingCameraPosition={lightingConfig.rankingCameraPosition} // NEW
-        rankingCameraTarget={lightingConfig.rankingCameraTarget}   // NEW
+        
         useExhibitionBackground={lightingConfig.useExhibitionBackground} // NEW: Pass useExhibitionBackground
         activeEffectName={null} // NEW: No effects in embedded mode
         effectRegistry={effectRegistry} // NEW: Pass effectRegistry

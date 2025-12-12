@@ -61,13 +61,11 @@ function MuseumApp() {
   
   const [focusedArtworkInstanceId, _setFocusedArtworkInstanceId] = useState<string | null>(null);
   const setFocusedArtworkInstanceId = useCallback((value: string | null) => {
-    console.log('[App] 🎯 setFocusedArtworkInstanceId:', value);
     _setFocusedArtworkInstanceId(value);
   }, []);
 
   const [isArtworkFocusedForControls, _setIsArtworkFocusedForControls] = useState(false);
   const setIsArtworkFocusedForControls = useCallback((value: boolean) => {
-    console.log('[App] 🎮 setIsArtworkFocusedForControls:', value);
     _setIsArtworkFocusedForControls(value);
   }, []);
 
@@ -204,9 +202,10 @@ function MuseumApp() {
     }
     // Also reset camera to initial for a clear view of the effect
     if (cameraControlRef.current) {
+      console.log('[App] handleUpdateZoneTheme -> invoking moveCameraToInitial', { source: 'handleUpdateZoneTheme', customCameraPosition: lightingConfig.customCameraPosition });
+      try { console.trace('[App] handleUpdateZoneTheme trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
-    console.log('[App] 🔄 Resetting focus due to theme change');
     setFocusedArtworkInstanceId(null);
     setIsArtworkFocusedForControls(false);
     setFocusedArtworkFirebaseId(null);
@@ -284,11 +283,9 @@ function MuseumApp() {
   }, [likedArtworksLocalCount]);
 
   useEffect(() => {
-    console.log('[App] ⚙️ isEditorMode changed to:', isEditorMode);
     if (isEditorMode) {
       setEditorLayout(JSON.parse(JSON.stringify(currentLayout)));
       setSelectedArtworkId(null);
-      console.log('[App] 🔄 Resetting focus due to ENTERING editor mode');
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
       setisRankingMode(false);
@@ -296,7 +293,6 @@ function MuseumApp() {
     } else {
       setEditorLayout(null);
       setSelectedArtworkId(null);
-      console.log('[App] 🔄 Resetting focus due to EXITING editor mode');
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
     }
@@ -315,11 +311,9 @@ function MuseumApp() {
   // which then triggers the separate isEditorMode useEffect for camera reset.
   useEffect(() => {
     if (activeZone.id !== 'fallback_zone_id') {
-      console.log('[App] 🎪 Zone changed to:', activeZone.id);
       // FIX: Corrected typo 'setisEditorMode' to 'setIsEditorMode'
       setIsEditorMode(false); // This will trigger the next useEffect with isEditorMode=false
       setIsEditorOpen(false);
-      console.log('[App] 🔄 Resetting focus due to zone change');
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
       setHeartEmitterArtworkId(null);
@@ -359,7 +353,7 @@ function MuseumApp() {
 
   useEffect(() => {
     if (isEditorMode && (activeEditorTab !== 'artworks' && activeEditorTab !== 'admin')) {
-        console.log('[App] 🔄 Resetting focus due to editor tab change:', activeEditorTab);
+        
         setFocusedArtworkInstanceId(null);
     }
   }, [isEditorMode, activeEditorTab, setFocusedArtworkInstanceId]);
@@ -423,25 +417,25 @@ function MuseumApp() {
   }), [lightsOn]);
 
   const handleSelectArtwork = useCallback((id: string | null) => {
-    console.log('[App] 🎯 handleSelectArtwork called with id:', id, '| isEditorMode:', isEditorMode);
+    
     if (isEditorMode) {
-      console.log('[App] 🔧 Editor mode branch');
+      
       setSelectedArtworkId(id);
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
       setFocusedArtworkFirebaseId(null);
       setHeartEmitterArtworkId(null);
     } else {
-      console.log('[App] 👁️ Normal mode branch - setting artwork focused for controls to TRUE');
+      
       setFocusedArtworkInstanceId(id);
       setSelectedArtworkId(null);
       setIsArtworkFocusedForControls(true);
       const artworkInLayout = currentLayout.find(item => item.id === id);
       if (artworkInLayout) {
-        console.log('[App] Found artwork in layout:', artworkInLayout.artworkId);
+        
         setFocusedArtworkFirebaseId(artworkInLayout.artworkId);
       } else {
-        console.log('[App] ⚠️ Artwork not found in layout');
+        
         setFocusedArtworkFirebaseId(null);
       }
       setHeartEmitterArtworkId(null); 
@@ -449,7 +443,7 @@ function MuseumApp() {
   }, [isEditorMode, currentLayout, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId]);
 
   const handleLightToggle = useCallback(() => {
-    console.log('[App] 💡 Light toggle triggered');
+    
     const newLightsOnState = !lightsOn;
 
     // Only trigger transition if it's the first time turning lights OFF
@@ -457,7 +451,7 @@ function MuseumApp() {
       setTransitionMessage('Adjusting lights...');
       setIsTransitioning(true);
       setHeartEmitterArtworkId(null);
-      console.log('[App] 🔄 Resetting focus due to first light toggle off');
+      
       setisRankingMode(false); // NEW: Deactivate ranking mode on light toggle
       setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
 
@@ -483,7 +477,7 @@ function MuseumApp() {
   const handleLightingUpdate = useCallback(async (newConfig: SimplifiedLightingConfig) => {
     if (LOG_APP_LIGHTING) {
       // eslint-disable-next-line no-console
-      console.log('[App] handleLightingUpdate', newConfig);
+      
     }
     setLightingOverride(activeZone.id, newConfig);
     setUseExhibitionBackground(newConfig.useExhibitionBackground || false); // Update local state for consistency
@@ -498,7 +492,7 @@ function MuseumApp() {
         try {
             if (LOG_APP_LIGHTING) {
               // eslint-disable-next-line no-console
-              console.log('[App] Firebase update lightingDesign.defaultConfig', activeZone.id, newConfig);
+              
             }
           const zoneDocRef = db.collection('zones').doc(activeZone.id);
           await zoneDocRef.update({ 'lightingDesign.defaultConfig': newConfig });
@@ -691,12 +685,14 @@ function MuseumApp() {
   }, []);
 
   const handleResetCamera = useCallback(() => {
-    console.log('[App] 📷 Reset camera triggered');
+    
     if (cameraControlRef.current) {
       // NEW: Pass customCameraPosition from lightingConfig
+      console.log('[App] handleResetCamera -> invoking moveCameraToInitial', { source: 'handleResetCamera', customCameraPosition: lightingConfig.customCameraPosition });
+      try { console.trace('[App] handleResetCamera trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
-    console.log('[App] 🔄 Resetting focus due to camera reset');
+    
     setFocusedArtworkInstanceId(null);
     setIsArtworkFocusedForControls(false);
     setFocusedArtworkFirebaseId(null);
@@ -789,7 +785,7 @@ function MuseumApp() {
 
 
   const handleArtworkClicked = useCallback((e: React.MouseEvent<HTMLDivElement>, artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => {
-    console.log('[App] 🎨 Artwork clicked:', { artworkInstanceId, position, rotation, artworkType, isMotionVideo });
+    
     e.stopPropagation();
 
     // Extract the actual artworkId from the instanceId
@@ -800,7 +796,7 @@ function MuseumApp() {
         console.warn('[App] ⚠️ Could not extract actualArtworkId from:', artworkInstanceId);
         return;
     }
-    console.log('[App] Extracted actualArtworkId:', actualArtworkId);
+    
 
     // NEW: Hotspot map update for artwork clicks
     if (activeZone?.id && position) {
@@ -810,22 +806,22 @@ function MuseumApp() {
     // Existing logic after handling the new updates
     if (isRankingMode) {
       // In ranking mode: trigger like (+2 points) and heart emitter
-      console.log('[App] 🏆 Ranking mode: triggering like and heart emitter');
+      
       updateArtworkHotspotLikes(actualArtworkId, 2);
       setHeartEmitterArtworkId(artworkInstanceId);
       setHeartEmitterTrigger(prev => prev + 1);
     } else if (isZeroGravityMode) {
       // In zero gravity mode: just visual feedback, no like
-      console.log('[App] 🌌 Zero gravity mode: no like triggered');
+      
     } else if (isEditorMode) {
-      console.log('[App] 🔧 Editor mode: calling handleSelectArtwork');
+      
       handleSelectArtwork(artworkInstanceId);
     } else {
       // Normal mode: select artwork and move camera, no like
-      console.log('[App] 👁️ Normal mode: calling handleSelectArtwork and moving camera, no like');
+      
       handleSelectArtwork(artworkInstanceId);
       if (cameraControlRef.current && cameraControlRef.current.moveCameraToArtwork) {
-        console.log('[App] 📷 Moving camera to artwork');
+        
         setIsCameraMovingToArtwork(true); // Set camera moving state
         cameraControlRef.current.moveCameraToArtwork(artworkInstanceId, position, rotation, artworkType, isMotionVideo);
       }
@@ -833,7 +829,7 @@ function MuseumApp() {
   }, [cameraControlRef, handleSelectArtwork, isRankingMode, isEditorMode, isZeroGravityMode, activeZone?.id, setHeartEmitterArtworkId, setHeartEmitterTrigger]); // MODIFIED: Removed onLikeTriggered from deps, added setHeartEmitterTrigger
 
   const handleDismissArtworkControls = useCallback(() => {
-    console.log('[App] ❌ Dismissing artwork controls');
+    
     setIsArtworkFocusedForControls(false);
     setIsCameraMovingToArtwork(false); // Reset camera moving state
     if (focusedArtworkInstanceId && cameraControlRef.current) {
@@ -879,10 +875,10 @@ function MuseumApp() {
   }, [exhibitions, currentIndex]);
 
   const handleRankingToggle = useCallback(() => {
-    console.log('[App] 🏆 Ranking toggle triggered');
+    
     setisRankingMode(prev => !prev);
     setIsZeroGravityMode(false); // NEW: Deactivate zero gravity if ranking mode is toggled
-    console.log('[App] 🔄 Resetting focus due to ranking toggle');
+    
     setFocusedArtworkInstanceId(null);
     setIsArtworkFocusedForControls(false);
     setFocusedArtworkFirebaseId(null);
@@ -892,15 +888,17 @@ function MuseumApp() {
 
   // NEW: handleZeroGravityToggle function
   const handleZeroGravityToggle = useCallback(() => {
-    console.log('[App] 🌌 Zero gravity toggle triggered');
+    
     setIsZeroGravityMode(prev => !prev);
     setisRankingMode(false); // Deactivate ranking mode if zero gravity is toggled
-    console.log('[App] 🔄 Resetting focus due to zero gravity toggle');
+    
     setFocusedArtworkInstanceId(null);
     setIsArtworkFocusedForControls(false);
     setFocusedArtworkFirebaseId(null);
     setHeartEmitterArtworkId(null);
     if (cameraControlRef.current) {
+      console.log('[App] handleZeroGravityToggle -> invoking moveCameraToInitial', { source: 'handleZeroGravityToggle', customCameraPosition: lightingConfig.customCameraPosition });
+      try { console.trace('[App] handleZeroGravityToggle trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
   }, [setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId, setisRankingMode, cameraControlRef, lightingConfig.customCameraPosition]);
@@ -1039,9 +1037,12 @@ function MuseumApp() {
           isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
           isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
           onCameraPositionChange={handleCameraPositionChange} // NEW: Pass the callback
+          onSaveCustomCamera={(pos) => {
+            // Persist custom camera position into the lighting config for this zone
+            const newConfig = { ...lightingConfig, customCameraPosition: pos };
+            handleLightingUpdate(newConfig);
+          }}
           isCameraMovingToArtwork={isCameraMovingToArtwork} // NEW: Pass camera moving state
-          rankingCameraPosition={lightingConfig.rankingCameraPosition} // NEW
-          rankingCameraTarget={lightingConfig.rankingCameraTarget}   // NEW
           useExhibitionBackground={useExhibitionBackground} // NEW: Pass useExhibitionBackground
           activeEffectName={activeEffectName} // NEW: Pass active effect name
           effectRegistry={effectRegistry} // NEW: Pass dynamically loaded effect registry
@@ -1091,7 +1092,10 @@ function MuseumApp() {
         lightsOn={lightsOn}
         onLightToggle={handleLightToggle}
         isEditorMode={isEditorMode}
-        onEditorModeToggle={() => setIsEditorMode(prev => !prev)}
+        onEditorModeToggle={() => {
+          console.log('[App] 🔧 Editor mode toggle clicked, current:', isEditorMode);
+          setIsEditorMode(prev => !prev);
+        }}
         onEditorOpen={() => setIsEditorOpen(true)}
         setIsSearchOpen={setIsSearchOpen}
         onResetCamera={handleResetCamera}
@@ -1125,6 +1129,7 @@ function MuseumApp() {
           <FloorPlanEditor
             isOpen={isEditorOpen}
             onClose={() => setIsEditorOpen(false)}
+            isEditorMode={isEditorMode}
             lightingConfig={lightingConfig}
             onUpdateLighting={handleLightingUpdate}
             currentLayout={displayLayout}

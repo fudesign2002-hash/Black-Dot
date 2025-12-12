@@ -25,8 +25,6 @@ export interface SimplifiedLightingConfig {
   keyLightPosition: [number, number, number];
   fillLightPosition: [number, number, number];
   customCameraPosition?: [number, number, number]; // NEW: Add customCameraPosition
-  rankingCameraPosition?: [number, number, number]; // NEW
-  rankingCameraTarget?: [number, number, number];   // NEW
   useExhibitionBackground?: boolean; // NEW: Add toggle for exhibition background
   floorColor?: string; // NEW: Add floorColor for custom background
   backgroundColor?: string; // NEW: Add backgroundColor for scene background

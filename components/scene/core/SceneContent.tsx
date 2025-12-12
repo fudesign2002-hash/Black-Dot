@@ -3,10 +3,10 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react'; // NEW: Import useState
 import { useFrame, useThree, useLoader } from '@react-three/fiber'; // NEW: Import useLoader
 import * as THREE from 'three';
-import { Environment } from '@react-three/drei';
+import { Environment, Html } from '@react-three/drei';
 
 import { SceneProps } from '../Scene';
-import CameraController from './CameraController';
+import NewCameraControl, { INITIAL_CAMERA_POSITION } from './NewCameraControl';
 import ProximityHandler from './ProximityHandler';
 import ArtComponent from './ArtComponent';
 import SmartSpotlight from '../lighting/SmartSpotlight';
@@ -55,9 +55,8 @@ const SceneContent: React.FC<SceneProps> = ({
   isSmallScreen, // NEW: Destructure isSmallScreen
   onCameraPositionChange, // NEW: Destructure onCameraPositionChange
   isCameraMovingToArtwork, // NEW: Destructure camera moving state
-  rankingCameraPosition, // NEW
-  rankingCameraTarget,   // NEW
   useExhibitionBackground, // NEW: Destructure useExhibitionBackground
+  onSaveCustomCamera, // NEW: Destructure onSaveCustomCamera
   activeEffectName, // NEW: Destructure activeEffectName
   effectRegistry, // NEW: Destructure effectRegistry
   zoneGravity, // NEW: Destructure zoneGravity
@@ -80,7 +79,15 @@ const SceneContent: React.FC<SceneProps> = ({
   const darkBgColor = useMemo(() => new THREE.Color("#000000"), []);
   const lightFloorColor = useMemo(() => new THREE.Color("#eeeeee"), []);
   const darkFloorColor = useMemo(() => new THREE.Color("#000000"), []);
+  // NOTE: These four values are the canonical initial color settings
+  // - lightBgColor / lightFloorColor: used as defaults when lights are ON
+  // - darkBgColor / darkFloorColor: used as defaults when lights are OFF
   const floorTargetColor = useMemo(() => new THREE.Color(), []); // NEW: Define floorTargetColor outside useFrame
+
+  // Reset-button state: appears when camera is not at initial, shrinks away after reset
+  const [cameraIsAtInitialLocal, setCameraIsAtInitialLocal] = useState<boolean>(true);
+  const [showResetButton, setShowResetButton] = useState<boolean>(false);
+  const [isShrinkingResetButton, setIsShrinkingResetButton] = useState<boolean>(false);
 
   const [currentBackgroundTexture, setCurrentBackgroundTexture] = useState<THREE.CubeTexture | null>(null); // MODIFIED: Store as single Texture
   const [isBackgroundLoading, setIsBackgroundLoading] = useState(false); // NEW: State for background loading
@@ -150,6 +157,22 @@ const SceneContent: React.FC<SceneProps> = ({
     };
   }, [useExhibitionBackground, activeExhibition.exhibit_background]);
 
+  // Initialize camera-at-initial detection and keep it in sync
+  useEffect(() => {
+    try {
+      const initial = lightingConfig?.customCameraPosition ? new THREE.Vector3(...lightingConfig.customCameraPosition) : new THREE.Vector3(...INITIAL_CAMERA_POSITION);
+      const atInitial = camera.position.distanceTo(initial) < 0.2;
+      setCameraIsAtInitialLocal(atInitial);
+      setShowResetButton(!atInitial);
+    } catch (e) {
+      // graceful fallback
+      setCameraIsAtInitialLocal(true);
+      setShowResetButton(false);
+    }
+    // only run on mount and when lightingConfig.customCameraPosition changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightingConfig?.customCameraPosition]);
+
 
   // NEW: Effect to manage active environment effects
   useEffect(() => {
@@ -214,10 +237,7 @@ const SceneContent: React.FC<SceneProps> = ({
 
   useFrame((state, delta) => {
     const lerpSpeed = delta * 10;
-    if (LOG_COLORS) {
-      // eslint-disable-next-line no-console
-      console.log('[SceneContent] frame lightsOn:', lightsOn, 'bg:', lightingConfig.backgroundColor, 'floor:', lightingConfig.floorColor, 'useExhibitionBackground:', useExhibitionBackground);
-    }
+    // Color debug logging removed
 
     // NEW: Update active effect if any
     // FIX: 這裡已經透過 EffectGroup 介面解決了 TypeScript 的類型檢查問題
@@ -246,18 +266,34 @@ const SceneContent: React.FC<SceneProps> = ({
       if (floorMatRef.current) floorMatRef.current.color.lerp(floorTargetColor, lerpSpeed);
       
       scene.fog = null; // NEW: Disable fog when using exhibition background
-      // console.log(`[SceneContent-useFrame] Applying background texture. LightsOn: ${lightsOn}`);
+      // debug log removed
     } else {
       // Revert to solid color background if background texture is not used or loading
-      const targetBgColor = new THREE.Color(lightingConfig.backgroundColor || (lightsOn ? lightBgColor : darkBgColor));
-      const targetFloorColorSolid = new THREE.Color(lightingConfig.floorColor || (lightsOn ? lightFloorColor : darkFloorColor));
-      if (LOG_COLORS) {
-        // eslint-disable-next-line no-console
-        console.log('[SceneContent] target colors', {
-          bg: targetBgColor.getHexString(),
-          floor: targetFloorColorSolid.getHexString(),
-        });
+      // Determine target background color:
+      // - When lights are OFF, always use the initial dark background (ignore user backgroundColor)
+      // - When lights are ON, prefer user-selected lightingConfig.backgroundColor, otherwise use initial light background
+      let targetBgColor: THREE.Color;
+      if (!lightsOn) {
+        targetBgColor = darkBgColor.clone();
+      } else {
+        targetBgColor = lightingConfig.backgroundColor ? new THREE.Color(lightingConfig.backgroundColor) : lightBgColor.clone();
       }
+
+      // Determine target floor color:
+      // - When lights are OFF and user provided a floorColor, use a darkened version of the user's color
+      // - Otherwise fall back to initial defaults or the user-provided color when lights are ON
+      let targetFloorColorSolid: THREE.Color;
+      if (!lightsOn) {
+        if (lightingConfig.floorColor) {
+          // Darken the user's chosen floor color by lerping it toward black
+          targetFloorColorSolid = new THREE.Color(lightingConfig.floorColor).lerp(new THREE.Color(0x000000), 0.35);
+        } else {
+          targetFloorColorSolid = darkFloorColor.clone();
+        }
+      } else {
+        targetFloorColorSolid = lightingConfig.floorColor ? new THREE.Color(lightingConfig.floorColor) : lightFloorColor.clone();
+      }
+      // Color debug logging removed
 
       if (scene.background instanceof THREE.Color) scene.background.lerp(targetBgColor, lerpSpeed);
       // NEW: Enable fog if not using exhibition background
@@ -300,6 +336,38 @@ const SceneContent: React.FC<SceneProps> = ({
   const selectedArtwork = useMemo(() => artworks.find(art => art.id === selectedArtworkId), [artworks, selectedArtworkId]);
 
   const shadowMapSize = useMemo(() => getShadowMapSize(isSmallScreen), [isSmallScreen]); // NEW: Calculate shadow map size dynamically
+
+  // Handler that will be passed down to NewCameraControl to observe when camera reaches default
+  const handleCameraPositionChangeLocal = (isAtDefault: boolean) => {
+    setCameraIsAtInitialLocal(isAtDefault);
+    if (!isAtDefault) {
+      setShowResetButton(true);
+      setIsShrinkingResetButton(false);
+    } else {
+      // start shrink animation, then hide the button
+      if (showResetButton) {
+        setIsShrinkingResetButton(true);
+        window.setTimeout(() => {
+          setShowResetButton(false);
+          setIsShrinkingResetButton(false);
+        }, 350);
+      }
+    }
+    if (onCameraPositionChange) onCameraPositionChange(isAtDefault);
+  };
+
+  const handleResetClick = () => {
+    try {
+      // call canonical camera reset; prefer saved custom camera if present
+      const refAny: any = cameraControlRef as any;
+      const customPos = lightingConfig?.customCameraPosition;
+      if (refAny && refAny.current && typeof refAny.current.moveCameraToInitial === 'function') {
+        refAny.current.moveCameraToInitial(customPos);
+      }
+    } catch (e) {
+      console.warn('[SceneContent] reset click failed', e);
+    }
+  };
 
   return (
     <React.Fragment>
@@ -428,25 +496,25 @@ const SceneContent: React.FC<SceneProps> = ({
             })}
         </group>
 
-        <CameraController
+        <NewCameraControl
+          ref={cameraControlRef as any}
           isEditorOpen={isEditorOpen}
-          focusedArtworkInstanceId={focusedArtworkInstanceId}
-          artworks={artworks}
           isEditorMode={isEditorMode}
           activeEditorTab={activeEditorTab}
-          cameraControlRef={cameraControlRef}
-          onCameraPositionChange={onCameraPositionChange} // NEW: Pass the callback        onCameraAnimationStateChange={onCameraAnimationStateChange} // NEW: Pass animation state callback          lightingConfig={lightingConfig}
-          isRankingMode={isRankingMode} // NEW
-          isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
-          rankingCameraPosition={rankingCameraPosition} // NEW
-          rankingCameraTarget={rankingCameraTarget}   // NEW
+          isZeroGravityMode={isZeroGravityMode}
+          isRankingMode={isRankingMode}
+          onCameraPositionChange={handleCameraPositionChangeLocal}
+          onCameraAnimationStateChange={undefined}
+          onSaveCustomCamera={onSaveCustomCamera}
+          lightingConfig={lightingConfig}
         />
-        {!isEditorMode && !lightsOn && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && ( // NEW: Add !isZeroGravityMode to condition
+        {!lightsOn && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && (
           <ProximityHandler
             artworks={artworks}
             setFocusedIndex={onFocusChange}
             currentFocusedIndex={focusedIndex}
             focusedArtworkInstanceId={focusedArtworkInstanceId}
+            cameraControlRef={cameraControlRef}
           />
         )}
 
@@ -464,6 +532,29 @@ const SceneContent: React.FC<SceneProps> = ({
         {/* CRITICAL CHANGE: Environment is now rendered based on useExhibitionBackground, independent of active effects */}
         {(!useExhibitionBackground || !currentBackgroundTexture) && ( 
           <Environment preset={lightsOn ? "city" : "night"} background={false} />
+        )}
+        {/* Reset Camera button overlay */}
+        {showResetButton && (
+          <Html fullscreen>
+            <div style={{ position: 'absolute', top: 16, right: 16, pointerEvents: 'auto' }}>
+              <button
+                onClick={handleResetClick}
+                style={{
+                  padding: '8px 12px',
+                  background: '#111',
+                  color: '#fff',
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transform: isShrinkingResetButton ? 'scale(0.2)' : 'scale(1)',
+                  transition: 'transform 300ms ease, opacity 300ms',
+                  opacity: isShrinkingResetButton ? 0 : 1,
+                }}
+              >
+                Reset Camera
+              </button>
+            </div>
+          </Html>
         )}
     </React.Fragment>
   );

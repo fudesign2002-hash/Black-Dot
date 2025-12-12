@@ -140,7 +140,6 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
     }, [id]);
 
     const handleArtworkClickedHtml = useCallback((e: React.MouseEvent<HTMLDivElement>, position: [number, number, number], rotation: [number, number, number], type: ArtType) => {
-        console.log('[ArtComponent] 🖱️ HTML click on artwork:', id, { position, rotation, type, isMotionVideo });
         onArtworkClicked(e, id, position, rotation, type, !!isMotionVideo);
     }, [onArtworkClicked, id, isMotionVideo]);
 

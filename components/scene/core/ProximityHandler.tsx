@@ -1,4 +1,5 @@
 import React, { useMemo, useRef } from 'react';
+import type { RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ExhibitionArtItem } from '../../../types';
@@ -8,12 +9,14 @@ interface ProximityHandlerProps {
   setFocusedIndex: (index: number) => void;
   currentFocusedIndex: number;
   focusedArtworkInstanceId: string | null;
+  // Optional camera control ref to allow coordination with camera logic (NewCameraControl)
+  cameraControlRef?: RefObject<any>;
 }
 
 const THROTTLE_TIME = 2000;
 const CAMERA_MOVE_THRESHOLD = 0.5;
 
-const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocusedIndex, currentFocusedIndex, focusedArtworkInstanceId }) => {
+const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocusedIndex, currentFocusedIndex, focusedArtworkInstanceId, cameraControlRef }) => {
   const { camera } = useThree();
   const tempV = useMemo(() => new THREE.Vector3(), []);
   const frustum = useMemo(() => new THREE.Frustum(), []);
@@ -88,6 +91,9 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
     if (bestCandidateIndex !== -1 && bestCandidateIndex !== currentFocusedIndex && (now - lastUpdateTime.current > THROTTLE_TIME)) {
       setFocusedIndex(bestCandidateIndex);
       lastUpdateTime.current = now;
+      // cameraControlRef is accepted to allow future coordination (e.g. subtle camera nudge),
+      // currently we do not trigger camera moves here to avoid unexpected jumps.
+      // Example hook point: if (cameraControlRef?.current?.highlightArtwork) { cameraControlRef.current.highlightArtwork(bestCandidateIndex); }
     }
   });
 
