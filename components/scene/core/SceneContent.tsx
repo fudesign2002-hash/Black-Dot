@@ -54,6 +54,7 @@ const SceneContent: React.FC<SceneProps> = ({
   isZeroGravityMode, // NEW: Destructure isZeroGravityMode
   isSmallScreen, // NEW: Destructure isSmallScreen
   onCameraPositionChange, // NEW: Destructure onCameraPositionChange
+  isCameraMovingToArtwork, // NEW: Destructure camera moving state
   rankingCameraPosition, // NEW
   rankingCameraTarget,   // NEW
   useExhibitionBackground, // NEW: Destructure useExhibitionBackground
@@ -418,6 +419,7 @@ const SceneContent: React.FC<SceneProps> = ({
                     heartEmitterArtworkId={heartEmitterArtworkId}
                     onArtworkClicked={onArtworkClicked}
                     isRankingMode={isRankingMode}
+                    isCameraMovingToArtwork={isCameraMovingToArtwork}
                     displayLikes={art.displayLikes}
                     isSmallScreen={isSmallScreen}
                   />
@@ -433,8 +435,7 @@ const SceneContent: React.FC<SceneProps> = ({
           isEditorMode={isEditorMode}
           activeEditorTab={activeEditorTab}
           cameraControlRef={cameraControlRef}
-          onCameraPositionChange={onCameraPositionChange} // NEW: Pass the callback
-          lightingConfig={lightingConfig}
+          onCameraPositionChange={onCameraPositionChange} // NEW: Pass the callback        onCameraAnimationStateChange={onCameraAnimationStateChange} // NEW: Pass animation state callback          lightingConfig={lightingConfig}
           isRankingMode={isRankingMode} // NEW
           isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
           rankingCameraPosition={rankingCameraPosition} // NEW

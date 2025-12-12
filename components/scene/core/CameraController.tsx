@@ -33,6 +33,7 @@ interface CameraControllerProps {
     moveCameraToRankingMode: (position: [number, number, number], target: [number, number, number]) => void; // NEW
   }>;
   onCameraPositionChange: (isAtDefault: boolean) => void; // NEW: Add onCameraPositionChange prop
+  onCameraAnimationStateChange?: (isAnimating: boolean) => void; // NEW: Callback when camera animation state changes
   lightingConfig: SimplifiedLightingConfig; // NEW: Add lightingConfig prop
   isRankingMode: boolean; // NEW
   isZeroGravityMode: boolean; // NEW: Add isZeroGravityMode prop
@@ -40,7 +41,7 @@ interface CameraControllerProps {
   rankingCameraTarget?: [number, number, number];   // NEW
 }
 
-const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditorOpen, focusedArtworkInstanceId, artworks, isEditorMode, activeEditorTab, cameraControlRef, onCameraPositionChange, lightingConfig, isRankingMode, isZeroGravityMode, rankingCameraPosition, rankingCameraTarget }) => {
+const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditorOpen, focusedArtworkInstanceId, artworks, isEditorMode, activeEditorTab, cameraControlRef, onCameraPositionChange, onCameraAnimationStateChange, lightingConfig, isRankingMode, isZeroGravityMode, rankingCameraPosition, rankingCameraTarget }) => {
   const controlsRef = useRef<any>(null);
   const { camera } = useThree();
 
@@ -180,9 +181,12 @@ const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditor
     controlsRef.current.enabled = false; // Disable controls during animation
     onCameraPositionChange(false); // Camera is no longer at default position
     prevIsAtInitialPositionRef.current = false;
+    if (onCameraAnimationStateChange) {
+      onCameraAnimationStateChange(true); // Notify that camera is animating
+    }
 
     
-  }, [camera, onCameraPositionChange]);
+  }, [camera, onCameraPositionChange, onCameraAnimationStateChange]);
 
   // NEW: Implement handleMoveToPrevious
   const handleMoveToPrevious = useCallback(() => {
@@ -207,6 +211,7 @@ const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditor
   }, [camera, onCameraPositionChange]);
 
   useEffect(() => {
+    if (!lightingConfig) return; // Guard against undefined
     const currentCustomCameraPosition = lightingConfig.customCameraPosition;
     const lastProcessedCustomCameraPosition = lastProcessedCustomCameraPositionRef.current;
 
@@ -230,10 +235,11 @@ const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditor
     } else {
       
     }
-  }, [lightingConfig.customCameraPosition, handleMoveToInitial]);
+  }, [lightingConfig?.customCameraPosition, handleMoveToInitial]);
 
   // NEW: Effect to handle camera movement when entering/exiting ranking mode
   useEffect(() => {
+    if (!lightingConfig) return; // Guard against undefined
     
 
     // Check if isRankingMode actually changed from its previous value
@@ -261,10 +267,11 @@ const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditor
     } else {
       
     }
-  }, [isRankingMode, handleMoveToRankingMode, handleMoveToInitial, rankingCameraPosition, rankingCameraTarget, lightingConfig.customCameraPosition]);
+  }, [isRankingMode, handleMoveToRankingMode, handleMoveToInitial, rankingCameraPosition, rankingCameraTarget, lightingConfig?.customCameraPosition]);
 
   // NEW: Effect to handle camera movement when entering/exiting Zero Gravity mode
   useEffect(() => {
+    if (!lightingConfig) return; // Guard against undefined
     // Check if isZeroGravityMode actually changed from its previous value
     if (isZeroGravityMode !== prevIsZeroGravityModeRef.current) {
       if (isZeroGravityMode) {
@@ -279,7 +286,7 @@ const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditor
       // Update the ref to the current `isZeroGravityMode` for the next comparison
       prevIsZeroGravityModeRef.current = isZeroGravityMode;
     }
-  }, [isZeroGravityMode, handleMoveToInitial, lightingConfig.customCameraPosition]);
+  }, [isZeroGravityMode, handleMoveToInitial, lightingConfig?.customCameraPosition]);
 
 
   useImperativeHandle(cameraControlRef, () => ({
@@ -331,7 +338,10 @@ const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditor
           console.log('[CameraController] 🎬 Animation completed');
           isAnimating.current = false;
           // MODIFIED: After animation, enable controls if not in editor mode OR zero gravity mode
-          controlsRef.current.enabled = !isEditorOpen && !isZeroGravityMode; 
+          controlsRef.current.enabled = !isEditorOpen && !isZeroGravityMode;
+          if (onCameraAnimationStateChange) {
+            onCameraAnimationStateChange(false); // Notify that camera animation finished
+          }
           
         }
       } else {

@@ -45,6 +45,7 @@ export interface SceneProps {
   // FIX: Add isSmallScreen prop to SceneProps
   isSmallScreen: boolean;
   onCameraPositionChange: (isAtDefault: boolean) => void; // NEW: Add onCameraPositionChange prop
+  isCameraMovingToArtwork: boolean; // NEW: Camera moving state
   rankingCameraPosition?: [number, number, number]; // NEW
   rankingCameraTarget?: [number, number, number];   // NEW
   useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground

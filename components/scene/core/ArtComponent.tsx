@@ -70,6 +70,7 @@ interface ArtComponentProps {
     heartEmitterArtworkId: string | null;
     onArtworkClicked: (e: React.MouseEvent<HTMLDivElement>, artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => void;
     isRankingMode: boolean;
+    isCameraMovingToArtwork: boolean; // NEW: Camera moving state
     displayLikes?: number | null;
     isSmallScreen: boolean; // NEW: Add isSmallScreen prop
 }
@@ -81,7 +82,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
     isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn,
     uiConfig, setFocusedArtworkInstanceId, activeExhibition, onInfoOpen, isDebugMode,
     triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
-    isRankingMode, displayLikes, isSmallScreen // NEW: Destructure isSmallScreen
+    isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen // NEW: Destructure isSmallScreen and isCameraMovingToArtwork
 }) => {
     const [visualDimensions, setVisualDimensions] = useState<ExhibitVisualDimensions | null>(null);
 
@@ -148,6 +149,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
         artworkPosition, artworkRotation, artworkType,
         onArtworkClickedHtml: handleArtworkClickedHtml,
         isSmallScreen, // NEW: Pass isSmallScreen
+        opacity: (isCameraMovingToArtwork && !isFocused) ? 0.15 : 1.0, // NEW: Fade out non-focused artworks when camera is moving
     };
 
     const componentMap: { [key: string]: React.ReactNode } = {

@@ -45,6 +45,7 @@ function MuseumApp() {
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [isCurrentExhibitionInfoHidden, setIsCurrentExhibitionInfoHidden] = useState(false);
   const [isCameraAtDefaultPosition, setIsCameraAtDefaultPosition] = useState(true); // NEW: State for camera position
+  const [isCameraMovingToArtwork, setIsCameraMovingToArtwork] = useState(false); // NEW: State for camera animation to artwork
 
   const [isRankingMode, setisRankingMode] = useState(false);
   const [artworksInRankingOrder, setArtworksInRankingOrder] = useState<ExhibitionArtItem[]>([]);
@@ -118,6 +119,13 @@ function MuseumApp() {
   // NEW: Callback to update camera position status
   const handleCameraPositionChange = useCallback((isAtDefault: boolean) => {
     setIsCameraAtDefaultPosition(isAtDefault);
+    // Reset camera moving state when camera finishes moving
+    if (isAtDefault === false) {
+      // Camera has moved away from default, animation may have started
+    } else {
+      // Camera returned to default position
+      setIsCameraMovingToArtwork(false);
+    }
   }, []);
 
   const {
@@ -818,6 +826,7 @@ function MuseumApp() {
       handleSelectArtwork(artworkInstanceId);
       if (cameraControlRef.current && cameraControlRef.current.moveCameraToArtwork) {
         console.log('[App] 📷 Moving camera to artwork');
+        setIsCameraMovingToArtwork(true); // Set camera moving state
         cameraControlRef.current.moveCameraToArtwork(artworkInstanceId, position, rotation, artworkType, isMotionVideo);
       }
     }
@@ -826,6 +835,7 @@ function MuseumApp() {
   const handleDismissArtworkControls = useCallback(() => {
     console.log('[App] ❌ Dismissing artwork controls');
     setIsArtworkFocusedForControls(false);
+    setIsCameraMovingToArtwork(false); // Reset camera moving state
     if (focusedArtworkInstanceId && cameraControlRef.current) {
       cameraControlRef.current.moveCameraToPrevious();
       setFocusedArtworkInstanceId(null);
@@ -1029,6 +1039,7 @@ function MuseumApp() {
           isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
           isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
           onCameraPositionChange={handleCameraPositionChange} // NEW: Pass the callback
+          isCameraMovingToArtwork={isCameraMovingToArtwork} // NEW: Pass camera moving state
           rankingCameraPosition={lightingConfig.rankingCameraPosition} // NEW
           rankingCameraTarget={lightingConfig.rankingCameraTarget}   // NEW
           useExhibitionBackground={useExhibitionBackground} // NEW: Pass useExhibitionBackground
