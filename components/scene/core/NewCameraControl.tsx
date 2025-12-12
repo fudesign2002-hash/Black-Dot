@@ -83,9 +83,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const moveCameraToInitial = useCallback((customCameraPosition?: [number, number, number]) => {
     if (!controlsRef.current) return;
     // Debug: emit stack trace to help identify who invoked this
-    try {
-      console.trace('[NewCameraControl] moveCameraToInitial called (stack)');
-    } catch (e) {}
+    // debug trace removed
     const final = customCameraPosition || INITIAL_CAMERA_POSITION;
     // Preserve existing look-at target; only set camera position (customCameraPosition is position-only)
     startPosition.current.copy(camera.position);
@@ -103,7 +101,6 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     if (props.onCameraPositionChange) props.onCameraPositionChange(true);
     // Log position source: user custom vs system default
     const source = customCameraPosition ? 'user_custom' : 'system_default';
-    console.log(`[NewCameraControl] moveCameraToInitial -> position: ${final[0].toFixed(2)}, ${final[1].toFixed(2)}, ${final[2].toFixed(2)} (source: ${source})`);
   }, [camera, props.onCameraPositionChange]);
 
   const moveCameraToArtwork = useCallback((artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => {
@@ -119,9 +116,8 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       const fromPos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
       const fromTgt: [number, number, number] = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] : INITIAL_CAMERA_TARGET;
       pushSavedCamera(fromPos, fromTgt);
-      console.log('[NewCameraControl] pushSavedCamera ->', fromPos, fromTgt);
     } catch (e) {
-      console.warn('[NewCameraControl] pushSavedCamera failed', e);
+      // pushSavedCamera failure ignored
     }
 
     // record timestamp so lighting-prop effects can avoid racing with this explicit artwork move
@@ -155,8 +151,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     controlsRef.current.enabled = false;
     if (props.onCameraPositionChange) props.onCameraPositionChange(false);
     if (props.onCameraAnimationStateChange) props.onCameraAnimationStateChange(true);
-    // Log that we're starting an artwork move and the computed target
-    console.log(`[NewCameraControl] moveCameraToArtwork -> target: ${targetPosition.current.x.toFixed(2)}, ${targetPosition.current.y.toFixed(2)}, ${targetPosition.current.z.toFixed(2)} (artwork: ${artworkInstanceId})`);
+    // artwork move initiated
   }, [camera, props]);
 
   const moveCameraToPrevious = useCallback(() => {
@@ -167,7 +162,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     }
     const fromPos = [camera.position.x, camera.position.y, camera.position.z] as [number, number, number];
     const fromTgt = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] as [number, number, number] : INITIAL_CAMERA_TARGET;
-    console.log('[NewCameraControl] moveCameraToPrevious -> restoring saved camera', saved);
+    // restoring saved camera
     props.onCameraAnimationStateChange?.(true);
     props.onCameraPositionChange?.(false);
     setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: saved.pos, toTarget: saved.tgt, duration: CAMERA_ANIMATION_DURATION, key: 'restore' });
@@ -214,7 +209,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       if (now) {
         const fromPos = [camera.position.x, camera.position.y, camera.position.z] as [number, number, number];
         const fromTgt = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] as [number, number, number] : INITIAL_CAMERA_TARGET;
-        console.log('[NewCameraControl] (button) entering ranking mode — scheduling NewCameraMoveTo to fixed ranking camera');
+        // entering ranking mode
         // save current camera so we can restore it when exiting ranking mode
         pushSavedCamera(fromPos, fromTgt);
         props.onCameraAnimationStateChange?.(true);
@@ -227,7 +222,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         const saved = popSavedCamera();
         const dest = saved ? saved.pos : (props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION);
         const destTgt = saved ? saved.tgt : fromTgt;
-        console.log('[NewCameraControl] (button) exiting ranking mode — restoring saved camera or falling back', dest);
+        // exiting ranking mode
         props.onCameraAnimationStateChange?.(true);
         props.onCameraPositionChange?.(false);
         setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: dest, toTarget: destTgt, duration: CAMERA_ANIMATION_DURATION, key: 'ranking-exit' });
@@ -250,7 +245,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         const fromPos = [camera.position.x, camera.position.y, camera.position.z] as [number, number, number];
         const fromTgt = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] as [number, number, number] : INITIAL_CAMERA_TARGET;
         const dest = [camera.position.x, camera.position.y + 2, camera.position.z + 2] as [number, number, number];
-        console.log('[NewCameraControl] (button) entering zero-gravity mode — scheduling NewCameraMoveTo to user-relative offset', dest);
+        // entering zero-gravity mode
         props.onCameraAnimationStateChange?.(true);
         props.onCameraPositionChange?.(false);
         setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: dest, toTarget: fromTgt, duration: CAMERA_ANIMATION_DURATION, key: 'zerog' });
@@ -258,7 +253,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         const fromPos = [camera.position.x, camera.position.y, camera.position.z] as [number, number, number];
         const fromTgt = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] as [number, number, number] : INITIAL_CAMERA_TARGET;
         const dest = props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
-        console.log('[NewCameraControl] (button) exiting zero-gravity mode — scheduling NewCameraMoveTo back to initial/custom camera');
+        // exiting zero-gravity mode
         props.onCameraAnimationStateChange?.(true);
         props.onCameraPositionChange?.(false);
         setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: dest, toTarget: fromTgt, duration: CAMERA_ANIMATION_DURATION, key: 'zerog-exit' });
@@ -298,7 +293,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       // Start capturing
       lastUserPos.current.copy(camera.position);
       lastEmit.current = 0;
-      console.log('[NewCameraControl] user interaction start');
+      // user interaction start
       if (props.onUserInteractionStart) props.onUserInteractionStart();
     };
 
@@ -308,9 +303,8 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       movedDuringInteraction.current = true;
       lastUserPos.current.copy(camera.position);
       const now = performance.now();
-      if (now - lastEmit.current > throttleMs) {
+        if (now - lastEmit.current > throttleMs) {
         lastEmit.current = now;
-        console.log(`[NewCameraControl] user dragging -> ${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)}`);
       }
     };
 
@@ -322,14 +316,14 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       const now = performance.now();
       const duration = now - interactionStartTs;
       const wasDrag = movedDuringInteraction.current || duration > CLICK_TIME_THRESHOLD;
-      console.log('[NewCameraControl] user interaction end -> wasDrag:', wasDrag, 'pos:', posTuple);
+      // user interaction end
       if (props.onUserInteractionEnd) props.onUserInteractionEnd(wasDrag);
       // Only persist custom camera when the editor is open and it was a drag.
       if (wasDrag && props.isEditorOpen) {
-        console.log('[NewCameraControl] editor is open — persisting custom camera');
+        // persisting custom camera
         if (props.onSaveCustomCamera) props.onSaveCustomCamera(posTuple);
       } else {
-        console.log('[NewCameraControl] not persisting custom camera (wasDrag:', wasDrag, ', editorOpen:', props.isEditorOpen, ')');
+        // not persisting custom camera
       }
     };
 
@@ -366,16 +360,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
           props.onCameraPositionChange(atInitial);
         }
         // After animation completes, log the current camera position and whether it matches user custom or system default
-        try {
-          const pos = camera.position;
-          const fmt = `${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}`;
-          const custom = props.lightingConfig && props.lightingConfig.customCameraPosition;
-          const isUserCustom = custom && pos.distanceTo(new THREE.Vector3(...custom)) < 0.2;
-          const isSystemDefault = pos.distanceTo(new THREE.Vector3(...INITIAL_CAMERA_POSITION)) < 0.2;
-          const source = isUserCustom ? 'user_custom' : isSystemDefault ? 'system_default' : 'runtime_adjusted';
-          console.log(`[NewCameraControl] animation complete -> position: ${fmt} (source: ${source})`);
+          try {
+          // animation complete; position logged removed
         } catch (e) {
-          console.log('[NewCameraControl] animation complete -> position logged (error determining source)', e);
         }
       }
     } else {
@@ -393,21 +380,19 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     // - if the app is currently performing an artwork-driven move, ignore the prop snap
     // - if an artwork move happened very recently, ignore (debounce)
     if (isAnimating.current) {
-      console.log('[NewCameraControl] lighting-prop-effect: skipping snap because camera is animating');
+      // skipping snap: camera is animating
       return;
     }
     if (props.isCameraMovingToArtwork) {
-      console.log('[NewCameraControl] lighting-prop-effect: skipping snap because artwork move flag is set');
+      // skipping snap: artwork move in progress
       return;
     }
     const now = performance.now();
     if (now - lastArtworkMoveTs.current < 800) {
-      console.log('[NewCameraControl] lighting-prop-effect: skipping snap due to recent artwork move', now - lastArtworkMoveTs.current);
+      // skipping snap due to recent artwork move
       return;
     }
-
-    console.log('[NewCameraControl] lighting-prop-effect: snapping to customCameraPosition', custom);
-    try { console.trace('[NewCameraControl] lighting-prop-effect trace'); } catch (e) {}
+    // snapping to customCameraPosition
     moveCameraToInitial(custom);
   }, [props.lightingConfig?.customCameraPosition, props.isCameraMovingToArtwork, moveCameraToInitial]);
 
@@ -465,7 +450,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       {isUserDragging && (
         <NewCameraCurrent onChange={(pos, tgt) => {
           // Also log the live camera position while user drags
-          console.log(`[NewCameraControl][live] pos=${pos[0].toFixed(2)},${pos[1].toFixed(2)},${pos[2].toFixed(2)}`);
+          // live camera position update (logging removed)
         }} throttleMs={props.userCameraThrottleMs || 150} />
       )}
 

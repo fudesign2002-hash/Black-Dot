@@ -172,7 +172,6 @@ function MuseumApp() {
 
       URL.revokeObjectURL(objectUrl); // Clean up the object URL
     } catch (error: any) {
-      console.error("Error loading remote effect bundle:", error);
       setEffectRegistry(null);
       setEffectRegistryError(error.message || "Unknown error loading effect bundle.");
     } finally {
@@ -189,11 +188,9 @@ function MuseumApp() {
   // NEW: Handle updating zone_theme in Firebase
   const handleUpdateZoneTheme = useCallback(async (themeName: string | null) => {
     if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
-      console.error("Cannot update zone theme: Invalid active zone ID.");
       return;
     }
     if (!effectRegistry && themeName !== null) { // Only show error if trying to set a theme when registry isn't loaded
-      console.error("Cannot update zone theme: EffectRegistry not loaded.");
       // Optionally, set an error message in UI
       return;
     }
@@ -203,12 +200,10 @@ function MuseumApp() {
       await zoneDocRef.update({ zone_theme: themeName });
       // console.log(`Zone ${activeZone.id} theme updated to: ${themeName}`);
     } catch (error) {
-      console.error("Error updating zone theme:", error);
+      // error handling intentionally silent for production
     }
     // Also reset camera to initial for a clear view of the effect
     if (cameraControlRef.current) {
-      console.log('[App] handleUpdateZoneTheme -> invoking moveCameraToInitial', { source: 'handleUpdateZoneTheme', customCameraPosition: lightingConfig.customCameraPosition });
-      try { console.trace('[App] handleUpdateZoneTheme trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
     setFocusedArtworkInstanceId(null);
@@ -222,7 +217,6 @@ function MuseumApp() {
   // NEW: Handle updating zone_gravity in Firebase
   const handleUpdateZoneGravity = useCallback(async (gravityValue: number | undefined) => {
     if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
-      console.error("Cannot update zone gravity: Invalid active zone ID.");
       return;
     }
 
@@ -231,7 +225,7 @@ function MuseumApp() {
       await zoneDocRef.update({ zone_gravity: gravityValue });
       // console.log(`Zone ${activeZone.id} gravity updated to: ${gravityValue}`);
     } catch (error) {
-      console.error("Error updating zone gravity:", error);
+      // silent
     }
     // No camera reset needed here, as the ArtworkWrapper will animate the Y position
   }, [activeZone?.id]);
@@ -336,12 +330,7 @@ function MuseumApp() {
 
   // Log editor open/close state with colored console output
   useEffect(() => {
-    const ts = new Date().toISOString();
-    if (isEditorOpen) {
-      console.log('%c[App] Editor opened ' + ts, 'color: #2563eb; font-weight: 600;');
-    } else {
-      console.log('%c[App] Editor closed ' + ts, 'color: #6b7280;');
-    }
+    // editor open/close state changed (no console output in production)
   }, [isEditorOpen]);
 
   useEffect(() => {
@@ -645,11 +634,9 @@ function MuseumApp() {
 
   const onAddArtworkToLayout = useCallback(async (artworkToAdd: FirebaseArtwork) => {
     if (!activeExhibition?.id || activeExhibition.id === 'fallback_id') {
-      console.error("onAddArtworkToLayout: Invalid Exhibition ID", activeExhibition?.id);
       throw new Error("Invalid Exhibition ID");
     }
     if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
-      console.error("onAddArtworkToLayout: Invalid Zone ID", activeZone?.id);
       throw new Error("Invalid Zone ID");
     }
   
@@ -689,7 +676,6 @@ function MuseumApp() {
       // console.log("onAddArtworkToLayout: Artwork added to layout successfully.");
       return true; // Indicate success
     } catch (error) {
-      console.error("Error adding artwork to layout:", error);
       throw error; // Re-throw to be caught by caller for status update
     }
   }, [activeExhibition.id, activeZone.id]);
@@ -728,9 +714,6 @@ function MuseumApp() {
   const handleResetCamera = useCallback(() => {
     
     if (cameraControlRef.current) {
-      // NEW: Pass customCameraPosition from lightingConfig
-      console.log('[App] handleResetCamera -> invoking moveCameraToInitial', { source: 'handleResetCamera', customCameraPosition: lightingConfig.customCameraPosition });
-      try { console.trace('[App] handleResetCamera trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
     
@@ -833,8 +816,7 @@ function MuseumApp() {
     const actualArtworkId = artworkIdMatch ? artworkIdMatch[1] : null;
 
     if (!actualArtworkId) {
-        console.warn('[App] ⚠️ Could not extract actualArtworkId from:', artworkInstanceId);
-        return;
+      return;
     }
     
 
@@ -858,7 +840,6 @@ function MuseumApp() {
       handleSelectArtwork(artworkInstanceId);
       // If the last user interaction was a drag, do not zoom in / move camera
       if (lastUserInteractionWasDragRef.current) {
-        console.log('[App] artwork click ignored for zoom due to preceding drag');
         lastUserInteractionWasDragRef.current = false;
       } else {
         if (cameraControlRef.current && cameraControlRef.current.moveCameraToArtwork) {
@@ -942,8 +923,6 @@ function MuseumApp() {
     setFocusedArtworkFirebaseId(null);
     setHeartEmitterArtworkId(null);
     if (cameraControlRef.current) {
-      console.log('[App] handleZeroGravityToggle -> invoking moveCameraToInitial', { source: 'handleZeroGravityToggle', customCameraPosition: lightingConfig.customCameraPosition });
-      try { console.trace('[App] handleZeroGravityToggle trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
     // Ensure reset button is disabled when toggling zero-gravity
@@ -1153,7 +1132,6 @@ function MuseumApp() {
         onLightToggle={handleLightToggle}
         isEditorMode={isEditorMode}
         onEditorModeToggle={() => {
-          console.log('[App] 🔧 Editor mode toggle clicked, current:', isEditorMode);
           setIsEditorMode(prev => !prev);
         }}
         onEditorOpen={() => setIsEditorOpen(true)}

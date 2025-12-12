@@ -430,13 +430,12 @@ const SceneContent: React.FC<SceneProps> = ({
                   zoneGravity={zoneGravity} // NEW: Pass zoneGravity
                   artworkGravity={art.artworkGravity} // NEW: Pass artworkGravity
                   onCanvasArtworkClick={(e) => {
-                    console.log('[SceneContent] 🖼️ Canvas artwork click:', art.id, { isMotionVideo: art.isMotionVideo });
                     e.stopPropagation();
                     if (!art.isMotionVideo) {
                       // REMOVED: onSelectArtwork(art.id);
                       onArtworkClicked(e, art.id, art.originalPosition || art.position, art.originalRotation || art.rotation, art.type, !!art.isMotionVideo);
                     } else {
-                      console.log('[SceneContent] ⏭️ Skipping click for motion video');
+                      // skipping click for motion video
                     }
                   }}
                 >

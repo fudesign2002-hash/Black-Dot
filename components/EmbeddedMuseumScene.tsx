@@ -158,9 +158,6 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
 
   const handleResetCamera = useCallback(() => {
     if (cameraControlRef.current) {
-      // NEW: Call CameraController method directly
-      console.log('[EmbeddedMuseumScene] handleResetCamera -> invoking moveCameraToInitial', { source: 'EmbeddedMuseumScene.handleResetCamera', customCameraPosition: lightingConfig.customCameraPosition });
-      try { console.trace('[EmbeddedMuseumScene] handleResetCamera trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
     setFocusedArtworkInstanceId(null); // NEW: Clear focused artwork on global reset

@@ -126,7 +126,6 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
         const active = document.activeElement as HTMLElement | null;
         if (active && panelRef.current && panelRef.current.contains(active)) {
           active.blur();
-          console.log('[FloorPlanEditor] blurred active element inside editor before close');
         }
       } catch (e) {
         // ignore

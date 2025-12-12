@@ -551,7 +551,6 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
                             await onAddArtworkToLayout(artwork);
                             handleAddArtworkStatus(artwork.id, 'saved');
                           } catch (error) {
-                            console.error("Error adding artwork to layout from UI:", error);
                             handleAddArtworkStatus(artwork.id, 'error', 3000);
                           }
                         }}
