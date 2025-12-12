@@ -88,21 +88,18 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
       <div className={`absolute top-10 right-10 z-40 select-none transition-opacity duration-500 ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
         <div className={innerFlexContainerClasses}>
             <div className={headerTextClasses}>
-              <div className="flex flex-col justify-between h-8 items-end">
+              <div className="flex flex-col justify-center h-10 items-end">
                 <h1 className="font-serif text-3xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
                 <div className="flex items-center gap-1">
                   <span className={`h-px w-6 ${uiConfig.lightsOn ? 'bg-neutral-400' : 'bg-neutral-600'}`}></span>
                   <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${uiConfig.subtext}`}>museum of everything</p>
                 </div>
               </div>
-              <div>
-                <span className={`text-[7px] font-mono tracking-widest opacity-50 ${uiConfig.text}`}>VOL.{version}</span>
-              </div>
             </div>
 
             <svg 
-                width="32"
-                height="32"
+                width="40"
+                height="40"
                 viewBox="0 0 100 100" 
                 fill="none" 
                 xmlns="http://www.w3.org/2000/svg" 
