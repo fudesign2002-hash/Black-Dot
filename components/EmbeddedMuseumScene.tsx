@@ -13,7 +13,7 @@ import InfoPanel from './info/InfoPanel'; // NEW: Import InfoPanel
 import { useMuseumState } from '../hooks/useMuseumState';
 import { ArtType, FirebaseArtwork } from '../types'; // NEW: Import ArtType, FirebaseArtwork
 import SideNavigation from './layout/SideNavigation'; // NEW: Import SideNavigation
-import { updateHotspotPoint, updateArtworkHotspotLikes } from '../services/firebaseService'; // NEW
+// Hotspot functions removed: no imports from services/firebaseService
 
 interface EmbeddedMuseumSceneProps {
   showLightToggle?: boolean;
@@ -260,10 +260,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
       setSceneRipples(prev => prev.filter(r => r.id !== newRipple.id));
     }, 800); 
     
-    // NEW: Hotspot map update for ground clicks in embedded mode
-    if (e.point && activeZone?.id) {
-      updateHotspotPoint(activeZone.id, e.point.x, e.point.z, 1);
-    }
+    // hotspot tracking removed for embedded mode
   }, [lightsOn, nextSceneRippleId, setSceneRipples, activeZone?.id]); // MODIFIED: Added activeZone?.id to deps
 
   // NEW: Handler for artwork click to trigger camera movement via ref (for embedded mode)
@@ -278,13 +275,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
         return;
     }
 
-    // NEW: Hotspot map update for artwork clicks in embedded mode
-    if (activeZone?.id && position) {
-      updateHotspotPoint(activeZone.id, position[0], position[2], 1);
-    }
-
-    // NEW: Artwork liked update for artwork clicks (additional 2 points) in embedded mode
-    updateArtworkHotspotLikes(actualArtworkId, 2);
+    // hotspot tracking removed for embedded mode
 
     // Existing logic
     handleSelectArtwork(artworkInstanceId);

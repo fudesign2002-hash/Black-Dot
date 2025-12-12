@@ -88,6 +88,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const prevIsOpenRef = useRef<boolean>(isOpen);
   // FIX: Update activeTab state type to include 'scene'
   const [activeTab, setActiveTab] = useState<'lighting' | 'scene' | 'layout' | 'artworks' | 'admin'>('lighting');
   
@@ -117,6 +118,22 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   useEffect(() => {
     onActiveTabChange(activeTab);
   }, [activeTab, onActiveTabChange]);
+
+  // When the editor is being closed, ensure any focused element inside the panel is blurred
+  useEffect(() => {
+    if (prevIsOpenRef.current && !isOpen) {
+      try {
+        const active = document.activeElement as HTMLElement | null;
+        if (active && panelRef.current && panelRef.current.contains(active)) {
+          active.blur();
+          console.log('[FloorPlanEditor] blurred active element inside editor before close');
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen]);
 
   // DEBUG: Log isEditorMode value
   useEffect(() => {

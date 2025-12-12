@@ -42,8 +42,6 @@ export interface NewCameraControlHandle {
 
 interface NewCameraControlProps {
   isEditorOpen?: boolean;
-  isEditorMode?: boolean;
-  activeEditorTab?: string;
   isZeroGravityMode?: boolean;
   isRankingMode?: boolean;
   isCameraMovingToArtwork?: boolean;
@@ -51,6 +49,9 @@ interface NewCameraControlProps {
   lightingConfig?: SimplifiedLightingConfig;
   onCameraAnimationStateChange?: (isAnimating: boolean) => void;
   onSaveCustomCamera?: (pos: [number, number, number]) => void;
+  onUserInteractionStart?: () => void;
+  // onUserInteractionEnd receives a boolean indicating whether the interaction was a drag (true) or a click (false)
+  onUserInteractionEnd?: (wasDrag: boolean) => void;
   userCameraThrottleMs?: number;
   // Additional props will be added as we migrate logic here
 }
@@ -284,17 +285,27 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   useEffect(() => {
     const controls = controlsRef.current;
     if (!controls) return;
+    // Track whether any movement occurred during the interaction
+    const movedDuringInteraction = { current: false } as { current: boolean };
+    let interactionStartTs = 0;
+    const CLICK_TIME_THRESHOLD = 150; // ms. If held longer than this, treat as drag even without significant movement
 
     const onStart = () => {
       isUserDraggingRef.current = true;
       setIsUserDragging(true);
+      movedDuringInteraction.current = false;
+      interactionStartTs = performance.now();
       // Start capturing
       lastUserPos.current.copy(camera.position);
-      console.log('[NewCameraControl] user drag start');
+      lastEmit.current = 0;
+      console.log('[NewCameraControl] user interaction start');
+      if (props.onUserInteractionStart) props.onUserInteractionStart();
     };
 
     const onChange = () => {
       if (!isUserDraggingRef.current) return;
+      // mark that movement happened during this interaction
+      movedDuringInteraction.current = true;
       lastUserPos.current.copy(camera.position);
       const now = performance.now();
       if (now - lastEmit.current > throttleMs) {
@@ -308,13 +319,17 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       setIsUserDragging(false);
       lastUserPos.current.copy(camera.position);
       const posTuple: [number, number, number] = [lastUserPos.current.x, lastUserPos.current.y, lastUserPos.current.z];
-      console.log('[NewCameraControl] user drag end -> saving custom camera:', posTuple);
-      // Only persist custom camera from user drags when editing in layout tab
-      const isEditorLayout = !!(props.isEditorMode && props.activeEditorTab === 'layout');
-      if (isEditorLayout) {
+      const now = performance.now();
+      const duration = now - interactionStartTs;
+      const wasDrag = movedDuringInteraction.current || duration > CLICK_TIME_THRESHOLD;
+      console.log('[NewCameraControl] user interaction end -> wasDrag:', wasDrag, 'pos:', posTuple);
+      if (props.onUserInteractionEnd) props.onUserInteractionEnd(wasDrag);
+      // Only persist custom camera when the editor is open and it was a drag.
+      if (wasDrag && props.isEditorOpen) {
+        console.log('[NewCameraControl] editor is open — persisting custom camera');
         if (props.onSaveCustomCamera) props.onSaveCustomCamera(posTuple);
       } else {
-        console.log('[NewCameraControl] user drag end -> not saving (not in editor layout)');
+        console.log('[NewCameraControl] not persisting custom camera (wasDrag:', wasDrag, ', editorOpen:', props.isEditorOpen, ')');
       }
     };
 
@@ -343,7 +358,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
       if (t === 1) {
         isAnimating.current = false;
-        controlsRef.current.enabled = !(props.isEditorOpen) && !(props.isZeroGravityMode);
+        controlsRef.current.enabled = !props.isEditorOpen;
         if (props.onCameraAnimationStateChange) props.onCameraAnimationStateChange(false);
         if (props.onCameraPositionChange) {
           // Determine whether camera is at initial by comparing to INITIAL_CAMERA_POSITION
@@ -396,57 +411,36 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     moveCameraToInitial(custom);
   }, [props.lightingConfig?.customCameraPosition, props.isCameraMovingToArtwork, moveCameraToInitial]);
 
-  // Default mouse buttons state (kept simple; can be driven by props/state later)
-  const mouseButtons = {
-    LEFT: THREE.MOUSE.ROTATE,
-    MIDDLE: THREE.MOUSE.DOLLY,
-    RIGHT: THREE.MOUSE.PAN,
-  } as const;
-
-  // Support holding Space to temporarily enable pan with left mouse button.
-  const isSpaceDownRef = useRef(false);
-  const originalMouseButtonsRef = useRef<typeof mouseButtons>(mouseButtons);
+  // NEW: State to track if Space key is pressed
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== 'Space') return;
-      // Ignore if focusing an input or textarea
-      const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable)) return;
-      if (isSpaceDownRef.current) return;
-      e.preventDefault();
-      isSpaceDownRef.current = true;
-      try {
-        if (controlsRef.current && controlsRef.current.mouseButtons) {
-          // store original mapping once
-          originalMouseButtonsRef.current = { ...controlsRef.current.mouseButtons } as any;
-          controlsRef.current.mouseButtons.LEFT = THREE.MOUSE.PAN;
-        }
-      } catch (err) {
-        // ignore
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
       }
     };
 
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code !== 'Space') return;
-      if (!isSpaceDownRef.current) return;
-      isSpaceDownRef.current = false;
-      try {
-        if (controlsRef.current && controlsRef.current.mouseButtons) {
-          controlsRef.current.mouseButtons.LEFT = originalMouseButtonsRef.current.LEFT;
-        }
-      } catch (err) {
-        // ignore
-      }
-    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
 
-    window.addEventListener('keydown', onKeyDown, { passive: false });
-    window.addEventListener('keyup', onKeyUp);
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  // Dynamic mouse buttons state based on Space key
+  const mouseButtons = {
+    LEFT: isSpacePressed ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: THREE.MOUSE.PAN,
+  };
 
   return (
     <>
@@ -465,7 +459,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       maxDistance={40}
       // keep target in sync with INITIAL_CAMERA_TARGET until moved
       target={INITIAL_CAMERA_TARGET}
-      enabled={!(props.isEditorOpen) && !(props.isZeroGravityMode)}
+      enabled={!props.isEditorOpen}
       enableRotate={true}
     />
       {isUserDragging && (

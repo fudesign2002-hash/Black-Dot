@@ -170,7 +170,6 @@ export interface ExhibitionZone {
   zone_capacity: number;
   zone_theme?: string; // NEW: Add zone_theme to store the active effect name
   zone_gravity?: number; // NEW: Add zone_gravity for zero gravity mode
-  hotspot_map?: Record<string, number>; // NEW: Add hotspot_map
 }
 
 // NEW: Define the structure for the dynamically loaded EffectRegistry

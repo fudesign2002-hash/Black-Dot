@@ -45,6 +45,9 @@ export interface SceneProps {
   // FIX: Add isSmallScreen prop to SceneProps
   isSmallScreen: boolean;
   onCameraPositionChange: (isAtDefault: boolean) => void; // NEW: Add onCameraPositionChange prop
+  // NEW: Notify parent when user begins interacting with camera (e.g. dragging)
+  onUserCameraInteractionStart?: () => void;
+  onUserCameraInteractionEnd?: (wasDrag: boolean) => void;
   isCameraMovingToArtwork: boolean; // NEW: Camera moving state
   useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground
   onSaveCustomCamera?: (pos: [number, number, number]) => void; // NEW: Save custom camera callback

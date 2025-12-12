@@ -15,6 +15,24 @@ interface InfoPanelProps {
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, activeExhibition, isLoading, focusedArtworkFirebaseId, allFirebaseArtworks, onOpenExhibitionInfoFromArtwork }) => {
   const { lightsOn } = uiConfig;
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
+  const prevIsOpenRef = React.useRef<boolean>(isOpen);
+
+  // Blur focused element inside the panel when it is closed to avoid aria-hidden warnings
+  React.useEffect(() => {
+    if (prevIsOpenRef.current && !isOpen) {
+      try {
+        const active = document.activeElement as HTMLElement | null;
+        if (active && panelRef.current && panelRef.current.contains(active)) {
+          active.blur();
+          console.log('[InfoPanel] blurred active element inside info panel before close');
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen]);
 
   const artworkDataForPanel = useMemo(() => {
     if (focusedArtworkFirebaseId && allFirebaseArtworks) {
@@ -41,6 +59,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
       )}
 
       <div 
+        ref={panelRef}
         className={`absolute top-0 right-0 h-full w-full md:w-[600px] z-[55] backdrop-blur-xl shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden flex flex-col border-l ${uiConfig.border} ${uiConfig.panelBg} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-10 flex justify-between items-start">

@@ -77,18 +77,39 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
     const [backgroundColorError, setBackgroundColorError] = useState<string | null>(null);
 
 
-    // Sync local states with prop when lightingConfig.floorColor or background changes from outside
+    // Sync local states with prop when lightingConfig or the zone's stored defaultConfig changes.
+    // If the zone explicitly stored `useCustomColors = false` (user pressed Default Color),
+    // or if there are no stored colors, show white as the starting values when opening custom colors.
     useEffect(() => {
-      const newColor = lightingConfig.floorColor || '#000000';
-      setLocalFloorColor(newColor);
-      setDisplayedFloorColorHex(newColor);
-    }, [lightingConfig.floorColor]);
+      const baseConfig = fullZoneLightingDesign?.defaultConfig || {} as any;
+      const baseHasFloor = Boolean(baseConfig.floorColor);
+      const baseHasBg = Boolean(baseConfig.backgroundColor);
+      const baseUseCustomFalse = baseConfig.useCustomColors === false;
+      const explicitUseCustom = Boolean((lightingConfig as any).useCustomColors);
 
+      const shouldStartWhite = baseUseCustomFalse || (!explicitUseCustom && !baseHasFloor && !baseHasBg);
+
+      const newFloor = shouldStartWhite ? '#ffffff' : (lightingConfig.floorColor || '#000000');
+      setLocalFloorColor(newFloor);
+      setDisplayedFloorColorHex(newFloor);
+
+      const newBg = shouldStartWhite ? '#ffffff' : (lightingConfig.backgroundColor || '#ffffff');
+      setLocalBackgroundColor(newBg);
+      setDisplayedBackgroundColorHex(newBg);
+    }, [lightingConfig.floorColor, lightingConfig.backgroundColor, (lightingConfig as any).useCustomColors, fullZoneLightingDesign?.defaultConfig]);
+
+    // UI state: whether the single "Custom Color" control is expanded to show separate pickers
+    const [customExpanded, setCustomExpanded] = useState<boolean>(!!(lightingConfig.floorColor || lightingConfig.backgroundColor));
+
+    // When external lightingConfig changes, auto-collapse if no custom colors exist, or expand if they do
     useEffect(() => {
-      const newBgColor = lightingConfig.backgroundColor || '#ffffff';
-      setLocalBackgroundColor(newBgColor);
-      setDisplayedBackgroundColorHex(newBgColor);
-    }, [lightingConfig.backgroundColor]);
+      const enabled = !!((lightingConfig as any).useCustomColors ?? (lightingConfig.floorColor || lightingConfig.backgroundColor));
+      setCustomExpanded(enabled);
+    }, [lightingConfig.floorColor, lightingConfig.backgroundColor, (lightingConfig as any).useCustomColors]);
+
+    const hasCustomColors = useMemo(() => {
+      return !!((lightingConfig as any).useCustomColors ?? (lightingConfig.floorColor || lightingConfig.backgroundColor));
+    }, [lightingConfig.floorColor, lightingConfig.backgroundColor, (lightingConfig as any).useCustomColors]);
     const normalizeHex = (hex: string): string | null => {
       if (!hex) return null;
       let h = hex.trim().toUpperCase();
@@ -112,13 +133,13 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       const normalized = normalizeHex(input);
       if (key === 'floorColor') {
         setDisplayedFloorColorHex(input.toUpperCase());
-        if (normalized) {
+          if (normalized) {
           setLocalFloorColor(normalized);
           setFloorColorError(null);
           if (!isFloorEditingRef.current) {
             if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
             floorColorDebounceRef.current = window.setTimeout(() => {
-              onUpdateLighting({ ...lightingConfig, floorColor: normalized });
+              onUpdateLighting({ ...lightingConfig, floorColor: normalized, useCustomColors: true } as any);
             }, 250);
           }
         } else {
@@ -132,7 +153,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
           if (!isBackgroundEditingRef.current) {
             if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
             backgroundColorDebounceRef.current = window.setTimeout(() => {
-              onUpdateLighting({ ...lightingConfig, backgroundColor: normalized });
+              onUpdateLighting({ ...lightingConfig, backgroundColor: normalized, useCustomColors: true } as any);
             }, 250);
           }
         } else {
@@ -153,7 +174,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
         setFloorColorError(null);
         if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
         floorColorDebounceRef.current = window.setTimeout(() => {
-          onUpdateLighting({ ...lightingConfig, floorColor: normalized });
+          onUpdateLighting({ ...lightingConfig, floorColor: normalized, useCustomColors: true } as any);
         }, 150);
       } else if (key === 'backgroundColor') {
         setDisplayedBackgroundColorHex(normalized);
@@ -161,7 +182,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
         setBackgroundColorError(null);
         if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
         backgroundColorDebounceRef.current = window.setTimeout(() => {
-          onUpdateLighting({ ...lightingConfig, backgroundColor: normalized });
+          onUpdateLighting({ ...lightingConfig, backgroundColor: normalized, useCustomColors: true } as any);
         }, 150);
       } else {
         onUpdateLighting({ ...lightingConfig, [key]: normalized });
@@ -169,17 +190,20 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
     }, [onUpdateLighting, lightingConfig]);
 
     const handleClearColors = useCallback(() => {
+      // Do not write colors back into config — toggle the useCustomColors boolean instead
       if (floorColorDebounceRef.current) clearTimeout(floorColorDebounceRef.current);
       if (backgroundColorDebounceRef.current) clearTimeout(backgroundColorDebounceRef.current);
-      const newConfig: SimplifiedLightingConfig = { ...lightingConfig, floorColor: undefined, backgroundColor: undefined } as any;
+      const newConfig: SimplifiedLightingConfig = { ...lightingConfig, useCustomColors: false } as any;
       onUpdateLighting(newConfig);
-      // Local inputs will sync from props when lightingConfig updates via useEffect; provide immediate visual fallback
-      setLocalFloorColor('#000000');
-      setDisplayedFloorColorHex('#000000');
+      // Keep local inputs visually consistent but collapse UI
+      // Show white when defaults are restored so next Custom Color starts from white
+      setLocalFloorColor('#ffffff');
+      setDisplayedFloorColorHex('#ffffff');
       setFloorColorError(null);
       setLocalBackgroundColor('#ffffff');
       setDisplayedBackgroundColorHex('#ffffff');
       setBackgroundColorError(null);
+      try { setCustomExpanded(false); } catch (e) { /* noop if state not mounted yet */ }
     }, [onUpdateLighting, lightingConfig]);
 
     // Boolean toggles or non-color fields
@@ -197,7 +221,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
         setLocalFloorColor(normalized);
         setFloorColorError(null);
         
-        onUpdateLighting({ ...lightingConfig, floorColor: normalized });
+        onUpdateLighting({ ...lightingConfig, floorColor: normalized, useCustomColors: true } as any);
       } else {
         setFloorColorError('Invalid hex color');
       }
@@ -213,7 +237,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
         setLocalBackgroundColor(normalized);
         setBackgroundColorError(null);
         
-        onUpdateLighting({ ...lightingConfig, backgroundColor: normalized });
+        onUpdateLighting({ ...lightingConfig, backgroundColor: normalized, useCustomColors: true } as any);
       } else {
         setBackgroundColorError('Invalid hex color');
       }
@@ -322,44 +346,93 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                   )}
                 </ControlRow>
 
-                {/* Floor + Background Color selectors, always visible */}
+                {/* Floor + Background Color selectors (collapsed into a single "Custom Color" button initially) */}
                 <ControlRow label="Colors">
-                  <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <ColorField
-                      label="Floor"
-                      icon={Palette}
-                      pickerValue={localFloorColor}
-                      hexValue={displayedFloorColorHex}
-                      onPickerChange={(value) => handleLightingPickerChange('floorColor', value)}
-                      onTextChange={(value) => handleLightingTextChange('floorColor', value)}
-                      onBlur={handleFloorColorBlur}
-                      error={floorColorError}
-                      lightsOn={lightsOn}
-                      textClass={uiConfig.text}
-                    />
+                  <div className="w-full">
+                    {!customExpanded ? (
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // expanding to edit custom colors should enable custom color mode
+                            try {
+                              // Determine whether the zone actually has stored custom colors.
+                              // `lightingConfig.floorColor` may be populated from app defaults,
+                              // so check the zone's stored defaultConfig instead.
+                              const baseConfig = fullZoneLightingDesign?.defaultConfig || {} as any;
+                              const baseHasFloor = Boolean(baseConfig.floorColor);
+                              const baseHasBg = Boolean(baseConfig.backgroundColor);
+                              const baseUseCustomFalse = baseConfig.useCustomColors === false;
+                              const explicitUseCustom = Boolean((lightingConfig as any).useCustomColors);
+                              // Initialize to white if zone explicitly stored useCustomColors=false (user clicked Default Color),
+                              // or if there are no stored colors and useCustomColors isn't already enabled.
+                              const shouldInitWhite = baseUseCustomFalse || (!explicitUseCustom && !baseHasFloor && !baseHasBg);
+                              const initColors = shouldInitWhite ? { floorColor: '#ffffff', backgroundColor: '#ffffff' } : {};
+                              onUpdateLighting({ ...lightingConfig, useCustomColors: true, ...initColors } as any);
+                            } catch (err) {}
+                            setCustomExpanded(true);
+                          }}
+                          className="text-sm px-3 py-2 rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-900 flex items-center gap-2"
+                          title="Open custom color controls"
+                        >
+                          <Palette className="w-4 h-4" />
+                          Custom Color
+                        </button>
+                        <div>
+                          {hasCustomColors && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleClearColors(); }}
+                              className="text-xs px-2 py-1 rounded bg-neutral-200 hover:bg-neutral-300 text-neutral-800"
+                              title="Use default colors"
+                            >
+                              Default Color
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <ColorField
+                            label="Floor"
+                            icon={Palette}
+                            pickerValue={localFloorColor}
+                            hexValue={displayedFloorColorHex}
+                            onPickerChange={(value) => handleLightingPickerChange('floorColor', value)}
+                            onTextChange={(value) => handleLightingTextChange('floorColor', value)}
+                            onBlur={handleFloorColorBlur}
+                            error={floorColorError}
+                            lightsOn={lightsOn}
+                            textClass={uiConfig.text}
+                          />
 
-                    <ColorField
-                      label="Background"
-                      icon={Palette}
-                      pickerValue={localBackgroundColor}
-                      hexValue={displayedBackgroundColorHex}
-                                onPickerChange={(value) => handleLightingPickerChange('backgroundColor', value)}
-                                onTextChange={(value) => handleLightingTextChange('backgroundColor', value)}
-                                onBlur={handleBackgroundColorBlur}
-                                disabled={useExhibitionBackground}
-                      error={backgroundColorError}
-                      lightsOn={lightsOn}
-                      textClass={uiConfig.text}
-                    />
-                  </div>
-                  <div className="mt-2 flex justify-end">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleClearColors(); }}
-                      className="text-xs px-2 py-1 rounded bg-neutral-200 hover:bg-neutral-300 text-neutral-800"
-                      title="Reset colors to zone defaults"
-                    >
-                      Reset Colors
-                    </button>
+                          <ColorField
+                            label="Background"
+                            icon={Palette}
+                            pickerValue={localBackgroundColor}
+                            hexValue={displayedBackgroundColorHex}
+                            onPickerChange={(value) => handleLightingPickerChange('backgroundColor', value)}
+                            onTextChange={(value) => handleLightingTextChange('backgroundColor', value)}
+                            onBlur={handleBackgroundColorBlur}
+                            disabled={useExhibitionBackground}
+                            error={backgroundColorError}
+                            lightsOn={lightsOn}
+                            textClass={uiConfig.text}
+                          />
+                        </div>
+                        <div className="mt-2 flex justify-end">
+                          {hasCustomColors && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleClearColors(); }}
+                              className="text-xs px-2 py-1 rounded bg-neutral-200 hover:bg-neutral-300 text-neutral-800"
+                              title="Use default colors"
+                            >
+                              Default Color
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </ControlRow>
 

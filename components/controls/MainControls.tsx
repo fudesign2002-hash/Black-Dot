@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Cpu, ChevronLeft, ChevronRight, Users, Heart, Info, X, ChevronDown, Share2, ListOrdered, Orbit } from 'lucide-react'; // NEW: Import Orbit icon for Zero Gravity
 import { Exhibition } from '../../types';
 // REMOVED: import { EffectRegistry } from '../../effect_bundle'; // NEW: Import EffectRegistry
@@ -34,6 +34,7 @@ interface MainControlsProps {
   isZeroGravityMode: boolean; // NEW: Add isZeroGravityMode prop
   onZeroGravityToggle: () => void; // NEW: Add onZeroGravityToggle prop
   isCameraAtDefaultPosition: boolean; // NEW: Add isCameraAtDefaultPosition prop
+  isResetCameraEnable?: boolean; // NEW: Global reset-enable flag
   setHeartEmitterArtworkId: (id: string | null) => void;
   hasMotionArtwork: boolean; // NEW: Add hasMotionArtwork prop
   customCameraPosition?: [number, number, number]; // NEW: Add customCameraPosition prop
@@ -71,6 +72,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   isZeroGravityMode, // NEW: Destructure isZeroGravityMode
   onZeroGravityToggle, // NEW: Destructure onZeroGravityToggle
   isCameraAtDefaultPosition, // NEW: Destructure isCameraAtDefaultPosition
+  isResetCameraEnable, // NEW: Destructure isResetCameraEnable
   setHeartEmitterArtworkId,
   hasMotionArtwork, // NEW: Destructure hasMotionArtwork
   customCameraPosition, // NEW: Destructure customCameraPosition
@@ -95,7 +97,8 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // Determine right-side buttons based on their visibility conditions
   const hasDevToolsToggle = isEditorMode;
   // MODIFIED: Hide if in ranking mode, focused on artwork, or in zero gravity mode
-  const hasResetCamera = !isCameraAtDefaultPosition && !isRankingMode && !isArtworkFocusedForControls && !isZeroGravityMode;
+  // Show reset iff global flag is enabled AND not in ranking/zero-gravity modes
+  const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
   const hasRankingToggle = !isEditorMode && !hasMotionArtwork && !isZeroGravityMode; // MODIFIED: Hide if in zero gravity mode
   const hasZeroGravityToggle = !isEditorMode && !isRankingMode; // NEW: Zero Gravity Toggle
   // MODIFIED: Add !isRankingMode, !isZeroGravityMode to hide small screen navigation in ranking/zero gravity mode
@@ -249,20 +252,20 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 </button>
             )}
             {hasResetCamera && (
-                <button
-                    onClick={() => {
-                      setHeartEmitterArtworkId(null);
-                      onResetCamera(); 
-                    }}
-                    className={`
-                        flex items-center justify-center rounded-full transition-all duration-300 ease-out
-                        ${uiConfig.glass} 
-                        w-12 h-12 p-3 opacity-100 scale-100 pointer-events-auto
-                    `}
-                    title={"Reset View"}
-                >
-                    <RefreshCw className="w-4 h-4" />
-                </button>
+              <button
+                onClick={() => {
+                  setHeartEmitterArtworkId(null);
+                  onResetCamera(); 
+                }}
+                className={`
+                  flex items-center justify-center rounded-full transition-all duration-300 ease-out
+                  ${uiConfig.glass} 
+                  w-12 h-12 p-3 opacity-100 scale-100 pointer-events-auto
+                `}
+                title={"Reset View"}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
             )}
             {hasRankingToggle && ( 
                 <button

@@ -20,7 +20,7 @@ import { useMuseumState } from './hooks/useMuseumState';
 import { ExhibitionArtItem, SimplifiedLightingConfig, ZoneArtworkItem, Exhibition, FirebaseArtwork, ArtworkData, ArtType, EffectRegistryType } from './types';
 import { VERSION } from './abuild';
 import * as THREE from 'three'; // NEW: Import THREE for dynamic effect bundle
-import { updateHotspotPoint, updateArtworkHotspotLikes } from './services/firebaseService'; // NEW
+// Hotspot functions removed from services/firebaseService
 
 interface SceneRipple {
   id: string;
@@ -46,6 +46,8 @@ function MuseumApp() {
   const [isCurrentExhibitionInfoHidden, setIsCurrentExhibitionInfoHidden] = useState(false);
   const [isCameraAtDefaultPosition, setIsCameraAtDefaultPosition] = useState(true); // NEW: State for camera position
   const [isCameraMovingToArtwork, setIsCameraMovingToArtwork] = useState(false); // NEW: State for camera animation to artwork
+  // Global flag: whether reset button should be enabled/visible. Toggled by user interactions.
+  const [isResetCameraEnable, setIsResetCameraEnable] = useState(false);
 
   const [isRankingMode, setisRankingMode] = useState(false);
   const [artworksInRankingOrder, setArtworksInRankingOrder] = useState<ExhibitionArtItem[]>([]);
@@ -88,6 +90,9 @@ function MuseumApp() {
     moveCameraToInitial: (customCameraPosition?: [number, number, number]) => void;
     moveCameraToRankingMode: (position: [number, number, number], target: [number, number, number]) => void; // NEW
   }>(null);
+
+  // Track whether the last user camera interaction ended as a drag
+  const lastUserInteractionWasDragRef = useRef<boolean>(false);
 
   const [heartEmitterTrigger, setHeartEmitterTrigger] = useState(0);
   const [heartEmitterArtworkId, setHeartEmitterArtworkId] = useState<string | null>(null);
@@ -329,6 +334,16 @@ function MuseumApp() {
     setUseExhibitionBackground(lightingConfig.useExhibitionBackground || false);
   }, [lightingConfig.useExhibitionBackground]);
 
+  // Log editor open/close state with colored console output
+  useEffect(() => {
+    const ts = new Date().toISOString();
+    if (isEditorOpen) {
+      console.log('%c[App] Editor opened ' + ts, 'color: #2563eb; font-weight: 600;');
+    } else {
+      console.log('%c[App] Editor closed ' + ts, 'color: #6b7280;');
+    }
+  }, [isEditorOpen]);
+
   useEffect(() => {
     if (lightingConfig.lightsOn) {
       document.documentElement.classList.remove('dark');
@@ -429,7 +444,8 @@ function MuseumApp() {
       
       setFocusedArtworkInstanceId(id);
       setSelectedArtworkId(null);
-      setIsArtworkFocusedForControls(true);
+      // Do not automatically show artwork action controls here — only show them when a zoom-in occurs
+      // setIsArtworkFocusedForControls(true);
       const artworkInLayout = currentLayout.find(item => item.id === id);
       if (artworkInLayout) {
         
@@ -475,10 +491,22 @@ function MuseumApp() {
   // NEW: Handle update for lighting config including useExhibitionBackground
   const LOG_APP_LIGHTING = false;
   const handleLightingUpdate = useCallback(async (newConfig: SimplifiedLightingConfig) => {
-    if (LOG_APP_LIGHTING) {
-      // eslint-disable-next-line no-console
-      
+    // Detailed red console output for every lighting update (helps trace unexpected writes)
+    try {
+      console.groupCollapsed('%c[App] handleLightingUpdate', 'color: #fff; background: #b91c1c; padding:2px 6px; border-radius:3px');
+      console.error('Timestamp:', new Date().toISOString());
+      console.error('caller stack:');
+      console.trace();
+      console.error('activeZone.id:', activeZone?.id);
+      console.error('isEditorMode:', isEditorMode);
+      console.error('isEditorOpen:', isEditorOpen);
+      console.error('newConfig:', newConfig);
+      console.error('willWriteToDB:', ((newConfig as any).useCustomColors === false) ? 'writing cleaned (useCustomColors=false)' : 'writing full config');
+      console.groupEnd();
+    } catch (e) {
+      // ignore logging errors
     }
+
     setLightingOverride(activeZone.id, newConfig);
     setUseExhibitionBackground(newConfig.useExhibitionBackground || false); // Update local state for consistency
 
@@ -495,7 +523,20 @@ function MuseumApp() {
               
             }
           const zoneDocRef = db.collection('zones').doc(activeZone.id);
-          await zoneDocRef.update({ 'lightingDesign.defaultConfig': newConfig });
+          // If the user opted to use default colors (useCustomColors === false), remove stored color fields
+          if ((newConfig as any).useCustomColors === false) {
+            // If we're switching to defaults, remove color keys from the object we store
+              const cleaned = { ...newConfig } as any;
+              delete cleaned.backgroundColor;
+              delete cleaned.floorColor;
+              // Save cleaned config (without color fields) and ensure useCustomColors is false
+              cleaned.useCustomColors = false;
+              await zoneDocRef.update({
+                'lightingDesign.defaultConfig': cleaned,
+              });
+          } else {
+            await zoneDocRef.update({ 'lightingDesign.defaultConfig': newConfig });
+          }
       } catch (error) {
             if (LOG_APP_LIGHTING) {
               // eslint-disable-next-line no-console
@@ -701,6 +742,8 @@ function MuseumApp() {
     setHeartEmitterArtworkId(null);
     // NEW: Reset first light toggle state when camera is manually reset
     setIsFirstLightToggleOff(true);
+    // Disable reset button after user pressed it
+    setIsResetCameraEnable(false);
   }, [cameraControlRef, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setisRankingMode, setIsZeroGravityMode, setHeartEmitterArtworkId, lightingConfig.customCameraPosition]);
 
   const updateArtworkLikesInFirebase = useCallback(async (artworkId: string, incrementBy: number) => {
@@ -777,10 +820,7 @@ function MuseumApp() {
       setSceneRipples(prev => prev.filter(r => r.id !== newRipple.id));
     }, 800);
 
-    // NEW: Hotspot map update for ground clicks
-    if (e.point && activeZone?.id) { // e.point is the intersection point in world coordinates
-      updateHotspotPoint(activeZone.id, e.point.x, e.point.z, 1);
-    }
+    // hotspot tracking removed for scene clicks
   }, [uiConfig.lightsOn, nextSceneRippleId, setSceneRipples, activeZone?.id]);
 
 
@@ -798,16 +838,12 @@ function MuseumApp() {
     }
     
 
-    // NEW: Hotspot map update for artwork clicks
-    if (activeZone?.id && position) {
-      updateHotspotPoint(activeZone.id, position[0], position[2], 1);
-    }
+
 
     // Existing logic after handling the new updates
     if (isRankingMode) {
       // In ranking mode: trigger like (+2 points) and heart emitter
       
-      updateArtworkHotspotLikes(actualArtworkId, 2);
       setHeartEmitterArtworkId(artworkInstanceId);
       setHeartEmitterTrigger(prev => prev + 1);
     } else if (isZeroGravityMode) {
@@ -820,10 +856,17 @@ function MuseumApp() {
       // Normal mode: select artwork and move camera, no like
       
       handleSelectArtwork(artworkInstanceId);
-      if (cameraControlRef.current && cameraControlRef.current.moveCameraToArtwork) {
-        
-        setIsCameraMovingToArtwork(true); // Set camera moving state
-        cameraControlRef.current.moveCameraToArtwork(artworkInstanceId, position, rotation, artworkType, isMotionVideo);
+      // If the last user interaction was a drag, do not zoom in / move camera
+      if (lastUserInteractionWasDragRef.current) {
+        console.log('[App] artwork click ignored for zoom due to preceding drag');
+        lastUserInteractionWasDragRef.current = false;
+      } else {
+        if (cameraControlRef.current && cameraControlRef.current.moveCameraToArtwork) {
+          // Show artwork action controls because we're performing a zoom-in
+          setIsArtworkFocusedForControls(true);
+          setIsCameraMovingToArtwork(true); // Set camera moving state
+          cameraControlRef.current.moveCameraToArtwork(artworkInstanceId, position, rotation, artworkType, isMotionVideo);
+        }
       }
     }
   }, [cameraControlRef, handleSelectArtwork, isRankingMode, isEditorMode, isZeroGravityMode, activeZone?.id, setHeartEmitterArtworkId, setHeartEmitterTrigger]); // MODIFIED: Removed onLikeTriggered from deps, added setHeartEmitterTrigger
@@ -878,6 +921,8 @@ function MuseumApp() {
     
     setisRankingMode(prev => !prev);
     setIsZeroGravityMode(false); // NEW: Deactivate zero gravity if ranking mode is toggled
+    // When entering/exiting ranking mode, hide/disable reset button
+    setIsResetCameraEnable(false);
     
     setFocusedArtworkInstanceId(null);
     setIsArtworkFocusedForControls(false);
@@ -901,6 +946,8 @@ function MuseumApp() {
       try { console.trace('[App] handleZeroGravityToggle trace'); } catch(e) {}
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
+    // Ensure reset button is disabled when toggling zero-gravity
+    setIsResetCameraEnable(false);
   }, [setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId, setisRankingMode, cameraControlRef, lightingConfig.customCameraPosition]);
 
 
@@ -1037,6 +1084,19 @@ function MuseumApp() {
           isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
           isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
           onCameraPositionChange={handleCameraPositionChange} // NEW: Pass the callback
+          onUserCameraInteractionStart={() => setIsResetCameraEnable(true)}
+          onUserCameraInteractionEnd={(wasDrag: boolean) => {
+            // Remember whether the last interaction was a drag. Clearing shortly after.
+            lastUserInteractionWasDragRef.current = wasDrag;
+            if (wasDrag) {
+              // Keep the flag for a short window to let the subsequent click handler consult it
+              window.setTimeout(() => { lastUserInteractionWasDragRef.current = false; }, 300);
+            } else {
+              // If it was a click, ensure reset button is disabled and clear the flag
+              setIsResetCameraEnable(false);
+              lastUserInteractionWasDragRef.current = false;
+            }
+          }}
           onSaveCustomCamera={(pos) => {
             // Persist custom camera position into the lighting config for this zone
             const newConfig = { ...lightingConfig, customCameraPosition: pos };
@@ -1119,6 +1179,8 @@ function MuseumApp() {
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
         onZeroGravityToggle={handleZeroGravityToggle} // NEW: Pass onZeroGravityToggle
         isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status
+        // NEW: global flag to control reset button visibility
+        isResetCameraEnable={isResetCameraEnable}
         setHeartEmitterArtworkId={setHeartEmitterArtworkId}
         hasMotionArtwork={hasMotionArtwork} // NEW: Pass hasMotionArtwork
         // NEW: Pass customCameraPosition to MainControls
