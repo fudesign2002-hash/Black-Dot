@@ -77,6 +77,14 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // REMOVED: activeEffectName, // NEW: Destructure activeEffectName
   // REMOVED: onEffectToggle, // NEW: Destructure onEffectToggle
 }) => {
+  console.log('[MainControls] 🎮 Render with:', {
+    focusedArtworkInstanceId,
+    isArtworkFocusedForControls,
+    isRankingMode,
+    isZeroGravityMode,
+    isEditorMode
+  });
+  
   // NEW: Determine if next/prev buttons should be hidden for small screens when artwork is focused
   // MODIFIED: Also hide if in zero gravity mode
   const hideNextPrevOnSmallScreen = isSmallScreen && (focusedArtworkInstanceId || isZeroGravityMode);

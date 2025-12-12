@@ -328,6 +328,7 @@ const CameraController: React.FC<CameraControllerProps> = React.memo(({ isEditor
         controlsRef.current.update();
 
         if (t === 1) {
+          console.log('[CameraController] 🎬 Animation completed');
           isAnimating.current = false;
           // MODIFIED: After animation, enable controls if not in editor mode OR zero gravity mode
           controlsRef.current.enabled = !isEditorOpen && !isZeroGravityMode; 
