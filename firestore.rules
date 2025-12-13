@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default: everyone can read, but generic writes are denied. Specific
+    // collection matches below override the write rules as needed.
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // artworks: public read. Allow anyone (including anonymous) to UPDATE
+    // only the counter fields `artwork_liked` and `artwork_viewed` (must be
+    // numeric). CREATE requires authentication; DELETE is denied.
+    match /artworks/{artworkId} {
+      allow read: if true;
+
+      // Authenticated users may perform any write (create/update) as before.
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+        // OR unauthenticated guest updates that only touch the counter fields
+        || (
+          request.auth == null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['artwork_liked', 'artwork_viewed'])
+          && (
+            (!('artwork_liked' in request.resource.data) || request.resource.data.artwork_liked is int)
+            && (!('artwork_viewed' in request.resource.data) || request.resource.data.artwork_viewed is int)
+          )
+        );
+
+      // Prevent deletions by anyone via client rules.
+      allow delete: if false;
+    }
+
+    // Keep other art-related collections write-protected to authenticated users.
+    match /exhibitions/{exhibitionId} {
+      allow write: if request.auth != null;
+    }
+
+    match /artists/{artistId} {
+      allow write: if request.auth != null;
+    }
+
+    match /zones/{zoneId} {
+      allow write: if request.auth != null;
+    }
+  }
+}

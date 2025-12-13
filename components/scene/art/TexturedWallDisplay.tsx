@@ -50,7 +50,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
       },
       undefined,
       (err) => {
-        console.error('[TexturedWallDisplay] texture load failed', textureUrl, err);
+        // [log removed] texture load failed
         if (!mounted) return;
         setIsInternalLoadingError(true);
       }

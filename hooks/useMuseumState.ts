@@ -54,7 +54,7 @@ const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
   zone_gravity: undefined, // NEW: Default zone_gravity
 };
 
-export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept enableSnapshots prop
+export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | null) => { // NEW: Accept enableSnapshots and optional ownerUid
   const [rawExhibitionDocs, setRawExhibitionDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [rawArtworkDocs, setRawArtworkDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [zones, setZones] = useState<ExhibitionZone[]>([]);
@@ -77,11 +77,13 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
     const unsubscribes: (() => void)[] = []; // NEW: Array to hold unsubscribe functions
 
     if (enableSnapshots) { // NEW: Conditionally subscribe to snapshots
-      const exhibitionsColRef = db.collection('exhibitions');
-      const zonesColRef = db.collection('zones');
-      const artworksColRef = db.collection('artworks');
+      const colRefFor = (name: string) => ownerUid ? db.collection(name).where('ownerId', '==', ownerUid).where('isActive', '==', true) : db.collection(name);
+      const exhibitionsColRef = colRefFor('exhibitions');
+      const zonesColRef = colRefFor('zones');
+      const artworksColRef = colRefFor('artworks');
 
-      const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
+        const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
+          // [log removed] exhibitions snapshot
           setRawExhibitionDocs(snapshot.docs);
           loadedFlags.exhibitions = true;
           checkAllLoaded();
@@ -91,7 +93,8 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
       });
       unsubscribes.push(unsubscribeExhibitions); // NEW: Store unsubscribe function
 
-      const unsubscribeZones = zonesColRef.onSnapshot((snapshot) => {
+        const unsubscribeZones = zonesColRef.onSnapshot((snapshot) => {
+          // [log removed] zones snapshot
           setZones(processFirebaseZones(snapshot.docs));
           loadedFlags.zones = true;
           checkAllLoaded();
@@ -101,8 +104,8 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
       });
       unsubscribes.push(unsubscribeZones); // NEW: Store unsubscribe function
 
-      const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
-          
+        const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
+          // [log removed] artworks snapshot
           const processedArtworks = await processFirebaseArtworks(snapshot.docs);
           setFirebaseArtworks(processedArtworks);
           setRawArtworkDocs(snapshot.docs);
@@ -123,23 +126,26 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
     }
     
     return () => {
-        // Unsubscribe all listeners when component unmounts or `enableSnapshots` changes
+        // Unsubscribe all listeners when component unmounts or `enableSnapshots`/`ownerUid` changes
         unsubscribes.forEach(unsubscribe => unsubscribe());
     };
-  }, [enableSnapshots]); // NEW: Add enableSnapshots to dependency array
+  }, [enableSnapshots, ownerUid]); // NEW: Add enableSnapshots and ownerUid to dependency array
 
   // Manual refresh helper: fetch latest collections once and update state.
   const refreshNow = useCallback(async () => {
     try {
-      const exhibitionsColRef = db.collection('exhibitions');
-      const zonesColRef = db.collection('zones');
-      const artworksColRef = db.collection('artworks');
+      const colRefFor = (name: string) => ownerUid ? db.collection(name).where('ownerId', '==', ownerUid).where('isActive', '==', true) : db.collection(name);
+      const exhibitionsColRef = colRefFor('exhibitions');
+      const zonesColRef = colRefFor('zones');
+      const artworksColRef = colRefFor('artworks');
 
       const [exSnap, zoneSnap, artSnap] = await Promise.all([
         exhibitionsColRef.get(),
         zonesColRef.get(),
         artworksColRef.get(),
       ]);
+
+      // [log removed] refreshNow results
 
       setRawExhibitionDocs(exSnap.docs);
       setZones(processFirebaseZones(zoneSnap.docs));
@@ -155,8 +161,11 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];
     const processedAllExhibitions = processFirebaseExhibitions(rawExhibitionDocs, firebaseArtworks);
-    return processedAllExhibitions.filter(ex => ex.isActive === true);
-  }, [rawExhibitionDocs, firebaseArtworks]);
+    // If ownerUid is provided we assume a signed-in owner view (show their items);
+    // otherwise (guest) only show exhibitions marked as showcase.
+    if (ownerUid) return processedAllExhibitions.filter(ex => ex.isActive === true);
+    return processedAllExhibitions.filter(ex => ex.isShowcase === true);
+  }, [rawExhibitionDocs, firebaseArtworks, ownerUid]);
 
   useEffect(() => {
     if (exhibitions.length === 0) {

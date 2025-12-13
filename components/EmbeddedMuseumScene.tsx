@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Sun, Moon, RefreshCw, Heart as HeartIcon, ChevronDown, Info } from 'lucide-react'; // NEW: Import HeartIcon, ChevronDown, Info
-import { db } from '../firebase'; // NEW: Import db
+import { db, auth } from '../firebase'; // NEW: Import db and auth
 import firebase from 'firebase/compat/app'; // NEW: Import firebase
 
 import Scene from './scene/Scene';
@@ -81,7 +81,15 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
   const handleCameraPositionChange = useCallback((isAtDefault: boolean) => {
     setIsCameraAtDefaultPosition(isAtDefault);
   }, []);
+  // NEW: local auth UID state so we can resubscribe queries after sign-in
+  const [localAuthUid, setLocalAuthUid] = useState<string | null>(auth.currentUser?.uid ?? null);
 
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      setLocalAuthUid(u?.uid ?? null);
+    });
+    return () => unsub();
+  }, []);
 
   const {
     isLoading,
@@ -94,8 +102,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = ({
     handleNavigate,
     firebaseArtworks, // NEW: Import firebaseArtworks
     currentIndex, // NEW: Get currentIndex for SideNavigation
-  // FIX: Pass enableSnapshots = true for embedded mode
-  } = useMuseumState(true);
+  } = useMuseumState(true, localAuthUid); // FIX: Pass enableSnapshots = true for embedded mode and reactive UID
 
   // NEW: Dummy effectRegistry and loading state for embedded mode (already exists)
   const effectRegistry = useMemo(() => ({}), []); // Empty object for no effects

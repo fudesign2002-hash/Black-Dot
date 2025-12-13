@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from 'react';
 import { db } from './firebase';
 import firebase from 'firebase/compat/app';
+import { auth } from './firebase';
 
 import Scene from './components/scene/Scene';
 import Header from './components/layout/Header';
@@ -11,6 +12,7 @@ import MainControls from './components/controls/MainControls';
 import SideNavigation from './components/layout/SideNavigation';
 const FloorPlanEditor = React.lazy(() => import('./components/editor/FloorPlanEditor'));
 import TransitionOverlay from './components/ui/TransitionOverlay';
+import TopLeftLogout from './components/ui/TopLeftLogout';
 import CurrentExhibitionInfo from './components/info/CurrentExhibitionInfo';
 import ConfirmationDialog from './components/ui/ConfirmationDialog';
 import DevToolsPanel from './components/ui/DevToolsPanel';
@@ -55,6 +57,13 @@ function MuseumApp() {
 
   // NEW: State for Zero Gravity mode
   const [isZeroGravityMode, setIsZeroGravityMode] = useState(false);
+
+  const [user, setUser] = useState<firebase.User | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
+  const prevAuthUidRef = useRef<string | null | undefined>(undefined);
+  const prevVisibleIdsRef = useRef<string | null>(null);
+
+  const isSignedIn = Boolean(user && !user.isAnonymous && (user.providerData && user.providerData.length > 0));
 
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [editorLayout, setEditorLayout] = useState<ExhibitionArtItem[] | null>(null);
@@ -145,28 +154,26 @@ function MuseumApp() {
     setLightingOverride,
     currentIndex,
     refreshNow,
-  } = useMuseumState(isSnapshotEnabledGlobally); // NEW: Pass isSnapshotEnabledGlobally to useMuseumState
+  } = useMuseumState(isSnapshotEnabledGlobally, undefined); // Allow guest snapshots (public read)
 
   // Ref to request editorLayout reload after an external refresh (to avoid overwriting in-progress edits)
   const editorLayoutReloadRequested = useRef(false);
 
-  // After initial data finishes loading, wait 2s then apply any custom camera position
+  // After initial data finishes loading, immediately apply the system initial camera
+  // only when there is NO custom camera position configured. This avoids waiting
+  // while still guaranteeing we don't override an explicit custom camera.
   useEffect(() => {
-    let t: number | undefined;
-    if (!isLoading) {
-      t = window.setTimeout(() => {
-        try {
-          const custom = lightingConfig?.customCameraPosition;
-          // Only apply if there's a custom position and the camera hasn't moved away from default
-          if (custom && isCameraAtDefaultPosition && !isCameraMovingToArtwork && cameraControlRef.current) {
-            cameraControlRef.current.moveCameraToInitial(custom);
-          }
-        } catch (e) {
-          // ignore
+    if (!isLoading && cameraControlRef.current && isCameraAtDefaultPosition && !isCameraMovingToArtwork) {
+      try {
+        const custom = lightingConfig?.customCameraPosition;
+        // If there's no custom camera saved, snap to the system initial position now.
+        if (!custom) {
+          cameraControlRef.current.moveCameraToInitial();
         }
-      }, 2000);
+      } catch (e) {
+        // ignore
+      }
     }
-    return () => { if (t) clearTimeout(t); };
   }, [isLoading, lightingConfig?.customCameraPosition, isCameraAtDefaultPosition, isCameraMovingToArtwork]);
 
   // NEW: activeEffectName now comes directly from activeZone.zone_theme
@@ -207,6 +214,98 @@ function MuseumApp() {
   useEffect(() => {
     loadRemoteEffectBundle();
   }, [loadRemoteEffectBundle]);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      setUser(u);
+      setAuthResolved(true);
+    });
+    return () => unsub();
+  }, []);
+
+  // Diagnostics: log auth and museum state for debugging sign-in/loading issues
+  useEffect(() => {
+    try {
+      // Prevent duplicate logs in development StrictMode: only log when auth uid changes
+      const currentUid = user?.uid ?? null;
+      if (prevAuthUidRef.current === currentUid) return;
+      prevAuthUidRef.current = currentUid;
+
+      const isGuest = !user || user.isAnonymous;
+      const labelStyle = isGuest ? 'background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px' : 'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px';
+      const label = isGuest ? '%cGuest' : `%cSigned: ${user?.displayName || user?.email || user?.uid}`;
+      console.groupCollapsed(label, labelStyle);
+      if (user && !user.isAnonymous) {
+        console.log('uid:', user.uid);
+        console.log('email:', user.email);
+        console.log('displayName:', user.displayName);
+        console.log('photoURL:', user.photoURL);
+        try {
+          console.log('providerData[0].photoURL:', (user.providerData || [])[0] && (user.providerData || [])[0].photoURL);
+        } catch (err) {
+          // ignore structure issues
+        }
+        console.log('provider:', (user.providerData || []).map(p => p.providerId).join(', ') || 'none');
+      } else {
+        console.log('anonymous session');
+      }
+      console.groupEnd();
+    } catch (e) {
+      // swallow
+    }
+  }, [user]);
+
+  // Log visible exhibitions for the current session (guest or signed-in)
+  useEffect(() => {
+    (async () => {
+      try {
+        const isGuest = !user || user.isAnonymous;
+        const headerStyle = isGuest ? 'background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px' : 'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px';
+        const header = isGuest ? '%cVisible exhibitions (guest)' : `%cVisible exhibitions (${user?.uid})`;
+
+        let queryRef: firebase.firestore.Query<firebase.firestore.DocumentData>;
+        if (isGuest) {
+          queryRef = db.collection('exhibitions').where('isShowcase', '==', true);
+        } else {
+          queryRef = db.collection('exhibitions').where('ownerId', '==', user!.uid).where('isActive', '==', true);
+        }
+
+        const snap = await queryRef.get();
+        // Dedupe duplicate effect invocations (React StrictMode) by comparing doc ids
+        const ids = snap.docs.map(d => d.id).join(',');
+        if (prevVisibleIdsRef.current === ids) return;
+        prevVisibleIdsRef.current = ids;
+
+        console.groupCollapsed(header, headerStyle);
+        if (snap.empty) {
+          console.log('(no exhibitions visible)');
+        } else {
+          snap.docs.forEach(doc => {
+            const data: any = doc.data();
+            const title = data.title || data.name || `(id:${doc.id})`;
+            console.log('-', title);
+          });
+        }
+        console.groupEnd();
+      } catch (e) {
+        // swallow; diagnostics only
+      }
+    })();
+  }, [user]);
+
+  useEffect(() => {
+    // [log removed] Diagnostics: useMuseumState / loading / activeExhibition
+  }, [isLoading, exhibitions, activeExhibition, user]);
+
+  const handleLogout = React.useCallback(async () => {
+    try {
+      await auth.signOut();
+      setUser(null);
+    } catch (e) {
+      // [log removed] App logout failed
+      throw e;
+    }
+  }, []);
 
   // Debug: grouped console logs for obvious mode changes (focus/editor/ranking/zerogravity/lights)
   useEffect(() => {
@@ -617,10 +716,7 @@ function MuseumApp() {
             await zoneDocRef.update({ 'lightingDesign.defaultConfig': newConfig });
           }
       } catch (error) {
-            if (LOG_APP_LIGHTING) {
-              // eslint-disable-next-line no-console
-              console.error('[App] Firebase update error', error);
-            }
+            // [log removed] Firebase update error
       }
     }, 500);
   }, [activeZone.id, setLightingOverride]);
@@ -1176,6 +1272,8 @@ function MuseumApp() {
     <React.Fragment>
       <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
 
+      <TopLeftLogout user={user} onLogout={handleLogout} />
+
       <React.Fragment>
         <Scene
           lightingConfig={lightingConfig}
@@ -1298,6 +1396,7 @@ function MuseumApp() {
         onRankingToggle={handleRankingToggle}
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
         onZeroGravityToggle={handleZeroGravityToggle} // NEW: Pass onZeroGravityToggle
+        isSignedIn={isSignedIn}
         isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status
         // NEW: global flag to control reset button visibility
         isResetCameraEnable={isResetCameraEnable}

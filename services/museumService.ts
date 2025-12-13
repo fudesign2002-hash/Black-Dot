@@ -282,6 +282,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             exhibit_artworks: exhibitArtworksList,
             defaultLayout: createFirebaseLayout(exhibitArtworksList, allFirebaseArtworks),
             isActive: typeof data.isActive === 'boolean' ? data.isActive : false,
+            isShowcase: typeof data.isShowcase === 'boolean' ? data.isShowcase : false,
             exhibit_poster: data.exhibit_poster || undefined,
             exhibit_background: data.exhibit_background || undefined, // NEW: Add exhibit_background from Firestore
         };

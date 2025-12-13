@@ -148,7 +148,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                       alt={`${activeExhibition.title} poster`}
                       className="object-cover w-full h-full"
                       onError={() => {
-                        console.error('[InfoPanel] failed to load exhibit poster', activeExhibition.exhibit_poster);
+                        // [log removed] failed to load exhibit poster
                         setPosterLoadError(true);
                       }}
                     />

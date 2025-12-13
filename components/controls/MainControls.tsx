@@ -33,6 +33,7 @@ interface MainControlsProps {
   onRankingToggle: () => void;
   isZeroGravityMode: boolean; // NEW: Add isZeroGravityMode prop
   onZeroGravityToggle: () => void; // NEW: Add onZeroGravityToggle prop
+  isSignedIn?: boolean; // NEW: whether current user is signed in
   isCameraAtDefaultPosition: boolean; // NEW: Add isCameraAtDefaultPosition prop
   isResetCameraEnable?: boolean; // NEW: Global reset-enable flag
   setHeartEmitterArtworkId: (id: string | null) => void;
@@ -71,6 +72,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   onRankingToggle,
   isZeroGravityMode, // NEW: Destructure isZeroGravityMode
   onZeroGravityToggle, // NEW: Destructure onZeroGravityToggle
+  isSignedIn, // NEW: Destructure isSignedIn
   isCameraAtDefaultPosition, // NEW: Destructure isCameraAtDefaultPosition
   isResetCameraEnable, // NEW: Destructure isResetCameraEnable
   setHeartEmitterArtworkId,
@@ -90,7 +92,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // MODIFIED: Hide lights toggle if in zero gravity mode
   const hasLightsToggle = !isEditorMode && !isRankingMode && !isZeroGravityMode;
   // MODIFIED: Hide editor mode toggle if in zero gravity mode
-  const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode;
+  const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && !!isSignedIn;
   const hasEditorOpenSearch = isEditorMode; // Includes both editor open and search
   // REMOVED: const hasEffectButtons = !isEditorMode && !isRankingMode && !isArtworkFocusedForControls; // NEW: Effects can be toggled if not in editor or ranking mode, and not focused on artwork
 
