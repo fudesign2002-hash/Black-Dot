@@ -52,20 +52,20 @@ const ROTATION_SPEED_X = 0.5; // Oscillations per second for X rotation
 const ROTATION_SPEED_Z = 0.7; // Oscillations per second for Z rotation
 
 // Gravity mapping constants
-const MAX_BASE_FLOAT_Y = 10; // Max Y offset from original position for zoneGravity=0
-const MIN_BASE_FLOAT_Y = 2;   // Min Y offset from original position for zoneGravity=100
+// Base floating height for artworks will now range between +2 and +25 relative to original Y.
+const MAX_BASE_FLOAT_Y = 20; // When artwork gravity is lowest (few views) -> float higher (y + 25)
+const MIN_BASE_FLOAT_Y = 2;  // When artwork gravity is highest (many views) -> float lower (y + 2)
 
-const ARTWORK_GRAVITY_MAX_UP_ADJUSTMENT = 1.5; // Max additional Y offset from artworkGravity=0
-const ARTWORK_GRAVITY_MAX_DOWN_ADJUSTMENT = -1.5; // Max reduction in Y offset from artworkGravity=100
+// Global offset to fine-tune final base (keeps values reasonable); set to 0 by default
+const ZERO_GRAVITY_GLOBAL_LOWER_OFFSET = 0;
 
-// NEW: Global offset to lower all artworks in zero gravity mode
-const ZERO_GRAVITY_GLOBAL_LOWER_OFFSET = -1; 
-
-// NEW: Constants for dynamic angular amplitude mapping
-const MIN_Y_OFFSET_FOR_AMPLITUDE_MAP = 0; // Lower bound of artwork's floating height for mapping
-const MAX_Y_OFFSET_FOR_AMPLITUDE_MAP = 10; // Upper bound of artwork's floating height for mapping
-const MIN_ANGULAR_AMPLITUDE = 0.005; // Minimum angular amplitude (radians)
-const MAX_ANGULAR_AMPLITUDE = 0.05;  // Maximum angular amplitude (radians)
+// Constants for dynamic angular amplitude mapping (higher floating items tilt more)
+const MIN_Y_OFFSET_FOR_AMPLITUDE_MAP = 2;  // Lower bound of artwork's floating height for mapping
+const MAX_Y_OFFSET_FOR_AMPLITUDE_MAP = 25; // Upper bound of artwork's floating height for mapping
+const MIN_ANGULAR_AMPLITUDE = 0.02; // Minimum angular amplitude (radians)
+const MAX_ANGULAR_AMPLITUDE = 0.5;  // Maximum angular amplitude (radians) - increased for stronger tilt
+// Exponent used to bias the mapping toward larger amplitudes for higher floats
+const AMPLITUDE_EXPONENT = 2.0;
 
 
 const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
@@ -102,6 +102,8 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
   // NEW: Ref to track the rotation blend factor for zero gravity oscillation
   // This will now be driven by the main animation `t` or a continuous loop
   const rotationBlendCurrent = useRef(0); 
+
+  // (ground marker moved out to scene-level so it does not follow artwork oscillation)
 
 
   // NEW: Ref to store oscillation phases and individual amplitude for dynamic floating
@@ -142,19 +144,9 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     const newTargetScale = (isRankingMode && isPaintingArtwork) ? 0.6 : 1.0; 
 
     // NEW: Calculate Zero Gravity Target Position BASE (center of oscillation)
-    let zeroGravityBaseYOffset = 0;
-    const effectiveZoneGravity = zoneGravity ?? 50; // Default zone gravity to 50 if undefined
+    // Artwork gravity (0..100) is normalized from view counts; map it directly to Y offset 30..10
     const effectiveArtworkGravity = artworkGravity ?? 50; // Default artwork gravity to 50 if undefined
-
-    // Zone gravity sets a base range (e.g., from MAX_BASE_FLOAT_Y units up to MIN_BASE_FLOAT_Y units up)
-    const zoneFloatOffset = mapRange(effectiveZoneGravity, 0, 100, MAX_BASE_FLOAT_Y, MIN_BASE_FLOAT_Y);
-    // Artwork gravity fine-tunes this offset (e.g., +/- ARTWORK_GRAVITY_MAX_UP_ADJUSTMENT units around zoneFloatOffset)
-    const artworkFloatAdjustment = mapRange(effectiveArtworkGravity, 0, 100, ARTWORK_GRAVITY_MAX_UP_ADJUSTMENT, ARTWORK_GRAVITY_MAX_DOWN_ADJUSTMENT);
-    zeroGravityBaseYOffset = zoneFloatOffset + artworkFloatAdjustment;
-    // NEW: Apply global lower offset
-    zeroGravityBaseYOffset += ZERO_GRAVITY_GLOBAL_LOWER_OFFSET;
-
-
+    const zeroGravityBaseYOffset = mapRange(effectiveArtworkGravity, 0, 100, MAX_BASE_FLOAT_Y, MIN_BASE_FLOAT_Y) + ZERO_GRAVITY_GLOBAL_LOWER_OFFSET;
     const zeroGravityTargetPositionBase = new THREE.Vector3(newOriginalVec.x, newOriginalVec.y + zeroGravityBaseYOffset, newOriginalVec.z);
 
 
@@ -324,14 +316,8 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     const newOriginalVec = new THREE.Vector3(...originalPosition);
     const newOriginalEuler = new THREE.Euler(...originalRotation);
 
-    const effectiveZoneGravity = zoneGravity ?? 50; // Default zone gravity to 50 if undefined
     const effectiveArtworkGravity = artworkGravity ?? 50; // Default artwork gravity to 50 if undefined
-
-    const zoneFloatOffset = mapRange(effectiveZoneGravity, 0, 100, MAX_BASE_FLOAT_Y, MIN_BASE_FLOAT_Y);
-    const artworkFloatAdjustment = mapRange(effectiveArtworkGravity, 0, 100, ARTWORK_GRAVITY_MAX_UP_ADJUSTMENT, ARTWORK_GRAVITY_MAX_DOWN_ADJUSTMENT);
-    let zeroGravityBaseYOffset = zoneFloatOffset + artworkFloatAdjustment;
-    // NEW: Apply global lower offset during oscillation
-    zeroGravityBaseYOffset += ZERO_GRAVITY_GLOBAL_LOWER_OFFSET;
+    const zeroGravityBaseYOffset = mapRange(effectiveArtworkGravity, 0, 100, MAX_BASE_FLOAT_Y, MIN_BASE_FLOAT_Y) + ZERO_GRAVITY_GLOBAL_LOWER_OFFSET;
 
 
     // Perform interpolation if animating
@@ -382,13 +368,10 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
         // When entering zero gravity, blend from start rotation to the oscillating rotation
         const time = performance.now() * 0.001;
         
-        const dynamicRotationAmplitude = mapRange(
-          zeroGravityBaseYOffset,
-          MIN_Y_OFFSET_FOR_AMPLITUDE_MAP,
-          MAX_Y_OFFSET_FOR_AMPLITUDE_MAP,
-          MIN_ANGULAR_AMPLITUDE,
-          MAX_ANGULAR_AMPLITUDE
-        );
+        // Non-linear mapping: higher Y produces disproportionately larger tilt
+        const norm = Math.max(0, Math.min(1, (zeroGravityBaseYOffset - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP) / (MAX_Y_OFFSET_FOR_AMPLITUDE_MAP - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP)));
+        const eased = Math.pow(norm, AMPLITUDE_EXPONENT);
+        const dynamicRotationAmplitude = MIN_ANGULAR_AMPLITUDE + eased * (MAX_ANGULAR_AMPLITUDE - MIN_ANGULAR_AMPLITUDE);
 
         const rotationX = Math.sin(time * ROTATION_SPEED_X + oscillationState.current.phaseX) * dynamicRotationAmplitude;
         const rotationZ = Math.sin(time * ROTATION_SPEED_Z + oscillationState.current.phaseZ) * dynamicRotationAmplitude;
@@ -436,13 +419,9 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
         // For zeroGravity, the final rotation target *is* the oscillating state
         if (prevProps.current.isZeroGravityMode) { // Check prevProps to see what mode just ended
           const time = performance.now() * 0.001; // Current time for final oscillation position
-          const dynamicRotationAmplitude = mapRange(
-            zeroGravityBaseYOffset,
-            MIN_Y_OFFSET_FOR_AMPLITUDE_MAP,
-            MAX_Y_OFFSET_FOR_AMPLITUDE_MAP,
-            MIN_ANGULAR_AMPLITUDE,
-            MAX_ANGULAR_AMPLITUDE
-          );
+          const norm = Math.max(0, Math.min(1, (zeroGravityBaseYOffset - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP) / (MAX_Y_OFFSET_FOR_AMPLITUDE_MAP - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP)));
+          const eased = Math.pow(norm, AMPLITUDE_EXPONENT);
+          const dynamicRotationAmplitude = MIN_ANGULAR_AMPLITUDE + eased * (MAX_ANGULAR_AMPLITUDE - MIN_ANGULAR_AMPLITUDE);
           const rotationX = Math.sin(time * ROTATION_SPEED_X + oscillationState.current.phaseX) * dynamicRotationAmplitude;
           const rotationZ = Math.sin(time * ROTATION_SPEED_Z + oscillationState.current.phaseZ) * dynamicRotationAmplitude;
           groupRef.current.rotation.set(newOriginalEuler.x + rotationX, newOriginalEuler.y, newOriginalEuler.z + rotationZ);
@@ -464,13 +443,9 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
         const time = performance.now() * 0.001; // Convert to seconds
 
         // Calculate dynamic angular amplitude based on zeroGravityBaseYOffset
-        const dynamicRotationAmplitude = mapRange(
-          zeroGravityBaseYOffset,
-          MIN_Y_OFFSET_FOR_AMPLITUDE_MAP,
-          MAX_Y_OFFSET_FOR_AMPLITUDE_MAP,
-          MIN_ANGULAR_AMPLITUDE,
-          MAX_ANGULAR_AMPLITUDE
-        );
+        const norm = Math.max(0, Math.min(1, (zeroGravityBaseYOffset - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP) / (MAX_Y_OFFSET_FOR_AMPLITUDE_MAP - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP)));
+        const eased = Math.pow(norm, AMPLITUDE_EXPONENT);
+        const dynamicRotationAmplitude = MIN_ANGULAR_AMPLITUDE + eased * (MAX_ANGULAR_AMPLITUDE - MIN_ANGULAR_AMPLITUDE);
 
         // Y-oscillation
         const currentYOffset = zeroGravityBaseYOffset + Math.sin(time * FLOAT_SPEED_Y + oscillationState.current.phaseY) * oscillationState.current.amplitudeY;
@@ -520,12 +495,14 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
         // Ensure rotation blend is reset
         rotationBlendCurrent.current = 0;
       }
+      // ground marker handling moved to SceneContent (fixed at world Y)
     }
   });
 
   return (
     <group ref={groupRef} onClick={onCanvasArtworkClick}>
       {children}
+      {/* ground marker removed from wrapper - now rendered at scene level */}
     </group>
   );
 };

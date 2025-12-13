@@ -20,33 +20,48 @@ interface TexturedWallDisplayProps {
 
 const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, mapTexture, maxDimension = 5.0, orientation, aspectRatio, isPainting, onDimensionsCalculated, isFocused, lightsOn }) => {
   const [isInternalLoadingError, setIsInternalLoadingError] = useState(false);
+  const [imageTexture, setImageTexture] = useState<THREE.Texture | null>(null);
 
-  const imageTexture = useLoader(
-    THREE.TextureLoader,
-    !mapTexture && textureUrl && !isInternalLoadingError ? textureUrl : null,
-    (loader) => {
-      loader.crossOrigin = 'anonymous';
-    },
-    (errorEvent) => {
-      // 
-      setIsInternalLoadingError(true);
-    }
-  );
-
-  // NEW: Effect to dispose of the previous image texture when `imageTexture` changes or component unmounts.
-  // This handles situations where a new texture is loaded (imageTexture instance changes)
-  // or when the component entirely unmounts (final cleanup).
+  // Safe texture loading using TextureLoader with explicit error handling to avoid
+  // throwing inside the render tree (which would crash the <Canvas> if uncaught).
   useEffect(() => {
-    const prevTexture = imageTexture; // Capture the current texture instance for cleanup
-    return () => {
-      // This cleanup runs when `imageTexture` dependency changes *or* component unmounts.
-      // If a new texture is loaded, prevTexture will be the *old* one.
-      // If component unmounts, prevTexture will be the *last* one.
-      if (prevTexture) {
-        prevTexture.dispose();
+    let mounted = true;
+    // Dispose previous texture when changing
+    const prev = imageTexture;
+    if (prev) {
+      prev.dispose();
+      setImageTexture(null);
+    }
+
+    if (mapTexture || !textureUrl) {
+      setIsInternalLoadingError(false);
+      return () => { mounted = false; };
+    }
+
+    const loader = new THREE.TextureLoader();
+    loader.crossOrigin = 'anonymous';
+
+    loader.load(
+      textureUrl as string,
+      (tex) => {
+        if (!mounted) return;
+        setImageTexture(tex);
+        setIsInternalLoadingError(false);
+      },
+      undefined,
+      (err) => {
+        console.error('[TexturedWallDisplay] texture load failed', textureUrl, err);
+        if (!mounted) return;
+        setIsInternalLoadingError(true);
       }
+    );
+
+    return () => {
+      mounted = false;
+      // cleanup handled above when effect re-runs
     };
-  }, [imageTexture]); // Re-run when imageTexture instance changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textureUrl, mapTexture]);
   
   const finalMapTexture = useMemo(() => {
     if (mapTexture) return mapTexture;

@@ -24,3 +24,37 @@ export const kelvinToHex = (kelvin: number): string => {
 
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 };
+
+// Map gravity (0..100) or normalized t (0..1) to the legend gradient colors.
+export const gravityToHex = (value: number, isPercent = true): string => {
+    // value: if isPercent true -> 0..100, else 0..1
+    const t = isPercent ? Math.max(0, Math.min(100, value)) / 100 : Math.max(0, Math.min(1, value));
+    // Gradient stops matching the legend
+    const stops = ['#ffd400', '#9ad34a', '#3fc7a6', '#2aa6b3', '#3f6aa8', '#5b2d7a'];
+
+    const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
+
+    const hexToRgb = (hex: string) => {
+        const h = hex.replace('#','');
+        const bigint = parseInt(h, 16);
+        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+    };
+
+    const rgbToHex = (r: number, g: number, b: number) => {
+        const toHex = (c: number) => ('0' + Math.round(Math.max(0, Math.min(255, c))).toString(16)).slice(-2);
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    };
+
+    const segments = stops.length - 1;
+    const seg = Math.min(segments - 1, Math.floor(t * segments));
+    const segT = (t - (seg / segments)) * segments;
+
+    const a = hexToRgb(stops[seg]);
+    const b = hexToRgb(stops[seg + 1]);
+
+    const r = lerp(a[0], b[0], segT);
+    const g = lerp(a[1], b[1], segT);
+    const bl = lerp(a[2], b[2], segT);
+
+    return rgbToHex(r, g, bl);
+};

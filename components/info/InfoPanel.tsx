@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info } from 'lucide-react';
+import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info, Eye } from 'lucide-react';
 import { Exhibition, FirebaseArtwork } from '../../types';
 
 interface InfoPanelProps {
@@ -15,6 +15,7 @@ interface InfoPanelProps {
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, activeExhibition, isLoading, focusedArtworkFirebaseId, allFirebaseArtworks, onOpenExhibitionInfoFromArtwork }) => {
   const { lightsOn } = uiConfig;
+  const [posterLoadError, setPosterLoadError] = React.useState(false);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const prevIsOpenRef = React.useRef<boolean>(isOpen);
 
@@ -25,7 +26,6 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
         const active = document.activeElement as HTMLElement | null;
         if (active && panelRef.current && panelRef.current.contains(active)) {
           active.blur();
-          console.log('[InfoPanel] blurred active element inside info panel before close');
         }
       } catch (e) {
         // ignore
@@ -75,6 +75,10 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                     <Heart className={`w-4 h-4 opacity-70 ${uiConfig.text}`} />
                     <span className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.artwork_liked ?? '0'}</span>
                  </div>
+                  <div className="flex items-center gap-2">
+                    <Eye className={`w-4 h-4 opacity-70 ${uiConfig.text}`} />
+                    <span className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.artwork_viewed ?? '0'}</span>
+                  </div>
                  {artworkDataForPanel?.artwork_shared !== undefined && (
                    <div className="flex items-center gap-2">
                      <Share2 className={`w-4 h-4 opacity-70 ${uiConfig.text}`} />
@@ -137,12 +141,16 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
              </React.Fragment>
            ) : (
             <React.Fragment>
-               {activeExhibition.exhibit_poster && (
+               {activeExhibition.exhibit_poster && activeExhibition.exhibit_poster.trim() !== '' && !posterLoadError && (
                  <div className={`w-full aspect-[2/1] mb-12 relative overflow-hidden rounded-sm`}>
                     <img
                       src={activeExhibition.exhibit_poster}
                       alt={`${activeExhibition.title} poster`}
                       className="object-cover w-full h-full"
+                      onError={() => {
+                        console.error('[InfoPanel] failed to load exhibit poster', activeExhibition.exhibit_poster);
+                        setPosterLoadError(true);
+                      }}
                     />
                  </div>
                )}

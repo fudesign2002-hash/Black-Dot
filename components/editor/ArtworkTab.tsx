@@ -362,9 +362,27 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     let processedFile = file;
 
     if (isImage) {
+      const objectUrl = URL.createObjectURL(file);
       const img = new Image();
-      img.src = URL.createObjectURL(file);
-      await new Promise(resolve => img.onload = resolve);
+      img.src = objectUrl;
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            img.onload = null;
+            img.onerror = null;
+            reject(new Error('Image load timeout'));
+          }, 5000);
+          img.onload = () => { clearTimeout(timeout); resolve(); };
+          img.onerror = () => { clearTimeout(timeout); reject(new Error('Image failed to load')); };
+        });
+      } catch (e) {
+        URL.revokeObjectURL(objectUrl);
+        setUploadMessage('Failed to load image.');
+        setIsUploading(false);
+        handleUpdateStatus(artworkId, 'error');
+        return;
+      }
+      URL.revokeObjectURL(objectUrl);
 
       const canvas = document.createElement('canvas');
       let width = img.width;
@@ -389,16 +407,18 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
       processedFile = await new Promise<File>(resolve => {
         canvas.toBlob(blob => {
           if (blob) {
-            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+            const newName = file.name.replace(/\.[^.]+$/, '.webp');
+            resolve(new File([blob], newName, { type: 'image/webp' }));
           } else {
             resolve(file); // Fallback to original if blob conversion fails
           }
-        }, 'image/jpeg', JPEG_QUALITY);
+        }, 'image/webp', 0.7);
       });
     }
 
     const storageRef = storage.ref();
-    const artworkFilesRef = storageRef.child(`artwork_files/${artworkId}/${processedFile.name}`);
+    const newName = `${Date.now()}_${processedFile.name}`;
+    const artworkFilesRef = storageRef.child(`artwork_files/painting/${artworkId}/${newName}`);
     const uploadTask = artworkFilesRef.put(processedFile);
 
     uploadTask.on(
@@ -416,11 +436,24 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
       },
       async () => {
         const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
-        await handleSaveUrl(artworkId, downloadURL);
-        setUploadMessage('Upload complete!');
-        setIsUploading(false);
-        setUploadProgress(0);
-        handleUpdateStatus(artworkId, 'saved');
+        try {
+          await handleSaveUrl(artworkId, downloadURL);
+          // delete previous file if present
+          const previousUrl = artwork.artwork_file || artwork.file || '';
+          if (previousUrl) {
+            try {
+              const prevRef = storage.refFromURL(previousUrl);
+              await prevRef.delete();
+            } catch (e) {
+              // ignore deletion errors
+            }
+          }
+        } finally {
+          setUploadMessage('Upload complete!');
+          setIsUploading(false);
+          setUploadProgress(0);
+          handleUpdateStatus(artworkId, 'saved');
+        }
       }
     );
   }, [firebaseArtworks, handleSaveUrl, handleUpdateStatus]);

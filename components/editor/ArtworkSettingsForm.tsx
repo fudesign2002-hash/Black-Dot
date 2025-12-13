@@ -6,7 +6,7 @@ import { getVideoEmbedUrl } from '../../services/utils/videoUtils';
 
 const MAX_IMAGE_WIDTH = 1200;
 const MAX_IMAGE_HEIGHT = 1200;
-const JPEG_QUALITY = 0.8;
+const WEBP_QUALITY = 0.7;
 
 const MATERIAL_PRESETS: MaterialPreset[] = [
   {
@@ -254,9 +254,27 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
     let processedFile = file;
 
     if (isImage) {
+      const objectUrl = URL.createObjectURL(file);
       const img = new Image();
-      img.src = URL.createObjectURL(file);
-      await new Promise(resolve => img.onload = resolve);
+      img.src = objectUrl;
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            img.onload = null;
+            img.onerror = null;
+            reject(new Error('Image load timeout'));
+          }, 5000);
+          img.onload = () => { clearTimeout(timeout); resolve(); };
+          img.onerror = () => { clearTimeout(timeout); reject(new Error('Image failed to load')); };
+        });
+      } catch (e) {
+        URL.revokeObjectURL(objectUrl);
+        setUploadMessage('Failed to load image.');
+        setIsUploading(false);
+        handleUpdateStatus('error');
+        return;
+      }
+      URL.revokeObjectURL(objectUrl);
 
       const canvas = document.createElement('canvas');
       let width = img.width;
@@ -281,16 +299,18 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
       processedFile = await new Promise<File>(resolve => {
         canvas.toBlob(blob => {
           if (blob) {
-            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+            const newName = file.name.replace(/\.[^.]+$/, '.webp');
+            resolve(new File([blob], newName, { type: 'image/webp' }));
           } else {
             resolve(file);
           }
-        }, 'image/jpeg', JPEG_QUALITY);
+        }, 'image/webp', WEBP_QUALITY);
       });
     }
 
     const storageRef = storage.ref();
-    const fileRef = storageRef.child(`artworks/${Date.now()}_${processedFile.name}`);
+    const newName = `${Date.now()}_${processedFile.name}`;
+    const fileRef = storageRef.child(`artwork_files/painting/${artwork.id}/${newName}`);
     const uploadTask = fileRef.put(processedFile);
 
     uploadTask.on(
@@ -306,12 +326,25 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
       },
       async () => {
         const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
-        await onUpdateArtworkFile(artwork.id, downloadURL);
-        setOriginalArtworkFile(downloadURL);
-        setCurrentEditValue(downloadURL);
-        setIsUploading(false);
-        setUploadMessage(null);
-        handleUpdateStatus('saved');
+        try {
+          await onUpdateArtworkFile(artwork.id, downloadURL);
+          // after updating DB, attempt to delete previous stored file (if any)
+          const previousUrl = artwork.artwork_file || artwork.file || '';
+          if (previousUrl) {
+            try {
+              const prevRef = storage.refFromURL(previousUrl);
+              await prevRef.delete();
+            } catch (e) {
+              // ignore deletion errors
+            }
+          }
+        } finally {
+          setOriginalArtworkFile(downloadURL);
+          setCurrentEditValue(downloadURL);
+          setIsUploading(false);
+          setUploadMessage(null);
+          handleUpdateStatus('saved');
+        }
       }
     );
   }, [artwork.id, onUpdateArtworkFile, handleUpdateStatus]);

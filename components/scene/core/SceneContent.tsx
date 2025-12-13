@@ -10,7 +10,7 @@ import NewCameraControl from './NewCameraControl';
 import ProximityHandler from './ProximityHandler';
 import ArtComponent from './ArtComponent';
 import SmartSpotlight from '../lighting/SmartSpotlight';
-import { kelvinToHex } from '../../../services/utils/colorUtils';
+import { kelvinToHex, gravityToHex } from '../../../services/utils/colorUtils';
 import SceneAxisHelper from './SceneAxisHelper';
 import ArtworkWrapper from './ArtworkWrapper';
 import { getShadowMapSize } from '../../../utils/screenSettings'; // NEW: Import getShadowMapSize
@@ -95,11 +95,18 @@ const SceneContent: React.FC<SceneProps> = ({
 
   // Compute effective colors up-front and memoize to avoid reading lightingConfig mid-frame
   const effectiveFloorColor = useMemo(() => {
-    return explicitUseCustom && lightingConfig.floorColor ? lightingConfig.floorColor : undefined;
+    // If user explicitly enabled custom colors, prefer their value and default to white when missing.
+    if (explicitUseCustom) {
+      return lightingConfig.floorColor ?? '#ffffff';
+    }
+    return undefined;
   }, [explicitUseCustom, lightingConfig.floorColor]);
 
   const effectiveBackgroundColor = useMemo(() => {
-    return explicitUseCustom && lightingConfig.backgroundColor ? lightingConfig.backgroundColor : undefined;
+    if (explicitUseCustom) {
+      return lightingConfig.backgroundColor ?? '#ffffff';
+    }
+    return undefined;
   }, [explicitUseCustom, lightingConfig.backgroundColor]);
 
   const [currentBackgroundTexture, setCurrentBackgroundTexture] = useState<THREE.CubeTexture | null>(null); // MODIFIED: Store as single Texture
@@ -111,6 +118,7 @@ const SceneContent: React.FC<SceneProps> = ({
   // FIX: 將 currentEffectGroup 的類型改為 EffectGroup，使其包含 update 方法
   const currentEffectGroup = useRef<EffectGroup | null>(null); // NEW: Ref to hold the active effect's 3D group
   const currentEffectName = useRef<string | null>(null); // NEW: Ref to track the name of the active effect
+  const [showGroundMarkers, setShowGroundMarkers] = useState(false); // Delayed visibility for ground markers
 
 
   // NEW: Load background texture when exhibit_background changes and useExhibitionBackground is true
@@ -223,6 +231,17 @@ const SceneContent: React.FC<SceneProps> = ({
     };
   }, [activeEffectName, scene, clock, effectRegistry, lightsOn]); // NEW: Add effectRegistry and lightsOn to dependencies
 
+  // Delayed visibility for ground markers: show 2s after zero-gravity activates
+  useEffect(() => {
+    let t: number | undefined;
+    if (isZeroGravityMode) {
+      t = window.setTimeout(() => setShowGroundMarkers(true), 300);
+    } else {
+      setShowGroundMarkers(false);
+    }
+    return () => { if (t) clearTimeout(t); };
+  }, [isZeroGravityMode]);
+
 
   // MODIFIED: initialFloorColor calculation now respects lightingConfig.floorColor
   const initialFloorColor = useMemo(() => {
@@ -299,8 +318,13 @@ const SceneContent: React.FC<SceneProps> = ({
       let targetFloorColorSolid: THREE.Color;
       if (!lightsOn) {
         if (effectiveFloorColor) {
-          // Darken the user's chosen floor color by lerping it toward black
-          targetFloorColorSolid = new THREE.Color(effectiveFloorColor).lerp(new THREE.Color(0x000000), 0.35);
+          // If the user explicitly enabled custom colors, use their color as-is (defaulted to white when missing).
+          // Otherwise darken the user's color for dark mode.
+          if (explicitUseCustom) {
+            targetFloorColorSolid = new THREE.Color(effectiveFloorColor);
+          } else {
+            targetFloorColorSolid = new THREE.Color(effectiveFloorColor).lerp(new THREE.Color(0x000000), 0.35);
+          }
         } else {
           targetFloorColorSolid = darkFloorColor.clone();
         }
@@ -476,6 +500,35 @@ const SceneContent: React.FC<SceneProps> = ({
               );
             })}
         </group>
+
+        {/* Ground markers for zero gravity: opaque '+' markers fixed slightly below floor under each artwork */}
+        {isZeroGravityMode && showGroundMarkers && artworks.map((art) => {
+          const pos = art.originalPosition || art.position;
+          const x = pos[0];
+          const z = pos[2];
+          const gravity = (typeof art.artworkGravity === 'number') ? art.artworkGravity : 50;
+          const hex = gravityToHex(gravity);
+          // Enlarged and slightly lower markers per user request
+          const armLength = 1.2; // increased length of each arm
+          const armThickness = 0.18; // increased thickness of arms
+          const armHeight = 0.04; // increased thickness/height for visibility
+
+          // Position markers slightly below the scene floor (floor group is at y=-1.5): y = -1.52
+          return (
+            <group key={`gz-${art.id}`} position={new THREE.Vector3(x, -1.52, z)}>
+              {/* X arm */}
+              <mesh>
+                <boxGeometry args={[armLength, armHeight, armThickness]} />
+                <meshStandardMaterial color={new THREE.Color(hex)} transparent={false} opacity={1} depthWrite={true} roughness={1} metalness={0} />
+              </mesh>
+              {/* Z arm */}
+              <mesh>
+                <boxGeometry args={[armThickness, armHeight, armLength]} />
+                <meshStandardMaterial color={new THREE.Color(hex)} transparent={false} opacity={1} depthWrite={true} roughness={1} metalness={0} />
+              </mesh>
+            </group>
+          );
+        })}
 
         <NewCameraControl
           ref={cameraControlRef as any}

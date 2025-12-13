@@ -45,12 +45,24 @@ export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocu
             artwork_data: parseArtworkData(data.artwork_data),
             fileSizeMB: typeof data.artwork_filesize === 'number' ? data.artwork_filesize / (1024 * 1024) : undefined,
             artwork_liked: typeof data.artwork_liked === 'number' ? data.artwork_liked : 0,
+            artwork_viewed: typeof data.artwork_viewed === 'number' ? data.artwork_viewed : 0,
             artwork_shared: typeof data.artwork_shared === 'number' ? data.artwork_shared : undefined,
-            artwork_gravity: typeof data.artwork_gravity === 'number' ? data.artwork_gravity : Math.floor(Math.random() * 101), // NEW: Assign random 0-100 if not present
+            artwork_gravity: typeof data.artwork_gravity === 'number' ? data.artwork_gravity : 0,
         };
     });
 
-    return Promise.all(artworksPromises);
+    const artworks = await Promise.all(artworksPromises);
+
+    // Normalize `artwork_viewed` across the fetched artworks to a 0-100 gravity metric.
+    // More views -> higher gravity value (closer to 100) which will make the artwork float lower.
+    const maxViews = artworks.reduce((max, a) => Math.max(max, a.artwork_viewed ?? 0), 0);
+    const normalized = artworks.map(a => {
+        const views = a.artwork_viewed ?? 0;
+        const gravity = maxViews > 0 ? Math.round((views / maxViews) * 100) : 0;
+        return { ...a, artwork_gravity: gravity };
+    });
+
+    return normalized;
 };
 
 export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebaseArtworks: FirebaseArtwork[]): ExhibitionArtItem[] => {

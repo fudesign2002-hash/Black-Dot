@@ -132,6 +132,7 @@ export interface FirebaseArtwork {
   artwork_liked?: number;
   artwork_shared?: number;
   artwork_gravity?: number; // NEW: Add artwork_gravity for zero gravity mode
+  artwork_viewed?: number;
 }
 
 export interface SimplifiedLightingPreset {

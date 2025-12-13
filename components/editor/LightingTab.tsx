@@ -104,6 +104,13 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
                     </div>
                 </div>
 
+                <ControlRow label="Ambient Environment" value={`${lightingConfig.colorTemperature}K`}>
+                    <div className="w-full flex items-center gap-3">
+                        <span className="text-amber-500"><Sun className="w-4 h-4" /></span>
+                        <input type="range" min="2700" max="7500" step="100" value={lightingConfig.colorTemperature} onChange={e => handleLightingValueChange('colorTemperature', Number(e.target.value))} className="w-full h-1 bg-gradient-to-r from-amber-500 to-blue-500 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-::-webkit-slider-thumb]:shadow" />
+                        <span className="text-blue-500"><Moon className="w-4 h-4" /></span>
+                    </div>
+                </ControlRow>
                 <ControlRow label="Master Lights" value={lightingConfig.lightsOn ? 'ON' : 'OFF'}>
                     <label htmlFor="lights-on-toggle" className="relative inline-flex items-center cursor-pointer">
                         <input
@@ -119,21 +126,16 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
                         </span>
                     </label>
                 </ControlRow>
-                
-                <ControlRow label="Ambient Environment" value={`${lightingConfig.colorTemperature}K`}>
-                    <div className="w-full flex items-center gap-3">
-                        <span className="text-amber-500"><Sun className="w-4 h-4" /></span>
-                        <input type="range" min="2700" max="7500" step="100" value={lightingConfig.colorTemperature} onChange={e => handleLightingValueChange('colorTemperature', Number(e.target.value))} className="w-full h-1 bg-gradient-to-r from-amber-500 to-blue-500 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-::-webkit-slider-thumb]:shadow" />
-                        <span className="text-blue-500"><Moon className="w-4 h-4" /></span>
-                    </div>
-                </ControlRow>
-                <ControlRow label="Spotlight Palette">
+
+                {!lightingConfig.lightsOn && (
+                  <ControlRow label="Spotlight Palette">
                     <div className="w-full flex items-center justify-start gap-3 flex-wrap">
                         {fixedSpotlightPalette.map((color: string) => (
                             <button key={color} onClick={() => handleSpotlightColorSelect(color)} className={`w-10 h-10 rounded-full border-2 transition-all duration-200 ${lightingConfig.manualSpotlightColor === color && lightingConfig.spotlightMode === 'manual' ? 'border-cyan-500 scale-110 shadow-lg' : (lightsOn ? 'border-white hover:border-neutral-300' : 'border-neutral-900 hover:border-neutral-600')}`} style={{ backgroundColor: color }} title={`Set spotlight to ${color}`} />
                         ))}
                     </div>
-                </ControlRow>
+                  </ControlRow>
+                )}
             </div>
         </div>
     );

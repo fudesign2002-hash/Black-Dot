@@ -14,6 +14,7 @@ import TransitionOverlay from './components/ui/TransitionOverlay';
 import CurrentExhibitionInfo from './components/info/CurrentExhibitionInfo';
 import ConfirmationDialog from './components/ui/ConfirmationDialog';
 import DevToolsPanel from './components/ui/DevToolsPanel';
+import ZeroGravityLegend from './components/ui/ZeroGravityLegend';
 import EmbeddedMuseumScene from './components/EmbeddedMuseumScene';
 
 import { useMuseumState } from './hooks/useMuseumState';
@@ -740,6 +741,19 @@ function MuseumApp() {
     }
   }, []);
 
+  const viewedArtworkInstanceRef = useRef<string | null>(null);
+
+  const updateArtworkViewsInFirebase = useCallback(async (artworkId: string) => {
+    try {
+      const artworkDocRef = db.collection('artworks').doc(artworkId);
+      await artworkDocRef.update({
+        artwork_viewed: firebase.firestore.FieldValue.increment(1)
+      });
+    } catch (error) {
+      // silent
+    }
+  }, []);
+
   const onLikeTriggered = useCallback((artworkInstanceId: string) => {
     const artworkIdMatch = artworkInstanceId.match(/zone_art_([a-zA-Z0-9_-]+)_\d+/);
     const actualArtworkId = artworkIdMatch ? artworkIdMatch[1] : null;
@@ -846,6 +860,13 @@ function MuseumApp() {
           // Show artwork action controls because we're performing a zoom-in
           setIsArtworkFocusedForControls(true);
           setIsCameraMovingToArtwork(true); // Set camera moving state
+          // Increment view count once per zoom-session per artwork instance
+          if (viewedArtworkInstanceRef.current !== artworkInstanceId) {
+            viewedArtworkInstanceRef.current = artworkInstanceId;
+            if (actualArtworkId) {
+              void updateArtworkViewsInFirebase(actualArtworkId);
+            }
+          }
           cameraControlRef.current.moveCameraToArtwork(artworkInstanceId, position, rotation, artworkType, isMotionVideo);
         }
       }
@@ -861,6 +882,8 @@ function MuseumApp() {
       setFocusedArtworkInstanceId(null);
       setFocusedArtworkFirebaseId(null);
     }
+    // Clear view tracking so next zoom-in will count again
+    viewedArtworkInstanceRef.current = null;
     setHeartEmitterArtworkId(null);
   }, [focusedArtworkInstanceId, cameraControlRef, setIsArtworkFocusedForControls, setFocusedArtworkInstanceId, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId]);
 
@@ -975,6 +998,21 @@ function MuseumApp() {
     }
     return currentLayout;
   }, [isEditorMode, editorLayout, isRankingMode, artworksInRankingOrder, currentLayout]);
+
+  // Compute min/max views and proportional tick positions for zero gravity legend
+  const zeroGravityViews = useMemo(() => {
+    const views = displayLayout.map(item => {
+      const fb = firebaseArtworks.find(fa => fa.id === item.artworkId);
+      return fb?.artwork_viewed ?? 0;
+    });
+    const min = views.length ? Math.min(...views) : 0;
+    const max = views.length ? Math.max(...views) : 0;
+    let extraTicks: number[] = [];
+    if (views.length && max > min) {
+      extraTicks = Array.from(new Set(views.map(v => (v - min) / (max - min)))).sort((a, b) => a - b);
+    }
+    return { minViews: min, maxViews: max, extraTicks };
+  }, [displayLayout, firebaseArtworks]);
 
   const selectedArtworkTitle = useMemo(() => {
     if (!selectedArtworkId || !editorLayout || !firebaseArtworks) return 'NONE';
@@ -1264,6 +1302,15 @@ function MuseumApp() {
           }}
         />
       ))}
+
+      {isZeroGravityMode && (
+        <ZeroGravityLegend
+          minViews={zeroGravityViews.minViews}
+          maxViews={zeroGravityViews.maxViews}
+          extraTicks={zeroGravityViews.extraTicks}
+          visible={isZeroGravityMode && !isLoading}
+        />
+      )}
 
     </React.Fragment>
   );
