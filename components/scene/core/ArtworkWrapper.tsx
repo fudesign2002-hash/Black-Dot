@@ -374,7 +374,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
         if (revertSource.current === 'ranking') {
           easedT = easeInOutCubic(t);
         } else {
-          easedT = easeInOutSine(t);
+          easedT = easeOutElastic(t);
         }
       } else {
         easedT = easeOutElastic(t);
