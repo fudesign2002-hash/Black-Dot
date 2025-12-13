@@ -59,6 +59,7 @@ const SceneContent: React.FC<SceneProps> = ({
   onUserCameraInteractionStart,
   onUserCameraInteractionEnd,
   isCameraMovingToArtwork, // NEW: Destructure camera moving state
+  isArtworkFocusedForControls, // NEW: whether artwork is focused for controls (zoomed-in)
   useExhibitionBackground, // NEW: Destructure useExhibitionBackground
   onSaveCustomCamera, // NEW: Destructure onSaveCustomCamera
   activeEffectName, // NEW: Destructure activeEffectName
@@ -87,6 +88,10 @@ const SceneContent: React.FC<SceneProps> = ({
   // - lightBgColor / lightFloorColor: used as defaults when lights are ON
   // - darkBgColor / darkFloorColor: used as defaults when lights are OFF
   const floorTargetColor = useMemo(() => new THREE.Color(), []); // NEW: Define floorTargetColor outside useFrame
+  // Reusable temporary colors and fog to avoid per-frame allocations
+  const tmpTargetBgColor = useRef(new THREE.Color());
+  const tmpTargetFloorColor = useRef(new THREE.Color());
+  const reusableFog = useRef<THREE.Fog | null>(null);
 
   // Respect a `useCustomColors` boolean in lightingConfig; if explicitly provided, ALWAYS trust it.
   // Otherwise fall back to presence of color fields for backwards compatibility.
@@ -289,17 +294,21 @@ const SceneContent: React.FC<SceneProps> = ({
       // When a background texture is used, floor color comes from lightingConfig.floorColor
       // Fog color should still blend with a neutral color that matches the overall lighting state.
       const targetFogColor = lightsOn ? lightBgColor : darkBgColor; // Fog still adapts to lights on/off
-      if (scene.fog instanceof THREE.Fog) scene.fog.color.lerp(targetFogColor, lerpSpeed);
+      if (!reusableFog.current) reusableFog.current = new THREE.Fog(targetFogColor, 20, 90);
+      // Ensure scene.fog is set to our reusable fog instance and lerp its color
+      if (scene.fog !== reusableFog.current) scene.fog = reusableFog.current;
+      reusableFog.current.color.lerp(targetFogColor, lerpSpeed);
       
       // NEW: Lerp floor color to effectiveFloorColor when custom colors are enabled
       if (effectiveFloorColor) {
-        floorTargetColor.set(effectiveFloorColor); // Set the target color
+        tmpTargetFloorColor.current.set(effectiveFloorColor);
       } else {
-        floorTargetColor.set(initialFloorColor); // Fallback to initial if not specified
+        tmpTargetFloorColor.current.set(initialFloorColor);
       }
-      if (floorMatRef.current) floorMatRef.current.color.lerp(floorTargetColor, lerpSpeed);
+      if (floorMatRef.current) floorMatRef.current.color.lerp(tmpTargetFloorColor.current, lerpSpeed);
       
-      scene.fog = null; // NEW: Disable fog when using exhibition background
+      // Disable fog when using exhibition background
+      if (scene.fog) scene.fog = null;
       // debug log removed
     } else {
       // Revert to solid color background if background texture is not used or loading
@@ -308,11 +317,12 @@ const SceneContent: React.FC<SceneProps> = ({
       // - When lights are ON, prefer user-selected lightingConfig.backgroundColor, otherwise use initial light background
       let targetBgColor: THREE.Color;
       if (!lightsOn) {
-        targetBgColor = darkBgColor.clone();
+        tmpTargetBgColor.current.copy(darkBgColor);
       } else {
-        targetBgColor = effectiveBackgroundColor ? new THREE.Color(effectiveBackgroundColor) : lightBgColor.clone();
+        if (effectiveBackgroundColor) tmpTargetBgColor.current.set(effectiveBackgroundColor);
+        else tmpTargetBgColor.current.copy(lightBgColor);
       }
-
+      targetBgColor = tmpTargetBgColor.current;
       // Determine target floor color:
       // - When lights are OFF and user provided a floorColor, use a darkened version of the user's color
       // - Otherwise fall back to initial defaults or the user-provided color when lights are ON
@@ -335,13 +345,11 @@ const SceneContent: React.FC<SceneProps> = ({
       // Color debug logging removed
 
       if (scene.background instanceof THREE.Color) scene.background.lerp(targetBgColor, lerpSpeed);
-      // NEW: Enable fog if not using exhibition background
-      if (!scene.fog) {
-        scene.fog = new THREE.Fog(targetBgColor, 20, 90);
-      } else if (scene.fog instanceof THREE.Fog) {
-        scene.fog.color.lerp(targetBgColor, lerpSpeed);
-      }
-      if (floorMatRef.current) floorMatRef.current.color.lerp(targetFloorColorSolid, lerpSpeed); // Use configured or default color
+      // Enable or reuse fog if not using exhibition background
+      if (!reusableFog.current) reusableFog.current = new THREE.Fog(targetBgColor, 20, 90);
+      if (scene.fog !== reusableFog.current) scene.fog = reusableFog.current;
+      reusableFog.current.color.lerp(targetBgColor, lerpSpeed);
+      if (floorMatRef.current) floorMatRef.current.color.lerp(tmpTargetFloorColor.current, lerpSpeed); // Use configured or default color
       // scene.environment = null; // Clear environment map if not using custom background, now handled by Environment component
       // console.log(`[SceneContent-useFrame] Applying solid background color: ${targetBgColor.getHexString()}. LightsOn: ${lightsOn}`);
     }
@@ -433,6 +441,15 @@ const SceneContent: React.FC<SceneProps> = ({
 
             {/* FIX: Map over artworks to render ArtComponent */}
             {artworks.map((art, index) => {
+              // Determine externalOffsetX for slide-out when camera is zooming to a focused artwork
+              const focusedArt = artworks.find(a => a.id === focusedArtworkInstanceId);
+              let externalOffsetX = 0;
+              if (focusedArtworkInstanceId && (isCameraMovingToArtwork || isArtworkFocusedForControls) && focusedArt && art.id !== focusedArtworkInstanceId) {
+                const focusedX = (focusedArt.originalPosition || focusedArt.position)[0];
+                const artX = (art.originalPosition || art.position)[0];
+                const SIGN = artX < focusedX ? -1 : 1;
+                externalOffsetX = SIGN * 40; // slide 40 units left/right off-screen
+              }
               const highlightColor = lightingConfig.manualSpotlightColor;
 
               const isExplicitlyFocused = isEditorMode ? art.id === selectedArtworkId : focusedArtworkInstanceId === art.id;
@@ -454,6 +471,7 @@ const SceneContent: React.FC<SceneProps> = ({
                   isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
                   zoneGravity={zoneGravity} // NEW: Pass zoneGravity
                   artworkGravity={art.artworkGravity} // NEW: Pass artworkGravity
+                  externalOffsetX={externalOffsetX}
                   onCanvasArtworkClick={(e) => {
                     e.stopPropagation();
                     if (!art.isMotionVideo) {

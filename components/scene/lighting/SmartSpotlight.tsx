@@ -20,6 +20,8 @@ interface SmartSpotlightProps {
 
 const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, color = "white", artworkType, isEditorMode, artworkRotation }) => {
   const lightRef = useRef<THREE.SpotLight>(null);
+  const spotPosition = useMemo(() => new THREE.Vector3(0, 100, 0), []);
+  const memoColor = useMemo(() => new THREE.Color(color), [color]);
 
   const { spotlightAngle, spotlightDistance, spotlightHeight } = useMemo(() => {
     switch (artworkType) {
@@ -70,24 +72,23 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
       {/* FIX: Use THREE.Vector3 for position and THREE.Color for color */}
       <spotLight 
         ref={lightRef}
-        position={new THREE.Vector3(0, 100, 0)}
+        position={spotPosition}
         angle={spotlightAngle}
         penumbra={0.4} 
         distance={spotlightDistance}
         decay={1} 
         castShadow 
-        color={new THREE.Color(color)}
+        color={memoColor}
         shadow-bias={-0.0001}
         shadow-normalBias={0.03}
         shadow-mapSize={[512, 512]}
       />
       {shouldShowEffects && <pointLight 
-        // FIX: Use THREE.Vector3 for position and THREE.Color for color
         position={pointLightLocalPosition} 
         intensity={isActive ? 6.5 : 0} 
         distance={8} 
         decay={0.7} 
-        color={new THREE.Color(color)} 
+        color={memoColor} 
         castShadow 
         shadow-mapSize={[512, 512]}
         shadow-bias={-0.0001}

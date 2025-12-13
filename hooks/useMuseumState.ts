@@ -128,6 +128,30 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
     };
   }, [enableSnapshots]); // NEW: Add enableSnapshots to dependency array
 
+  // Manual refresh helper: fetch latest collections once and update state.
+  const refreshNow = useCallback(async () => {
+    try {
+      const exhibitionsColRef = db.collection('exhibitions');
+      const zonesColRef = db.collection('zones');
+      const artworksColRef = db.collection('artworks');
+
+      const [exSnap, zoneSnap, artSnap] = await Promise.all([
+        exhibitionsColRef.get(),
+        zonesColRef.get(),
+        artworksColRef.get(),
+      ]);
+
+      setRawExhibitionDocs(exSnap.docs);
+      setZones(processFirebaseZones(zoneSnap.docs));
+
+      const processedArtworks = await processFirebaseArtworks(artSnap.docs);
+      setFirebaseArtworks(processedArtworks);
+      setRawArtworkDocs(artSnap.docs);
+    } catch (e) {
+      // swallow; snapshots should handle most updates
+    }
+  }, []);
+
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];
     const processedAllExhibitions = processFirebaseExhibitions(rawExhibitionDocs, firebaseArtworks);
@@ -227,5 +251,8 @@ export const useMuseumState = (enableSnapshots: boolean) => { // NEW: Accept ena
     currentIndex,
     handleNavigate,
     setLightingOverride,
+    refreshNow,
   };
 };
+
+export type UseMuseumStateReturn = ReturnType<typeof useMuseumState> & { refreshNow?: () => Promise<void> };

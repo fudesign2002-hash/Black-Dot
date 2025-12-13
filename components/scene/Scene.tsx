@@ -49,6 +49,7 @@ export interface SceneProps {
   onUserCameraInteractionStart?: () => void;
   onUserCameraInteractionEnd?: (wasDrag: boolean) => void;
   isCameraMovingToArtwork: boolean; // NEW: Camera moving state
+  isArtworkFocusedForControls?: boolean; // NEW: Whether an artwork is focused for action controls (zoomed-in)
   useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground
   onSaveCustomCamera?: (pos: [number, number, number]) => void; // NEW: Save custom camera callback
   // FIX: 新增 activeEffectName 屬性

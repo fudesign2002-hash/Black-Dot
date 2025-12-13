@@ -144,7 +144,11 @@ function MuseumApp() {
     handleNavigate,
     setLightingOverride,
     currentIndex,
+    refreshNow,
   } = useMuseumState(isSnapshotEnabledGlobally); // NEW: Pass isSnapshotEnabledGlobally to useMuseumState
+
+  // Ref to request editorLayout reload after an external refresh (to avoid overwriting in-progress edits)
+  const editorLayoutReloadRequested = useRef(false);
 
   // After initial data finishes loading, wait 2s then apply any custom camera position
   useEffect(() => {
@@ -203,6 +207,61 @@ function MuseumApp() {
   useEffect(() => {
     loadRemoteEffectBundle();
   }, [loadRemoteEffectBundle]);
+
+  // Debug: grouped console logs for obvious mode changes (focus/editor/ranking/zerogravity/lights)
+  useEffect(() => {
+    try {
+      const ts = new Date().toISOString();
+      // Build colored header labels for each mode
+      const active = (bg: string) => `background:${bg};color:#fff;padding:2px 6px;border-radius:3px`;
+      const inactive = 'background:#374151;color:#d1d5db;padding:2px 6px;border-radius:3px';
+
+      const labels: string[] = [];
+      const styles: string[] = [];
+
+      // Only show labels that are ON / have meaningful value
+      if (focusedArtworkInstanceId) {
+        labels.push(`%cFocused:${focusedArtworkInstanceId}`);
+        styles.push(active('#2563eb'));
+      }
+      if (isArtworkFocusedForControls) {
+        labels.push(`%cFocusedControls:ON`);
+        styles.push(active('#16a34a'));
+      }
+      if (isEditorMode) {
+        labels.push(`%cEditor:ON`);
+        styles.push(active('#7c3aed'));
+      }
+      if (isRankingMode) {
+        labels.push(`%cRanking:ON`);
+        styles.push(active('#f97316'));
+      }
+      if (isZeroGravityMode) {
+        labels.push(`%cZeroG:ON`);
+        styles.push(active('#0ea5a2'));
+      }
+      if (lightingConfig?.lightsOn) {
+        labels.push(`%cLights:ON`);
+        styles.push(active('#f59e0b'));
+      }
+
+      // Timestamp style
+      const tsStyle = 'background:#111;color:#fff;padding:2px 6px;border-radius:3px;margin-left:6px';
+
+      const header = (labels.length > 0 ? labels.join(' ') + ` %c@ ${ts}` : `%cMode change @ ${ts}`);
+      const headerStyles = labels.length > 0 ? [...styles, tsStyle] : [tsStyle];
+      console.groupCollapsed(header, ...headerStyles);
+      console.log('FocusedArtworkInstanceId:', focusedArtworkInstanceId);
+      console.log('isArtworkFocusedForControls:', isArtworkFocusedForControls);
+      console.log('isEditorMode:', isEditorMode);
+      console.log('isRankingMode:', isRankingMode);
+      console.log('isZeroGravityMode:', isZeroGravityMode);
+      console.log('lightsOn:', !!lightingConfig?.lightsOn);
+      console.groupEnd();
+    } catch (e) {
+      // swallow any console errors in weird environments
+    }
+  }, [focusedArtworkInstanceId, isArtworkFocusedForControls, isEditorMode, isRankingMode, isZeroGravityMode, lightingConfig?.lightsOn]);
 
 
   // NEW: Handle updating zone_theme in Firebase
@@ -316,6 +375,17 @@ function MuseumApp() {
       setIsArtworkFocusedForControls(false);
     }
   }, [isEditorMode]); // FIXED: Removed currentLayout and lightingConfig.customCameraPosition to prevent unnecessary triggers
+
+  // If a refresh was requested (e.g. after external DB write), apply the updated currentLayout
+  // into the editorLayout when editor is open. This avoids stale editorScene when edits are made
+  // via other parts of the UI (settings) while the editor panel is open.
+  useEffect(() => {
+    if (!isEditorMode) return;
+    if (editorLayoutReloadRequested.current) {
+      setEditorLayout(JSON.parse(JSON.stringify(currentLayout)));
+      editorLayoutReloadRequested.current = false;
+    }
+  }, [currentLayout, isEditorMode]);
 
 
   useEffect(() => {
@@ -582,6 +652,9 @@ function MuseumApp() {
     try {
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       await artworkDocRef.update({ artwork_file: newFileUrl });
+      try { await refreshNow?.(); } catch (e) {}
+      // If editor is open, request a reload of the editorLayout once the hook data updates
+      editorLayoutReloadRequested.current = true;
     } catch (error) {
       // 
       throw error;
@@ -595,6 +668,8 @@ function MuseumApp() {
       const currentArtworkData = doc.data()?.artwork_data || {};
       const mergedArtworkData = { ...currentArtworkData, ...updatedArtworkData };
       await artworkDocRef.update({ artwork_data: mergedArtworkData });
+      try { await refreshNow?.(); } catch (e) {}
+      editorLayoutReloadRequested.current = true;
     } catch (error) {
       // 
       throw error;
@@ -609,6 +684,8 @@ function MuseumApp() {
     try {
       const exhibitionDocRef = db.collection('exhibitions').doc(exhibitionId);
       await exhibitionDocRef.update(updatedFields);
+      try { await refreshNow?.(); } catch (e) {}
+      editorLayoutReloadRequested.current = true;
     } catch (error) {
       // 
       throw error;
@@ -641,10 +718,16 @@ function MuseumApp() {
         artwork_selected: newArtworkSelected
       });
 
+      // Force local refresh so scene/editor see changes immediately
+      try { await refreshNow?.(); } catch (e) {}
+
       const artworkDocRef = db.collection('artworks').doc(artworkIdToRemove);
       await artworkDocRef.update({
         artwork_data: null
       });
+
+      try { await refreshNow?.(); } catch (e) {}
+      editorLayoutReloadRequested.current = true;
 
     } catch (error) {
       // 
@@ -694,6 +777,8 @@ function MuseumApp() {
       // and we don't want to reset it on addition.
   
       // console.log("onAddArtworkToLayout: Artwork added to layout successfully.");
+      try { await refreshNow?.(); } catch (e) {}
+      editorLayoutReloadRequested.current = true;
       return true; // Indicate success
     } catch (error) {
       throw error; // Re-throw to be caught by caller for status update

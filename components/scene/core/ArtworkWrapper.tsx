@@ -16,6 +16,7 @@ interface ArtworkWrapperProps {
   artworkGravity: number | undefined; // NEW: Add artworkGravity
   onCanvasArtworkClick: (e: React.MouseEvent<HTMLDivElement>) => void; // Pass click handler
   artworkType: ArtType; // NEW: Add artworkType prop
+  externalOffsetX?: number; // NEW: external slide offset (used to slide non-focused artworks off-screen)
 }
 
 // Temporarily slow ranking transitions for inspection (5x)
@@ -87,8 +88,18 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
   artworkGravity, // NEW: Destructure artworkGravity
   onCanvasArtworkClick,
   artworkType, // NEW: Destructure artworkType
+  externalOffsetX = 0, // NEW: external slide offset
 }) => {
   const groupRef = useRef<THREE.Group>(null);
+  // Reusable temporary objects to avoid per-frame allocations
+  const tmpVec1 = useRef(new THREE.Vector3());
+  const tmpVec2 = useRef(new THREE.Vector3());
+  const tmpVec3 = useRef(new THREE.Vector3());
+  const tmpEuler1 = useRef(new THREE.Euler());
+  const tmpEuler2 = useRef(new THREE.Euler());
+  const tmpQuat1 = useRef(new THREE.Quaternion());
+  const tmpQuat2 = useRef(new THREE.Quaternion());
+  const tmpQuat3 = useRef(new THREE.Quaternion());
   
   // Animation state for ranking transitions
   const isAnimating = useRef(false);
@@ -138,6 +149,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     artworkType: 'sculpture_base' as ArtType, // Initialize with a default value
     zoneGravity: undefined as number | undefined, // NEW
     artworkGravity: undefined as number | undefined, // NEW
+    externalOffsetX: 0,
   });
 
   // Use useEffect to trigger animations based on prop changes
@@ -162,6 +174,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     // Get previous states from ref
     // MODIFIED: Include prevIsZeroGravityModeValue, prevZoneGravity, and prevArtworkGravity
     const { isRankingMode: prevIsRankingModeValue, isZeroGravityMode: prevIsZeroGravityModeValue, targetPosition: prevTargetPositionValue, targetRotation: prevTargetRotationValue, artworkType: prevArtworkType, zoneGravity: prevZoneGravity, artworkGravity: prevArtworkGravity } = prevProps.current;
+    const prevExternalOffsetX = prevProps.current.externalOffsetX ?? 0;
 
     // Track if animation needs to be triggered
     let shouldAnimate = false;
@@ -272,6 +285,21 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       rotationBlendCurrent.current = 0; // Start blend from 0 again for smooth transition to new oscillation
     }
 
+    // NEW: External offset driven slide (e.g., when zooming into an artwork)
+    if (externalOffsetX !== undefined && externalOffsetX !== prevExternalOffsetX) {
+      shouldAnimate = true;
+      newAnimationState = 'slide';
+      animStartPos.copy(groupRef.current.position);
+      animStartRot.copy(groupRef.current.rotation);
+      animStartScale = groupRef.current.scale.x;
+
+      // Target is original position shifted by externalOffsetX on X
+      animTargetPos.copy(newOriginalVec).add(tmpVec1.current.set(externalOffsetX, 0, 0));
+      animTargetRot.copy(newOriginalEuler);
+      animTargetScale = 1.0;
+      rotationBlendCurrent.current = 0;
+    }
+
 
     if (shouldAnimate) {
       animationState.current = newAnimationState;
@@ -287,14 +315,24 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       if (!isAnimating.current) {
         animationState.current = 'idle';
         // Ensure it's correctly positioned and scaled immediately if no animation is needed
-        // MODIFIED: Determine final snap position based on active mode
-        const finalSnapPosition = isRankingMode ? newTargetVec : (isZeroGravityMode ? zeroGravityTargetPositionBase : newOriginalVec);
+        // Determine final snap position based on active mode, but honor externalOffsetX when present
+        let finalSnapPosition: THREE.Vector3;
+        if (isRankingMode) {
+          finalSnapPosition = newTargetVec;
+        } else if (isZeroGravityMode) {
+          finalSnapPosition = zeroGravityTargetPositionBase;
+        } else if (externalOffsetX && externalOffsetX !== 0) {
+          finalSnapPosition = tmpVec2.current.copy(newOriginalVec).add(tmpVec1.current.set(externalOffsetX, 0, 0));
+        } else {
+          finalSnapPosition = newOriginalVec;
+        }
+
         const finalSnapRotation = isRankingMode ? newTargetEuler : newOriginalEuler;
-        const finalSnapScale = newTargetScale; 
+        const finalSnapScale = newTargetScale;
 
         groupRef.current.position.copy(finalSnapPosition);
         groupRef.current.rotation.copy(finalSnapRotation);
-        groupRef.current.scale.setScalar(finalSnapScale); 
+        groupRef.current.scale.setScalar(finalSnapScale);
 
         // If in zero gravity mode and not animating, ensure rotation blend is 1 for immediate full oscillation
         if (isZeroGravityMode) {
@@ -314,18 +352,18 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       artworkType, 
       zoneGravity, // NEW
       artworkGravity, // NEW
+      externalOffsetX: externalOffsetX ?? 0,
     };
 
-  }, [id, isRankingMode, isZeroGravityMode, targetPosition, targetRotation, originalPosition, originalRotation, artworkType, zoneGravity, artworkGravity]); // MODIFIED: Add isZeroGravityMode, zoneGravity, artworkGravity to deps
+  }, [id, isRankingMode, isZeroGravityMode, targetPosition, targetRotation, originalPosition, originalRotation, artworkType, zoneGravity, artworkGravity, externalOffsetX]); // MODIFIED: Add isZeroGravityMode, zoneGravity, artworkGravity, externalOffsetX to deps
 
   // Main animation loop
   useFrame(() => {
     if (!groupRef.current) return;
 
-    // NEW: Recalculate zeroGravityBaseYOffset on each frame if needed (though it's derived from props, which change less often)
-    // For useFrame, we just need the *current* base Y offset for oscillation.
-    const newOriginalVec = new THREE.Vector3(...originalPosition);
-    const newOriginalEuler = new THREE.Euler(...originalRotation);
+    // Recalculate transient original vectors/rotations into preallocated temporaries to avoid allocations
+    const newOriginalVec = tmpVec1.current.set(...originalPosition);
+    const newOriginalEuler = tmpEuler1.current.set(...originalRotation);
 
     const effectiveArtworkGravity = artworkGravity ?? 50; // Default artwork gravity to 50 if undefined
     const zeroGravityBaseYOffset = mapRange(effectiveArtworkGravity, 0, 100, MAX_BASE_FLOAT_Y, MIN_BASE_FLOAT_Y) + ZERO_GRAVITY_GLOBAL_LOWER_OFFSET;
@@ -387,46 +425,43 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       if (animationState.current === 'zeroGravity') {
         // When entering zero gravity, blend from start rotation to the oscillating rotation
         const time = performance.now() * 0.001;
-        
-        // Non-linear mapping: higher Y produces disproportionately larger tilt
-        const norm = Math.max(0, Math.min(1, (zeroGravityBaseYOffset - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP) / (MAX_Y_OFFSET_FOR_AMPLITUDE_MAP - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP)));
-        const eased = Math.pow(norm, AMPLITUDE_EXPONENT);
-        const dynamicRotationAmplitude = MIN_ANGULAR_AMPLITUDE + eased * (MAX_ANGULAR_AMPLITUDE - MIN_ANGULAR_AMPLITUDE);
 
-        const rotationX = Math.sin(time * ROTATION_SPEED_X + oscillationState.current.phaseX) * dynamicRotationAmplitude;
-        const rotationZ = Math.sin(time * ROTATION_SPEED_Z + oscillationState.current.phaseZ) * dynamicRotationAmplitude;
+          // Non-linear mapping: higher Y produces disproportionately larger tilt
+          const norm = Math.max(0, Math.min(1, (zeroGravityBaseYOffset - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP) / (MAX_Y_OFFSET_FOR_AMPLITUDE_MAP - MIN_Y_OFFSET_FOR_AMPLITUDE_MAP)));
+          const eased = Math.pow(norm, AMPLITUDE_EXPONENT);
+          const dynamicRotationAmplitude = MIN_ANGULAR_AMPLITUDE + eased * (MAX_ANGULAR_AMPLITUDE - MIN_ANGULAR_AMPLITUDE);
 
-        const oscillatingRotationTarget = new THREE.Euler(
-          newOriginalEuler.x + rotationX,
-          newOriginalEuler.y, // Maintain original Y rotation
-          newOriginalEuler.z + rotationZ
-        );
+          const rotationX = Math.sin(time * ROTATION_SPEED_X + oscillationState.current.phaseX) * dynamicRotationAmplitude;
+          const rotationZ = Math.sin(time * ROTATION_SPEED_Z + oscillationState.current.phaseZ) * dynamicRotationAmplitude;
 
-        // Blend `startEuler` (current rotation before animation) towards `oscillatingRotationTarget`
-        const qStart = new THREE.Quaternion().setFromEuler(startEuler);
-        const qOscillating = new THREE.Quaternion().setFromEuler(oscillatingRotationTarget);
-        const qBlended = new THREE.Quaternion();
-        qBlended.slerpQuaternions(qStart, qOscillating, easedT); // Use easedT to blend
-        groupRef.current.rotation.setFromQuaternion(qBlended);
+          tmpEuler2.current.set(
+            newOriginalEuler.x + rotationX,
+            newOriginalEuler.y,
+            newOriginalEuler.z + rotationZ
+          );
 
-        rotationBlendCurrent.current = easedT; // Keep rotationBlendCurrent updated with easedT
+          // Blend `startEuler` (current rotation before animation) towards oscillating target using preallocated quaternions
+          tmpQuat1.current.setFromEuler(startEuler);
+          tmpQuat2.current.setFromEuler(tmpEuler2.current);
+          tmpQuat3.current.slerpQuaternions(tmpQuat1.current, tmpQuat2.current, easedT);
+          groupRef.current.rotation.setFromQuaternion(tmpQuat3.current);
+
+          rotationBlendCurrent.current = easedT;
       } else if (animationState.current === 'revert' && prevProps.current.isZeroGravityMode) {
         // When exiting zero gravity, blend from current oscillating rotation towards `newOriginalEuler`
         // `startEuler` here contains the *last* oscillating rotation from before the revert animation began.
-        const qStart = new THREE.Quaternion().setFromEuler(startEuler);
-        const qOriginal = new THREE.Quaternion().setFromEuler(newOriginalEuler);
-        const qBlended = new THREE.Quaternion();
-        qBlended.slerpQuaternions(qStart, qOriginal, easedT); // Use easedT to blend back to original
-        groupRef.current.rotation.setFromQuaternion(qBlended);
+        tmpQuat1.current.setFromEuler(startEuler);
+        tmpQuat2.current.setFromEuler(newOriginalEuler);
+        tmpQuat3.current.slerpQuaternions(tmpQuat1.current, tmpQuat2.current, easedT);
+        groupRef.current.rotation.setFromQuaternion(tmpQuat3.current);
 
-        rotationBlendCurrent.current = 1 - easedT; // Blend factor goes from 1 to 0
+        rotationBlendCurrent.current = 1 - easedT;
       } else {
         // For other animations (slide, revert from ranking), just slerp between start and target
-        const startQ = new THREE.Quaternion().setFromEuler(startEuler);
-        const targetQ = new THREE.Quaternion().setFromEuler(targetEuler);
-        const interpolatedQ = new THREE.Quaternion();
-        interpolatedQ.slerpQuaternions(startQ, targetQ, easedT);
-        groupRef.current.rotation.setFromQuaternion(interpolatedQ);
+        tmpQuat1.current.setFromEuler(startEuler);
+        tmpQuat2.current.setFromEuler(targetEuler);
+        tmpQuat3.current.slerpQuaternions(tmpQuat1.current, tmpQuat2.current, easedT);
+        groupRef.current.rotation.setFromQuaternion(tmpQuat3.current);
         rotationBlendCurrent.current = 0; // Reset for these modes
       }
 
@@ -446,7 +481,8 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
           const dynamicRotationAmplitude = MIN_ANGULAR_AMPLITUDE + eased * (MAX_ANGULAR_AMPLITUDE - MIN_ANGULAR_AMPLITUDE);
           const rotationX = Math.sin(time * ROTATION_SPEED_X + oscillationState.current.phaseX) * dynamicRotationAmplitude;
           const rotationZ = Math.sin(time * ROTATION_SPEED_Z + oscillationState.current.phaseZ) * dynamicRotationAmplitude;
-          groupRef.current.rotation.set(newOriginalEuler.x + rotationX, newOriginalEuler.y, newOriginalEuler.z + rotationZ);
+          tmpEuler2.current.set(newOriginalEuler.x + rotationX, newOriginalEuler.y, newOriginalEuler.z + rotationZ);
+          groupRef.current.rotation.copy(tmpEuler2.current);
           rotationBlendCurrent.current = 1; // Full blend for continuous oscillation
         } else {
           groupRef.current.rotation.copy(targetEuler);
@@ -471,37 +507,36 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
         // Y-oscillation
         const currentYOffset = zeroGravityBaseYOffset + Math.sin(time * FLOAT_SPEED_Y + oscillationState.current.phaseY) * oscillationState.current.amplitudeY;
-        const oscillatingPosition = new THREE.Vector3(newOriginalVec.x, newOriginalVec.y + currentYOffset, newOriginalVec.z);
+        const oscillatingPosition = tmpVec2.current.set(newOriginalVec.x, newOriginalVec.y + currentYOffset, newOriginalVec.z);
         
         // X-rotation oscillation
         const rotationX = Math.sin(time * ROTATION_SPEED_X + oscillationState.current.phaseX) * dynamicRotationAmplitude;
         // Z-rotation oscillation
         const rotationZ = Math.sin(time * ROTATION_SPEED_Z + oscillationState.current.phaseZ) * dynamicRotationAmplitude;
         
-        // Target oscillating rotation
-        const oscillatingRotationTarget = new THREE.Euler(
-          newOriginalEuler.x + rotationX,
-          newOriginalEuler.y, // Maintain original Y rotation
-          newOriginalEuler.z + rotationZ
-        );
+        tmpEuler2.current.set(newOriginalEuler.x + rotationX, newOriginalEuler.y, newOriginalEuler.z + rotationZ);
 
         // Update position
         groupRef.current.position.copy(oscillatingPosition);
 
-        // Blend between original rotation and oscillating target rotation
-        const qOriginal = new THREE.Quaternion().setFromEuler(newOriginalEuler);
-        const qOscillating = new THREE.Quaternion().setFromEuler(oscillatingRotationTarget);
-        const qBlended = new THREE.Quaternion();
-        qBlended.slerpQuaternions(qOriginal, qOscillating, rotationBlendCurrent.current); // Use current blend factor (should be 1 here)
-        groupRef.current.rotation.setFromQuaternion(qBlended);
+        // Blend between original rotation and oscillating target rotation using preallocated quaternions
+        tmpQuat1.current.setFromEuler(newOriginalEuler);
+        tmpQuat2.current.setFromEuler(tmpEuler2.current);
+        tmpQuat3.current.slerpQuaternions(tmpQuat1.current, tmpQuat2.current, rotationBlendCurrent.current);
+        groupRef.current.rotation.setFromQuaternion(tmpQuat3.current);
 
         if (groupRef.current.scale.x !== finalIdleScale) { // Ensure scale is correct for zero gravity
           groupRef.current.scale.setScalar(finalIdleScale);
         }
       } else {
         // Not in zero gravity mode
-        const finalIdlePosition = isRankingMode ? new THREE.Vector3(...targetPosition) : newOriginalVec;
-        const finalIdleRotation = isRankingMode ? new THREE.Euler(...targetRotation) : newOriginalEuler;
+        const finalIdlePosition = isRankingMode
+          ? tmpVec3.current.set(...targetPosition)
+          : (externalOffsetX && externalOffsetX !== 0
+              ? tmpVec2.current.set(...originalPosition).add(tmpVec1.current.set(externalOffsetX, 0, 0))
+              : newOriginalVec);
+        tmpEuler2.current.set(...targetRotation);
+        const finalIdleRotation = isRankingMode ? tmpEuler2.current : newOriginalEuler;
 
         // Only update if current position is different, to avoid unnecessary writes and maintain stability
         if (!groupRef.current.position.equals(finalIdlePosition)) {

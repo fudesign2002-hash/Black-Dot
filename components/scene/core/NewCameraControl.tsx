@@ -64,6 +64,12 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const controlsRef = useRef<any>(null);
   const previousCameraPosition = useRef(new THREE.Vector3());
   const previousCameraTarget = useRef(new THREE.Vector3());
+  // Preallocated temporaries to avoid occasional allocations during frame/end checks
+  const tmpInitialCameraPos = useRef(new THREE.Vector3(...INITIAL_CAMERA_POSITION));
+  // Additional temporaries for artwork camera moves
+  const tmpArtworkWorldPosition = useRef(new THREE.Vector3());
+  const tmpArtworkWorldRotation = useRef(new THREE.Euler());
+  const tmpOffset = useRef(new THREE.Vector3());
 
   const isAnimating = useRef(false);
   const animationStartTime = useRef(0);
@@ -139,14 +145,14 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     }
 
     const artworkTargetY = position[1] + (artworkType === 'sculpture_base' ? CAMERA_ARTWORK_HEIGHT_OFFSET : 0);
-    const artworkWorldPosition = new THREE.Vector3(position[0], artworkTargetY, position[2]);
-    const artworkWorldRotation = new THREE.Euler(...rotation, 'YXZ');
+    tmpArtworkWorldPosition.current.set(position[0], artworkTargetY, position[2]);
+    tmpArtworkWorldRotation.current.set(rotation[0], rotation[1], rotation[2], 'YXZ');
 
-    const offset = new THREE.Vector3(0, cameraYOffset, cameraDistance);
-    offset.applyEuler(artworkWorldRotation);
+    tmpOffset.current.set(0, cameraYOffset, cameraDistance);
+    tmpOffset.current.applyEuler(tmpArtworkWorldRotation.current);
 
-    targetPosition.current.copy(artworkWorldPosition).add(offset);
-    targetLookAt.current.copy(artworkWorldPosition);
+    targetPosition.current.copy(tmpArtworkWorldPosition.current).add(tmpOffset.current);
+    targetLookAt.current.copy(tmpArtworkWorldPosition.current);
 
     // Begin animation
     isAnimating.current = true;
@@ -371,7 +377,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         if (props.onCameraAnimationStateChange) props.onCameraAnimationStateChange(false);
         if (props.onCameraPositionChange) {
           // Determine whether camera is at initial by comparing to INITIAL_CAMERA_POSITION
-          const atInitial = camera.position.distanceTo(new THREE.Vector3(...INITIAL_CAMERA_POSITION)) < 0.1;
+            const atInitial = camera.position.distanceTo(tmpInitialCameraPos.current) < 0.1;
           props.onCameraPositionChange(atInitial);
         }
         // After animation completes, log the current camera position and whether it matches user custom or system default
