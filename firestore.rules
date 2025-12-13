@@ -2,14 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default: everyone can read, but generic writes are denied. Specific
-    // collection matches below override the write rules as needed.
+    // Default: deny reads/writes by default. Specific collection matches below
+    // override the rules as needed.
     match /{document=**} {
-      allow read: if true;
+      allow read: if false;
       allow write: if false;
     }
 
-    // artworks: public read. Allow anyone (including anonymous) to UPDATE
+    // artworks: public read. Allow anyone (including unauthenticated guests) to UPDATE
     // only the counter fields `artwork_liked` and `artwork_viewed` (must be
     // numeric). CREATE requires authentication; DELETE is denied.
     match /artworks/{artworkId} {
@@ -34,7 +34,27 @@ service cloud.firestore {
 
     // Keep other art-related collections write-protected to authenticated users.
     match /exhibitions/{exhibitionId} {
+      // Writes require authentication (owners / admins)
       allow write: if request.auth != null;
+
+      // Read rules:
+      // - Unauthenticated guests may read public showcase exhibitions (isShowcase == true)
+      // - Signed-in users may read exhibitions that belong to them AND are marked public (ownerId == uid && isPublic == true)
+      allow get: if (
+        request.auth == null && resource.data.isShowcase == true
+      ) || (
+        request.auth != null && resource.data.ownerId == request.auth.uid && resource.data.isPublic == true
+      );
+
+      // For list queries, require the client to include the equality filter
+      // so Firestore can validate the query on the server side. Examples:
+      // - Guest list: where('isShowcase','==', true)
+      // - Owner list: where('ownerId','==', request.auth.uid) && where('isPublic','==', true)
+      allow list: if (
+        request.auth == null && request.query.where('isShowcase', '==', true)
+      ) || (
+        request.auth != null && request.query.where('ownerId', '==', request.auth.uid) && request.query.where('isPublic', '==', true)
+      );
     }
 
     match /artists/{artistId} {

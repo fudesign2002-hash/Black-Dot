@@ -35,7 +35,7 @@ const DEFAULT_FALLBACK_EXHIBITION: Exhibition = {
   posterColor: 'bg-gray-700',
   defaultLayout: [],
   exhibit_artworks: [],
-  isActive: false,
+  isPublic: false,
   exhibit_background: undefined, // NEW: Add default for exhibit_background
 };
 
@@ -77,10 +77,9 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     const unsubscribes: (() => void)[] = []; // NEW: Array to hold unsubscribe functions
 
     if (enableSnapshots) { // NEW: Conditionally subscribe to snapshots
-      const colRefFor = (name: string) => ownerUid ? db.collection(name).where('ownerId', '==', ownerUid).where('isActive', '==', true) : db.collection(name);
-      const exhibitionsColRef = colRefFor('exhibitions');
-      const zonesColRef = colRefFor('zones');
-      const artworksColRef = colRefFor('artworks');
+      const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
+      const zonesColRef = db.collection('zones');
+      const artworksColRef = db.collection('artworks');
 
         const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
           // [log removed] exhibitions snapshot
@@ -134,10 +133,9 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
   // Manual refresh helper: fetch latest collections once and update state.
   const refreshNow = useCallback(async () => {
     try {
-      const colRefFor = (name: string) => ownerUid ? db.collection(name).where('ownerId', '==', ownerUid).where('isActive', '==', true) : db.collection(name);
-      const exhibitionsColRef = colRefFor('exhibitions');
-      const zonesColRef = colRefFor('zones');
-      const artworksColRef = colRefFor('artworks');
+      const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
+      const zonesColRef = db.collection('zones');
+      const artworksColRef = db.collection('artworks');
 
       const [exSnap, zoneSnap, artSnap] = await Promise.all([
         exhibitionsColRef.get(),
@@ -163,7 +161,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     const processedAllExhibitions = processFirebaseExhibitions(rawExhibitionDocs, firebaseArtworks);
     // If ownerUid is provided we assume a signed-in owner view (show their items);
     // otherwise (guest) only show exhibitions marked as showcase.
-    if (ownerUid) return processedAllExhibitions.filter(ex => ex.isActive === true);
+    if (ownerUid) return processedAllExhibitions.filter(ex => ex.isPublic === true);
     return processedAllExhibitions.filter(ex => ex.isShowcase === true);
   }, [rawExhibitionDocs, firebaseArtworks, ownerUid]);
 

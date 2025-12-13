@@ -63,7 +63,7 @@ function MuseumApp() {
   const prevAuthUidRef = useRef<string | null | undefined>(undefined);
   const prevVisibleIdsRef = useRef<string | null>(null);
 
-  const isSignedIn = Boolean(user && !user.isAnonymous && (user.providerData && user.providerData.length > 0));
+  const isSignedIn = Boolean(user && (user.providerData && user.providerData.length > 0));
 
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [editorLayout, setEditorLayout] = useState<ExhibitionArtItem[] | null>(null);
@@ -154,7 +154,7 @@ function MuseumApp() {
     setLightingOverride,
     currentIndex,
     refreshNow,
-  } = useMuseumState(isSnapshotEnabledGlobally, undefined); // Allow guest snapshots (public read)
+  } = useMuseumState(isSnapshotEnabledGlobally, (isSignedIn && user) ? user.uid : undefined); // Pass ownerUid when signed-in so owners see their exhibitions
 
   // Ref to request editorLayout reload after an external refresh (to avoid overwriting in-progress edits)
   const editorLayoutReloadRequested = useRef(false);
@@ -231,11 +231,11 @@ function MuseumApp() {
       if (prevAuthUidRef.current === currentUid) return;
       prevAuthUidRef.current = currentUid;
 
-      const isGuest = !user || user.isAnonymous;
+      const isGuest = !user;
       const labelStyle = isGuest ? 'background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px' : 'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px';
       const label = isGuest ? '%cGuest' : `%cSigned: ${user?.displayName || user?.email || user?.uid}`;
       console.groupCollapsed(label, labelStyle);
-      if (user && !user.isAnonymous) {
+      if (user && isSignedIn) {
         console.log('uid:', user.uid);
         console.log('email:', user.email);
         console.log('displayName:', user.displayName);
@@ -247,7 +247,7 @@ function MuseumApp() {
         }
         console.log('provider:', (user.providerData || []).map(p => p.providerId).join(', ') || 'none');
       } else {
-        console.log('anonymous session');
+        console.log('guest session');
       }
       console.groupEnd();
     } catch (e) {
@@ -259,7 +259,7 @@ function MuseumApp() {
   useEffect(() => {
     (async () => {
       try {
-        const isGuest = !user || user.isAnonymous;
+        const isGuest = !user;
         const headerStyle = isGuest ? 'background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px' : 'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px';
         const header = isGuest ? '%cVisible exhibitions (guest)' : `%cVisible exhibitions (${user?.uid})`;
 
@@ -267,7 +267,7 @@ function MuseumApp() {
         if (isGuest) {
           queryRef = db.collection('exhibitions').where('isShowcase', '==', true);
         } else {
-          queryRef = db.collection('exhibitions').where('ownerId', '==', user!.uid).where('isActive', '==', true);
+          queryRef = db.collection('exhibitions').where('ownerId', '==', user!.uid).where('isPublic', '==', true);
         }
 
         const snap = await queryRef.get();

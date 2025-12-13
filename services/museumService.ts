@@ -281,7 +281,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             supportedBy: data.supportedBy,
             exhibit_artworks: exhibitArtworksList,
             defaultLayout: createFirebaseLayout(exhibitArtworksList, allFirebaseArtworks),
-            isActive: typeof data.isActive === 'boolean' ? data.isActive : false,
+            isPublic: typeof data.isPublic === 'boolean' ? data.isPublic : false,
             isShowcase: typeof data.isShowcase === 'boolean' ? data.isShowcase : false,
             exhibit_poster: data.exhibit_poster || undefined,
             exhibit_background: data.exhibit_background || undefined, // NEW: Add exhibit_background from Firestore

@@ -13,7 +13,7 @@ export default function TopLeftLogout({ user, onLogout }: Props) {
   const [showOverlay, setShowOverlay] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const isSignedIn = Boolean(user && !user.isAnonymous && (user.providerData && user.providerData.length > 0));
+  const isSignedIn = Boolean(user && (user.providerData && user.providerData.length > 0));
 
   const avatarUrl = user ? (user.photoURL || (user.providerData && user.providerData[0] && (user.providerData[0] as any).photoURL) || null) : null;
   const [cachedAvatar, setCachedAvatar] = useState<string | null>(null);

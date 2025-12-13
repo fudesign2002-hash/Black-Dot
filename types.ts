@@ -91,7 +91,7 @@ export interface Exhibition {
   posterColor: string;
   defaultLayout: ExhibitionArtItem[];
   exhibit_artworks: string[];
-  isActive: boolean;
+  isPublic: boolean;
   dateFrom?: string;
   dateTo?: string;
   hours?: string;
