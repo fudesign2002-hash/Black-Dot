@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from 'react';
 import { db } from './firebase';
 import firebase from 'firebase/compat/app';
 
@@ -9,12 +9,12 @@ import InfoPanel from './components/info/InfoPanel';
 import SearchModal from './components/search/SearchModal';
 import MainControls from './components/controls/MainControls';
 import SideNavigation from './components/layout/SideNavigation';
-import FloorPlanEditor from './components/editor/FloorPlanEditor';
+const FloorPlanEditor = React.lazy(() => import('./components/editor/FloorPlanEditor'));
 import TransitionOverlay from './components/ui/TransitionOverlay';
 import CurrentExhibitionInfo from './components/info/CurrentExhibitionInfo';
 import ConfirmationDialog from './components/ui/ConfirmationDialog';
 import DevToolsPanel from './components/ui/DevToolsPanel';
-import ZeroGravityLegend from './components/ui/ZeroGravityLegend';
+const ZeroGravityLegend = React.lazy(() => import('./components/ui/ZeroGravityLegend'));
 import EmbeddedMuseumScene from './components/EmbeddedMuseumScene';
 
 import { useMuseumState } from './hooks/useMuseumState';
@@ -145,6 +145,25 @@ function MuseumApp() {
     setLightingOverride,
     currentIndex,
   } = useMuseumState(isSnapshotEnabledGlobally); // NEW: Pass isSnapshotEnabledGlobally to useMuseumState
+
+  // After initial data finishes loading, wait 2s then apply any custom camera position
+  useEffect(() => {
+    let t: number | undefined;
+    if (!isLoading) {
+      t = window.setTimeout(() => {
+        try {
+          const custom = lightingConfig?.customCameraPosition;
+          // Only apply if there's a custom position and the camera hasn't moved away from default
+          if (custom && isCameraAtDefaultPosition && !isCameraMovingToArtwork && cameraControlRef.current) {
+            cameraControlRef.current.moveCameraToInitial(custom);
+          }
+        } catch (e) {
+          // ignore
+        }
+      }, 2000);
+    }
+    return () => { if (t) clearTimeout(t); };
+  }, [isLoading, lightingConfig?.customCameraPosition, isCameraAtDefaultPosition, isCameraMovingToArtwork]);
 
   // NEW: activeEffectName now comes directly from activeZone.zone_theme
   const activeEffectName = activeZone?.zone_theme || null;
@@ -1204,6 +1223,7 @@ function MuseumApp() {
       />
 
       {isEditorMode && (
+        <Suspense fallback={null}>
           <FloorPlanEditor
             isOpen={isEditorOpen}
             onClose={() => setIsEditorOpen(false)}
@@ -1238,6 +1258,7 @@ function MuseumApp() {
             activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
             onUpdateZoneGravity={handleUpdateZoneGravity} // NEW: Pass handler for updating zone gravity
           />
+        </Suspense>
       )}
 
       <SearchModal
@@ -1304,12 +1325,14 @@ function MuseumApp() {
       ))}
 
       {isZeroGravityMode && (
-        <ZeroGravityLegend
-          minViews={zeroGravityViews.minViews}
-          maxViews={zeroGravityViews.maxViews}
-          extraTicks={zeroGravityViews.extraTicks}
-          visible={isZeroGravityMode && !isLoading}
-        />
+        <React.Suspense fallback={null}>
+          <ZeroGravityLegend
+            minViews={zeroGravityViews.minViews}
+            maxViews={zeroGravityViews.maxViews}
+            extraTicks={zeroGravityViews.extraTicks}
+            visible={isZeroGravityMode && !isLoading}
+          />
+        </React.Suspense>
       )}
 
     </React.Fragment>

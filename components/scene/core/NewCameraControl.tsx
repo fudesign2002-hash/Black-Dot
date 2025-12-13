@@ -6,6 +6,8 @@ import type { ArtType, SimplifiedLightingConfig } from '../../../types';
 
 export const INITIAL_CAMERA_POSITION: [number, number, number] = [-8, 4, 25];
 export const INITIAL_CAMERA_TARGET: [number, number, number] = [0, 1, 0];
+// Default camera field of view (degrees). Change this constant to adjust the scene FOV.
+export const DEFAULT_CAMERA_FOV = 70;
 
 // Module-level saved camera stack. Use `NewCameraFrom` to push the current camera
 // position/target before performing a move, and `moveCameraToPrevious` will pop it.
@@ -53,6 +55,7 @@ interface NewCameraControlProps {
   // onUserInteractionEnd receives a boolean indicating whether the interaction was a drag (true) or a click (false)
   onUserInteractionEnd?: (wasDrag: boolean) => void;
   userCameraThrottleMs?: number;
+  cameraFov?: number; // optional override for the camera field of view (degrees)
   // Additional props will be added as we migrate logic here
 }
 
@@ -199,6 +202,18 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
   // React to ranking mode changes triggered by button (detect actual transitions)
   useEffect(() => {
+    // Ensure camera FOV is set from configurable prop or default on mount/prop change
+    try {
+      const fov = props.cameraFov ?? DEFAULT_CAMERA_FOV;
+      if (camera && typeof fov === 'number') {
+        camera.fov = fov;
+        // update projection matrix so change takes effect
+        camera.updateProjectionMatrix();
+      }
+    } catch (e) {
+      // ignore camera update failures in non-canvas contexts
+    }
+
     const prev = prevRankingRef.current;
     const now = props.isRankingMode;
     if (prev === undefined) {

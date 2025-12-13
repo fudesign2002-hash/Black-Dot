@@ -18,9 +18,10 @@ interface ArtworkWrapperProps {
   artworkType: ArtType; // NEW: Add artworkType prop
 }
 
-const SLIDE_DURATION = 600; // 0.8 seconds
-const REVERT_DURATION = 600; // 0.8 seconds
-const ZERO_GRAVITY_DURATION = 800; // NEW: Duration for zero gravity animation
+// Temporarily slow ranking transitions for inspection (5x)
+const SLIDE_DURATION = 1000; // ~3.0 seconds (was 600ms)
+const REVERT_DURATION = 500; // ~3.0 seconds (was 600ms)
+const ZERO_GRAVITY_DURATION = 600; // NEW: Duration for zero gravity animation
 // Removed ROTATION_BLEND_DURATION as rotation blend now happens over main animation duration
 
 // NEW: 彈性緩動函數 for easeOutElastic
@@ -30,12 +31,17 @@ const easeOutElastic = (t: number) => {
     ? 0
     : t === 1
     ? 1
-    : Math.pow(2, -7 * t) * Math.sin((t * 7 - 0.75) * c4) + 1;
+    : Math.pow(2, -9 * t) * Math.sin((t * 5 - 0.75) * c4) + 1;
 };
 
 // NEW: 平滑緩動函數 for easeInOutSine
 const easeInOutSine = (t: number) => {
   return -(Math.cos(Math.PI * t) - 1) / 2;
+};
+
+// NEW: easeInOutCubic for smoother revert when needed
+const easeInOutCubic = (t: number) => {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 };
 
 // NEW: 輔助函數：將一個值從一個範圍映射到另一個範圍
@@ -102,6 +108,9 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
   // NEW: Ref to track the rotation blend factor for zero gravity oscillation
   // This will now be driven by the main animation `t` or a continuous loop
   const rotationBlendCurrent = useRef(0); 
+
+  // Track where a 'revert' animation originated from so we can pick easing accordingly
+  const revertSource = useRef<'ranking' | 'zeroGravity' | null>(null);
 
   // (ground marker moved out to scene-level so it does not follow artwork oscillation)
 
@@ -188,6 +197,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     else if (!isRankingMode && prevIsRankingModeValue) {
       shouldAnimate = true;
       newAnimationState = 'revert';
+      revertSource.current = 'ranking';
       animStartPos.copy(groupRef.current.position); 
       animStartRot.copy(groupRef.current.rotation); 
       animStartScale = groupRef.current.scale.x; 
@@ -220,6 +230,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     else if (!isZeroGravityMode && prevIsZeroGravityModeValue && !isRankingMode) {
       shouldAnimate = true;
       newAnimationState = 'revert'; // Use revert animation for exiting zero gravity
+      revertSource.current = 'zeroGravity';
       animStartPos.copy(groupRef.current.position); // Start from current oscillating position
       animStartRot.copy(groupRef.current.rotation); // Start from current oscillating rotation
       animStartScale = groupRef.current.scale.x;
@@ -356,8 +367,17 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       let easedT;
       if (animationState.current === 'zeroGravity') {
         easedT = easeInOutSine(t); // Use smooth easing for ascending (entering zero gravity)
+      } else if (animationState.current === 'slide') {
+        easedT = easeOutElastic(t);
+      } else if (animationState.current === 'revert') {
+        // If revert came from ranking mode, use a smoother cubic easing; otherwise keep elastic
+        if (revertSource.current === 'ranking') {
+          easedT = easeInOutCubic(t);
+        } else {
+          easedT = easeInOutSine(t);
+        }
       } else {
-        easedT = easeOutElastic(t); // Use elastic for descending (exiting zero gravity, or ranking mode transitions)
+        easedT = easeOutElastic(t);
       }
       
       groupRef.current.position.lerpVectors(startVec, targetVec, easedT);
@@ -414,6 +434,8 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       if (t === 1) {
         isAnimating.current = false;
         animationState.current = 'idle';
+        // Clear revert source after animation completes
+        revertSource.current = null;
         // Ensure final position/rotation is exactly the target
         groupRef.current.position.copy(targetVec);
         // For zeroGravity, the final rotation target *is* the oscillating state

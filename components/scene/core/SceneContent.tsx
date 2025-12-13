@@ -12,6 +12,7 @@ import ArtComponent from './ArtComponent';
 import SmartSpotlight from '../lighting/SmartSpotlight';
 import { kelvinToHex, gravityToHex } from '../../../services/utils/colorUtils';
 import SceneAxisHelper from './SceneAxisHelper';
+const ZeroGravityEffects = React.lazy(() => import('./ZeroGravityEffects'));
 import ArtworkWrapper from './ArtworkWrapper';
 import { getShadowMapSize } from '../../../utils/screenSettings'; // NEW: Import getShadowMapSize
 // REMOVED: import { EffectRegistry } from '../../../effect_bundle'; // NEW: Import EffectRegistry
@@ -402,7 +403,7 @@ const SceneContent: React.FC<SceneProps> = ({
         />
 
         {/* FIX: Use THREE.Vector3 for position */}
-        <group position={new THREE.Vector3(0, -1.5, 0)}>
+        <group position={new THREE.Vector3(0, -151.99/100, 0)}>
             {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
             <mesh
   rotation={new THREE.Euler(-Math.PI / 2, 0, 0)}
@@ -501,34 +502,12 @@ const SceneContent: React.FC<SceneProps> = ({
             })}
         </group>
 
-        {/* Ground markers for zero gravity: opaque '+' markers fixed slightly below floor under each artwork */}
-        {isZeroGravityMode && showGroundMarkers && artworks.map((art) => {
-          const pos = art.originalPosition || art.position;
-          const x = pos[0];
-          const z = pos[2];
-          const gravity = (typeof art.artworkGravity === 'number') ? art.artworkGravity : 50;
-          const hex = gravityToHex(gravity);
-          // Enlarged and slightly lower markers per user request
-          const armLength = 1.2; // increased length of each arm
-          const armThickness = 0.18; // increased thickness of arms
-          const armHeight = 0.04; // increased thickness/height for visibility
-
-          // Position markers slightly below the scene floor (floor group is at y=-1.5): y = -1.52
-          return (
-            <group key={`gz-${art.id}`} position={new THREE.Vector3(x, -1.52, z)}>
-              {/* X arm */}
-              <mesh>
-                <boxGeometry args={[armLength, armHeight, armThickness]} />
-                <meshStandardMaterial color={new THREE.Color(hex)} transparent={false} opacity={1} depthWrite={true} roughness={1} metalness={0} />
-              </mesh>
-              {/* Z arm */}
-              <mesh>
-                <boxGeometry args={[armThickness, armHeight, armLength]} />
-                <meshStandardMaterial color={new THREE.Color(hex)} transparent={false} opacity={1} depthWrite={true} roughness={1} metalness={0} />
-              </mesh>
-            </group>
-          );
-        })}
+        {/* Zero gravity visual effects (lazy-loaded) */}
+        {isZeroGravityMode && showGroundMarkers && (
+          <React.Suspense fallback={null}>
+            <ZeroGravityEffects artworks={artworks} />
+          </React.Suspense>
+        )}
 
         <NewCameraControl
           ref={cameraControlRef as any}
