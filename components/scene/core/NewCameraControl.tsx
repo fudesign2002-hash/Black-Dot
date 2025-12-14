@@ -301,31 +301,25 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   useEffect(() => {
     const controls = controlsRef.current;
     if (!controls) return;
-    // Track whether any movement occurred during the interaction
-    const movedDuringInteraction = { current: false } as { current: boolean };
     let interactionStartTs = 0;
-    // Use only a world-space movement threshold to detect real drags (ignore press duration)
-    const MOVE_DISTANCE_THRESHOLD = 16; // world units (increased to tolerate small finger jitters on mobile)
+    // Use only a time threshold to decide whether an interaction is a drag
+    const CLICK_TIME_THRESHOLD = 300; // ms: press duration above this is considered a drag
     const startPosRef = { current: new THREE.Vector3() } as { current: THREE.Vector3 };
 
     const onStart = () => {
       isUserDraggingRef.current = true;
       setIsUserDragging(true);
-      movedDuringInteraction.current = false;
       interactionStartTs = performance.now();
       // Start capturing
       lastUserPos.current.copy(camera.position);
       startPosRef.current.copy(camera.position);
       lastEmit.current = 0;
-      // user interaction start
       if (props.onUserInteractionStart) props.onUserInteractionStart();
     };
 
     const onChange = () => {
       if (!isUserDraggingRef.current) return;
-      // mark that movement happened during this interaction only if camera moved beyond threshold
-      const dist = camera.position.distanceTo(startPosRef.current);
-      if (dist > MOVE_DISTANCE_THRESHOLD) movedDuringInteraction.current = true;
+      // We no longer use distance to decide drag; keep updating live pos and throttle emits
       lastUserPos.current.copy(camera.position);
       const now = performance.now();
       if (now - lastEmit.current > throttleMs) {
@@ -339,25 +333,32 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       lastUserPos.current.copy(camera.position);
       const posTuple: [number, number, number] = [lastUserPos.current.x, lastUserPos.current.y, lastUserPos.current.z];
       const now = performance.now();
+      // If we never received a start timestamp, treat this as a short interaction
+      if (!interactionStartTs) {
+        try {
+          (window as any).__LAST_INTERACTION = { duration: 0, distance: 0 };
+        } catch (e) {}
+        if (props.onUserInteractionEnd) props.onUserInteractionEnd(false);
+        interactionStartTs = 0;
+        return;
+      }
       const duration = now - interactionStartTs;
-      // Determine drag solely by distance moved during interaction
-      const wasDrag = movedDuringInteraction.current;
-      // measure distance moved during interaction
+      // Decide drag by duration only
+      const wasDrag = duration > CLICK_TIME_THRESHOLD;
+      // still record distance for debugging, but it won't affect decision
       const interactionDistance = startPosRef.current ? camera.position.distanceTo(startPosRef.current) : 0;
       try {
         (window as any).__LAST_INTERACTION = { duration: Math.round(duration), distance: Number(interactionDistance.toFixed(4)) };
       } catch (e) {
         // ignore write errors
       }
-      // user interaction end
       if (props.onUserInteractionEnd) props.onUserInteractionEnd(wasDrag);
       // Only persist custom camera when the editor is open and it was a drag.
       if (wasDrag && props.isEditorOpen) {
-        // persisting custom camera
         if (props.onSaveCustomCamera) props.onSaveCustomCamera(posTuple);
-      } else {
-        // not persisting custom camera
       }
+      // Reset start timestamp so subsequent 'end' events don't compute large durations
+      interactionStartTs = 0;
     };
 
     controls.addEventListener('start', onStart);
