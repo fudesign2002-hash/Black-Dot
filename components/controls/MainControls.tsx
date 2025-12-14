@@ -118,6 +118,9 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   return (
     <React.Fragment>
     <div className={`absolute z-40 flex flex-col items-center gap-1 transition-all duration-500 ${isInfoOpen ? 'translate-y-24 opacity-0' : 'translate-y-0 opacity-100'} bottom-10 left-1/2 -translate-x-1/2`}>
+        {isSmallScreen && (
+          <SmallScreenInteractionDisplay />
+        )}
         
         <div className={`flex flex-col items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'}`} // MODIFIED: Hide if in zero gravity mode
              aria-hidden={!(isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode)}>
@@ -337,3 +340,31 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
     });
 
 export default MainControls;
+
+// Small helper: display latest interaction metrics on small screens
+const SmallScreenInteractionDisplay: React.FC = () => {
+  const [state, setState] = React.useState<{ duration: number; distance: number }>({ duration: 0, distance: 0 });
+
+  React.useEffect(() => {
+    let mounted = true;
+    const tick = () => {
+      try {
+        const v = (window as any).__LAST_INTERACTION;
+        if (mounted && v) {
+          setState({ duration: Number(v.duration || 0), distance: Number(v.distance || 0) });
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 200);
+    return () => { mounted = false; clearInterval(id); };
+  }, []);
+
+  return (
+    <div className="absolute top-4 left-4 z-50 text-red-600 font-bold select-none text-sm">
+      {state.duration}ms / {state.distance}
+    </div>
+  );
+};

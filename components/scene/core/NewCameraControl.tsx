@@ -307,7 +307,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     // Increase time threshold for mobile (finger presses are often >150ms)
     const CLICK_TIME_THRESHOLD = 300; // ms. If held longer than this, treat as drag even without significant movement
     // Also use a small world-space movement threshold to detect real drags
-    const MOVE_DISTANCE_THRESHOLD = 5; // world units (increased to tolerate small finger jitters on mobile)
+    const MOVE_DISTANCE_THRESHOLD = 0.2; // world units (increased to tolerate small finger jitters on mobile)
     const startPosRef = { current: new THREE.Vector3() } as { current: THREE.Vector3 };
 
     const onStart = () => {
@@ -343,6 +343,13 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       const now = performance.now();
       const duration = now - interactionStartTs;
       const wasDrag = movedDuringInteraction.current || duration > CLICK_TIME_THRESHOLD;
+      // measure distance moved during interaction
+      const interactionDistance = startPosRef.current ? camera.position.distanceTo(startPosRef.current) : 0;
+      try {
+        (window as any).__LAST_INTERACTION = { duration: Math.round(duration), distance: Number(interactionDistance.toFixed(4)) };
+      } catch (e) {
+        // ignore write errors
+      }
       // user interaction end
       if (props.onUserInteractionEnd) props.onUserInteractionEnd(wasDrag);
       // Only persist custom camera when the editor is open and it was a drag.
