@@ -343,10 +343,10 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         return;
       }
       const duration = now - interactionStartTs;
-      // Decide drag by duration only
-      const wasDrag = duration > CLICK_TIME_THRESHOLD;
-      // still record distance for debugging, but it won't affect decision
+      // Decide drag by duration OR by movement distance (to catch short quick drags)
       const interactionDistance = startPosRef.current ? camera.position.distanceTo(startPosRef.current) : 0;
+      const CLICK_DISTANCE_THRESHOLD = 0.25; // world units: treat movements above this as a drag
+      const wasDrag = duration > CLICK_TIME_THRESHOLD || interactionDistance > CLICK_DISTANCE_THRESHOLD;
       try {
         (window as any).__LAST_INTERACTION = { duration: Math.round(duration), distance: Number(interactionDistance.toFixed(4)) };
       } catch (e) {

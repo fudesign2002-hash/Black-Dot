@@ -63,7 +63,7 @@ function MuseumApp() {
   const prevAuthUidRef = useRef<string | null | undefined>(undefined);
   const prevVisibleIdsRef = useRef<string | null>(null);
 
-  const isSignedIn = Boolean(user && (user.providerData && user.providerData.length > 0));
+  const isSignedIn = Boolean(user && !user.isAnonymous && (user.providerData && user.providerData.length > 0));
 
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [editorLayout, setEditorLayout] = useState<ExhibitionArtItem[] | null>(null);
@@ -154,7 +154,7 @@ function MuseumApp() {
     setLightingOverride,
     currentIndex,
     refreshNow,
-  } = useMuseumState(isSnapshotEnabledGlobally, (isSignedIn && user) ? user.uid : undefined); // Pass ownerUid when signed-in so owners see their exhibitions
+  } = useMuseumState(isSnapshotEnabledGlobally, undefined); // Allow guest snapshots (public read)
 
   // Ref to request editorLayout reload after an external refresh (to avoid overwriting in-progress edits)
   const editorLayoutReloadRequested = useRef(false);
@@ -231,11 +231,11 @@ function MuseumApp() {
       if (prevAuthUidRef.current === currentUid) return;
       prevAuthUidRef.current = currentUid;
 
-      const isGuest = !user;
+      const isGuest = !user || user.isAnonymous;
       const labelStyle = isGuest ? 'background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px' : 'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px';
       const label = isGuest ? '%cGuest' : `%cSigned: ${user?.displayName || user?.email || user?.uid}`;
       console.groupCollapsed(label, labelStyle);
-      if (user && isSignedIn) {
+      if (user && !user.isAnonymous) {
         console.log('uid:', user.uid);
         console.log('email:', user.email);
         console.log('displayName:', user.displayName);
@@ -259,7 +259,7 @@ function MuseumApp() {
   useEffect(() => {
     (async () => {
       try {
-        const isGuest = !user;
+        const isGuest = !user || user.isAnonymous;
         const headerStyle = isGuest ? 'background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px' : 'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px';
         const header = isGuest ? '%cVisible exhibitions (guest)' : `%cVisible exhibitions (${user?.uid})`;
 
@@ -267,7 +267,7 @@ function MuseumApp() {
         if (isGuest) {
           queryRef = db.collection('exhibitions').where('isShowcase', '==', true);
         } else {
-          queryRef = db.collection('exhibitions').where('ownerId', '==', user!.uid).where('isPublic', '==', true);
+          queryRef = db.collection('exhibitions').where('ownerId', '==', user!.uid).where('isActive', '==', true);
         }
 
         const snap = await queryRef.get();
@@ -1311,8 +1311,8 @@ function MuseumApp() {
               // Keep the flag for a short window to let the subsequent click handler consult it
               window.setTimeout(() => { lastUserInteractionWasDragRef.current = false; }, 300);
             } else {
-              // If it was a click, ensure reset button is disabled and clear the flag
-              setIsResetCameraEnable(false);
+              // For click interactions we no longer disable the reset button here to avoid
+              // hiding it on quick interactions; just clear the temporary drag flag.
               lastUserInteractionWasDragRef.current = false;
             }
           }}
