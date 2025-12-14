@@ -54,6 +54,8 @@ interface NewCameraControlProps {
   onUserInteractionStart?: () => void;
   // onUserInteractionEnd receives a boolean indicating whether the interaction was a drag (true) or a click (false)
   onUserInteractionEnd?: (wasDrag: boolean) => void;
+  // Called continuously during user interaction with the current movement distance (world units)
+  onUserInteractionDistance?: (distance: number) => void;
   userCameraThrottleMs?: number;
   cameraFov?: number; // optional override for the camera field of view (degrees)
   // Additional props will be added as we migrate logic here
@@ -307,7 +309,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     // Increase time threshold for mobile (finger presses are often >150ms)
     const CLICK_TIME_THRESHOLD = 300; // ms. If held longer than this, treat as drag even without significant movement
     // Also use a small world-space movement threshold to detect real drags
-    const MOVE_DISTANCE_THRESHOLD = 0.02; // world units
+    const MOVE_DISTANCE_THRESHOLD = 0.08; // world units (increased to tolerate small finger jitters on mobile)
     const startPosRef = { current: new THREE.Vector3() } as { current: THREE.Vector3 };
 
     const onStart = () => {
@@ -328,6 +330,8 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       // mark that movement happened during this interaction only if camera moved beyond threshold
       const dist = camera.position.distanceTo(startPosRef.current);
       if (dist > MOVE_DISTANCE_THRESHOLD) movedDuringInteraction.current = true;
+      // Emit current distance for UI/debug overlays
+      if (props.onUserInteractionDistance) props.onUserInteractionDistance(dist);
       lastUserPos.current.copy(camera.position);
       const now = performance.now();
       if (now - lastEmit.current > throttleMs) {

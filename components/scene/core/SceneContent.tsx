@@ -125,6 +125,9 @@ const SceneContent: React.FC<SceneProps> = ({
   const currentEffectGroup = useRef<EffectGroup | null>(null); // NEW: Ref to hold the active effect's 3D group
   const currentEffectName = useRef<string | null>(null); // NEW: Ref to track the name of the active effect
   const [showGroundMarkers, setShowGroundMarkers] = useState(false); // Delayed visibility for ground markers
+  // Debug: show user interaction distance on small screens
+  const [interactionDistance, setInteractionDistance] = useState<number | null>(null);
+  const [showInteractionDistance, setShowInteractionDistance] = useState(false);
 
 
   // NEW: Load background texture when exhibit_background changes and useExhibitionBackground is true
@@ -538,10 +541,29 @@ const SceneContent: React.FC<SceneProps> = ({
           onCameraPositionChange={onCameraPositionChange}
           onCameraAnimationStateChange={undefined}
           onSaveCustomCamera={onSaveCustomCamera}
-          onUserInteractionStart={onUserCameraInteractionStart}
-          onUserInteractionEnd={onUserCameraInteractionEnd}
+          onUserInteractionStart={() => {
+            setShowInteractionDistance(true);
+            if (onUserCameraInteractionStart) onUserCameraInteractionStart();
+          }}
+          onUserInteractionEnd={(wasDrag: boolean) => {
+            // hide after a short delay so user can read value
+            window.setTimeout(() => setShowInteractionDistance(false), 1500);
+            if (onUserCameraInteractionEnd) onUserCameraInteractionEnd(wasDrag);
+          }}
+          onUserInteractionDistance={(d: number) => {
+            if (isSmallScreen) setInteractionDistance(d);
+          }}
           lightingConfig={lightingConfig}
         />
+
+        {/* Small-screen debug overlay for interaction distance */}
+        {isSmallScreen && showInteractionDistance && interactionDistance !== null && (
+          <div className="absolute top-4 right-4 z-50">
+            <div className={`text-xs font-mono px-2 py-1 rounded ${lightsOn ? 'bg-white/80 text-black' : 'bg-black/60 text-white'}`}>
+              {`dist: ${interactionDistance.toFixed(3)}`}
+            </div>
+          </div>
+        )}
         {!lightsOn && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && (
           <ProximityHandler
             artworks={artworks}

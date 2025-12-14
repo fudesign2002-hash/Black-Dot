@@ -207,7 +207,10 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
                 height: '100%',
                 zIndex: 1,
                 cursor: 'pointer',
+                touchAction: 'manipulation', // prefer manipulation so taps are handled but small gestures won't trigger browser gesture
+                WebkitTapHighlightColor: 'transparent',
               }}
+              onPointerDown={(e) => { e.stopPropagation(); }}
               onClick={(e) => onArtworkClickedHtml(e, artworkPosition, artworkRotation, artworkType)}
             />
           </div>
