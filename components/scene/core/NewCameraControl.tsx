@@ -305,9 +305,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     const movedDuringInteraction = { current: false } as { current: boolean };
     let interactionStartTs = 0;
     // Increase time threshold for mobile (finger presses are often >150ms)
-    const CLICK_TIME_THRESHOLD = 300; // ms. If held longer than this, treat as drag even without significant movement
+    const CLICK_TIME_THRESHOLD = 2000; // ms. If held longer than this, treat as drag even without significant movement
     // Also use a small world-space movement threshold to detect real drags
-    const MOVE_DISTANCE_THRESHOLD = 0.2; // world units (increased to tolerate small finger jitters on mobile)
+    const MOVE_DISTANCE_THRESHOLD = 12; // world units (increased to tolerate small finger jitters on mobile)
     const startPosRef = { current: new THREE.Vector3() } as { current: THREE.Vector3 };
 
     const onStart = () => {
