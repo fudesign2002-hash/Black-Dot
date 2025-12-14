@@ -154,7 +154,7 @@ function MuseumApp() {
     setLightingOverride,
     currentIndex,
     refreshNow,
-  } = useMuseumState(isSnapshotEnabledGlobally, undefined); // Allow guest snapshots (public read)
+  } = useMuseumState(isSnapshotEnabledGlobally, user?.uid); // Pass signed-in user's uid (owner view) or undefined for guests
 
   // Ref to request editorLayout reload after an external refresh (to avoid overwriting in-progress edits)
   const editorLayoutReloadRequested = useRef(false);

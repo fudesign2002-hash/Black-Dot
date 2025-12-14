@@ -79,13 +79,14 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
 
     // Sync local states with prop when lightingConfig or the zone's stored defaultConfig changes.
     // If the zone explicitly stored `useCustomColors = false` (user pressed Default Color),
-    // or if there are no stored colors, show white as the starting values when opening custom colors.
+    // show white as the starting values when opening custom colors. Do NOT infer from
+    // presence of `floorColor`/`backgroundColor` on the lightingConfig itself.
     useEffect(() => {
       const baseConfig = fullZoneLightingDesign?.defaultConfig || {} as any;
       const baseHasFloor = Boolean(baseConfig.floorColor);
       const baseHasBg = Boolean(baseConfig.backgroundColor);
       const baseUseCustomFalse = baseConfig.useCustomColors === false;
-      const explicitUseCustom = Boolean((lightingConfig as any).useCustomColors);
+      const explicitUseCustom = (lightingConfig as any).useCustomColors === true;
 
       const shouldStartWhite = baseUseCustomFalse || (!explicitUseCustom && !baseHasFloor && !baseHasBg);
 
@@ -99,16 +100,17 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
     }, [lightingConfig.floorColor, lightingConfig.backgroundColor, (lightingConfig as any).useCustomColors, fullZoneLightingDesign?.defaultConfig]);
 
     // UI state: whether the single "Custom Color" control is expanded to show separate pickers
-    const [customExpanded, setCustomExpanded] = useState<boolean>(!!(lightingConfig.floorColor || lightingConfig.backgroundColor));
+    // Only expand when `useCustomColors` is explicitly true; do not infer from color presence.
+    const [customExpanded, setCustomExpanded] = useState<boolean>((lightingConfig as any).useCustomColors === true);
 
     // When external lightingConfig changes, auto-collapse if no custom colors exist, or expand if they do
     useEffect(() => {
-      const enabled = !!((lightingConfig as any).useCustomColors ?? (lightingConfig.floorColor || lightingConfig.backgroundColor));
+      const enabled = (lightingConfig as any).useCustomColors === true;
       setCustomExpanded(enabled);
     }, [lightingConfig.floorColor, lightingConfig.backgroundColor, (lightingConfig as any).useCustomColors]);
 
     const hasCustomColors = useMemo(() => {
-      return !!((lightingConfig as any).useCustomColors ?? (lightingConfig.floorColor || lightingConfig.backgroundColor));
+      return (lightingConfig as any).useCustomColors === true;
     }, [lightingConfig.floorColor, lightingConfig.backgroundColor, (lightingConfig as any).useCustomColors]);
     const normalizeHex = (hex: string): string | null => {
       if (!hex) return null;
@@ -363,7 +365,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                               const baseHasFloor = Boolean(baseConfig.floorColor);
                               const baseHasBg = Boolean(baseConfig.backgroundColor);
                               const baseUseCustomFalse = baseConfig.useCustomColors === false;
-                              const explicitUseCustom = Boolean((lightingConfig as any).useCustomColors);
+                              const explicitUseCustom = (lightingConfig as any).useCustomColors === true;
                               // Initialize to white if zone explicitly stored useCustomColors=false (user clicked Default Color),
                               // or if there are no stored colors and useCustomColors isn't already enabled.
                               const shouldInitWhite = baseUseCustomFalse || (!explicitUseCustom && !baseHasFloor && !baseHasBg);

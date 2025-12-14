@@ -77,6 +77,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     const unsubscribes: (() => void)[] = []; // NEW: Array to hold unsubscribe functions
 
     if (enableSnapshots) { // NEW: Conditionally subscribe to snapshots
+      // For owner views we show exhibitions that belong to the owner and are public
       const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
       const zonesColRef = db.collection('zones');
       const artworksColRef = db.collection('artworks');
@@ -133,6 +134,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
   // Manual refresh helper: fetch latest collections once and update state.
   const refreshNow = useCallback(async () => {
     try {
+      // Match the same server-side query used for snapshots: owners see their public exhibitions
       const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
       const zonesColRef = db.collection('zones');
       const artworksColRef = db.collection('artworks');

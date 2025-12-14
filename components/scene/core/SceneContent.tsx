@@ -93,11 +93,10 @@ const SceneContent: React.FC<SceneProps> = ({
   const tmpTargetFloorColor = useRef(new THREE.Color());
   const reusableFog = useRef<THREE.Fog | null>(null);
 
-  // Respect a `useCustomColors` boolean in lightingConfig; if explicitly provided, ALWAYS trust it.
-  // Otherwise fall back to presence of color fields for backwards compatibility.
-  const explicitUseCustom = typeof (lightingConfig as any).useCustomColors !== 'undefined'
-    ? Boolean((lightingConfig as any).useCustomColors)
-    : !!(lightingConfig.floorColor || lightingConfig.backgroundColor);
+  // Respect a `useCustomColors` boolean in lightingConfig; only consider it enabled
+  // when it is explicitly `true`. Do NOT infer from presence of `floorColor` or
+  // `backgroundColor` when the field is missing.
+  const explicitUseCustom = (lightingConfig as any).useCustomColors === true;
 
   // Compute effective colors up-front and memoize to avoid reading lightingConfig mid-frame
   const effectiveFloorColor = useMemo(() => {
