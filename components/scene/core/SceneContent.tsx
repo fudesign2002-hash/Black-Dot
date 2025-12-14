@@ -295,9 +295,9 @@ const SceneContent: React.FC<SceneProps> = ({
       // Fog color should still blend with a neutral color that matches the overall lighting state.
       const targetFogColor = lightsOn ? lightBgColor : darkBgColor; // Fog still adapts to lights on/off
       if (!reusableFog.current) reusableFog.current = new THREE.Fog(targetFogColor, 20, 90);
-      // Ensure scene.fog is set to our reusable fog instance and lerp its color
+      // Ensure scene.fog is set to our reusable fog instance and immediately set its color
       if (scene.fog !== reusableFog.current) scene.fog = reusableFog.current;
-      reusableFog.current.color.lerp(targetFogColor, lerpSpeed);
+      reusableFog.current.color.copy(targetFogColor);
       
       // NEW: Lerp floor color to effectiveFloorColor when custom colors are enabled
       if (effectiveFloorColor) {
@@ -305,7 +305,7 @@ const SceneContent: React.FC<SceneProps> = ({
       } else {
         tmpTargetFloorColor.current.set(initialFloorColor);
       }
-      if (floorMatRef.current) floorMatRef.current.color.lerp(tmpTargetFloorColor.current, lerpSpeed);
+      if (floorMatRef.current) floorMatRef.current.color.copy(tmpTargetFloorColor.current);
       
       // Disable fog when using exhibition background
       if (scene.fog) scene.fog = null;
@@ -344,12 +344,15 @@ const SceneContent: React.FC<SceneProps> = ({
       }
       // Color debug logging removed
 
-      if (scene.background instanceof THREE.Color) scene.background.lerp(targetBgColor, lerpSpeed);
-      // Enable or reuse fog if not using exhibition background
+      // Immediately apply the solid background color (replace any existing color)
+      scene.background = targetBgColor.clone();
+      // Enable or reuse fog if not using exhibition background and immediately set its color
       if (!reusableFog.current) reusableFog.current = new THREE.Fog(targetBgColor, 20, 90);
       if (scene.fog !== reusableFog.current) scene.fog = reusableFog.current;
-      reusableFog.current.color.lerp(targetBgColor, lerpSpeed);
-      if (floorMatRef.current) floorMatRef.current.color.lerp(tmpTargetFloorColor.current, lerpSpeed); // Use configured or default color
+      reusableFog.current.color.copy(targetBgColor);
+      // Ensure tmpTargetFloorColor reflects the chosen solid floor color and apply it immediately
+      tmpTargetFloorColor.current.copy(targetFloorColorSolid);
+      if (floorMatRef.current) floorMatRef.current.color.copy(tmpTargetFloorColor.current);
       // scene.environment = null; // Clear environment map if not using custom background, now handled by Environment component
       // console.log(`[SceneContent-useFrame] Applying solid background color: ${targetBgColor.getHexString()}. LightsOn: ${lightsOn}`);
     }

@@ -101,8 +101,8 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // MODIFIED: Hide if in ranking mode, focused on artwork, or in zero gravity mode
   // Show reset iff global flag is enabled AND not in ranking/zero-gravity modes
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
-  const hasRankingToggle = !isEditorMode && !hasMotionArtwork && !isZeroGravityMode; // MODIFIED: Hide if in zero gravity mode
-  const hasZeroGravityToggle = !isEditorMode && !isRankingMode; // NEW: Zero Gravity Toggle
+  const hasRankingToggle = !isEditorMode && !isZeroGravityMode; // Render ranking toggle; may be disabled when motion artwork present
+  const hasZeroGravityToggle = !isEditorMode && !isRankingMode; // Zero Gravity Toggle (may be disabled when motion artwork present)
   // MODIFIED: Add !isRankingMode, !isZeroGravityMode to hide small screen navigation in ranking/zero gravity mode
   const hasSmallScreenNav = isSmallScreen && !isEditorMode && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode; // Only show if not focused AND not in ranking/zero gravity mode
 
@@ -269,31 +269,37 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 <RefreshCw className="w-4 h-4" />
               </button>
             )}
-            {hasRankingToggle && ( 
-                <button
-                    onClick={() => {
-                      setHeartEmitterArtworkId(null);
-                      onRankingToggle();
-                    }}
-                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${isRankingMode ? uiConfig.glassActive : uiConfig.glass}`}
-                    title={isRankingMode ? "Exit Ranking" : "Show Ranking"}
-                    aria-label={isRankingMode ? "Exit ranking mode" : "Show artwork ranking by likes"}
-                >
-                    <ListOrdered className={`w-4 h-4 ${isRankingMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
-                </button>
+            {hasRankingToggle && (
+              <button
+                onClick={() => {
+                  if (hasMotionArtwork) return;
+                  setHeartEmitterArtworkId(null);
+                  onRankingToggle();
+                }}
+                disabled={hasMotionArtwork}
+                aria-disabled={hasMotionArtwork}
+                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${isRankingMode ? uiConfig.glassActive : uiConfig.glass} ${hasMotionArtwork ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={hasMotionArtwork ? 'Disabled while scene contains motion artworks' : (isRankingMode ? 'Exit Ranking' : 'Show Ranking')}
+                aria-label={isRankingMode ? 'Exit ranking mode' : 'Show artwork ranking by likes'}
+              >
+                <ListOrdered className={`w-4 h-4 ${isRankingMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
+              </button>
             )}
-            {hasZeroGravityToggle && ( // NEW: Zero Gravity Toggle Button
-                <button
-                    onClick={() => {
-                      setHeartEmitterArtworkId(null);
-                      onZeroGravityToggle();
-                    }}
-                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${isZeroGravityMode ? uiConfig.glassActive : uiConfig.glass}`}
-                    title={isZeroGravityMode ? "Exit Zero Gravity" : "Enter Zero Gravity"}
-                    aria-label={isZeroGravityMode ? "Exit zero gravity mode" : "Enter zero gravity mode"}
-                >
-                    <Orbit className={`w-4 h-4 ${isZeroGravityMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
-                </button>
+            {hasZeroGravityToggle && (
+              <button
+                onClick={() => {
+                  if (hasMotionArtwork) return;
+                  setHeartEmitterArtworkId(null);
+                  onZeroGravityToggle();
+                }}
+                disabled={hasMotionArtwork}
+                aria-disabled={hasMotionArtwork}
+                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${isZeroGravityMode ? uiConfig.glassActive : uiConfig.glass} ${hasMotionArtwork ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={hasMotionArtwork ? 'Disabled while scene contains motion artworks' : (isZeroGravityMode ? 'Exit Zero Gravity' : 'Enter Zero Gravity')}
+                aria-label={isZeroGravityMode ? 'Exit zero gravity mode' : 'Enter zero gravity mode'}
+              >
+                <Orbit className={`w-4 h-4 ${isZeroGravityMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
+              </button>
             )}
 
             {hasSmallScreenNav && (

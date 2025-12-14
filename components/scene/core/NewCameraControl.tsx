@@ -304,7 +304,11 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     // Track whether any movement occurred during the interaction
     const movedDuringInteraction = { current: false } as { current: boolean };
     let interactionStartTs = 0;
-    const CLICK_TIME_THRESHOLD = 150; // ms. If held longer than this, treat as drag even without significant movement
+    // Increase time threshold for mobile (finger presses are often >150ms)
+    const CLICK_TIME_THRESHOLD = 300; // ms. If held longer than this, treat as drag even without significant movement
+    // Also use a small world-space movement threshold to detect real drags
+    const MOVE_DISTANCE_THRESHOLD = 0.02; // world units
+    const startPosRef = { current: new THREE.Vector3() } as { current: THREE.Vector3 };
 
     const onStart = () => {
       isUserDraggingRef.current = true;
@@ -313,6 +317,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       interactionStartTs = performance.now();
       // Start capturing
       lastUserPos.current.copy(camera.position);
+      startPosRef.current.copy(camera.position);
       lastEmit.current = 0;
       // user interaction start
       if (props.onUserInteractionStart) props.onUserInteractionStart();
@@ -320,11 +325,12 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
     const onChange = () => {
       if (!isUserDraggingRef.current) return;
-      // mark that movement happened during this interaction
-      movedDuringInteraction.current = true;
+      // mark that movement happened during this interaction only if camera moved beyond threshold
+      const dist = camera.position.distanceTo(startPosRef.current);
+      if (dist > MOVE_DISTANCE_THRESHOLD) movedDuringInteraction.current = true;
       lastUserPos.current.copy(camera.position);
       const now = performance.now();
-        if (now - lastEmit.current > throttleMs) {
+      if (now - lastEmit.current > throttleMs) {
         lastEmit.current = now;
       }
     };

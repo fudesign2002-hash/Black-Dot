@@ -34,7 +34,7 @@ const isImageUrl = (url: string | undefined): boolean => {
 
 const VIDEO_SIZE_MULTIPLIER = 0.3;
 const VIDEO_INNER_CONTENT_MULTIPLIER = 0.85;
-const EMBED_VIDEO_VERTICAL_OFFSET = 0.3; 
+const EMBED_VIDEO_VERTICAL_OFFSET = 0; 
 const MOTION_WALL_BACKING_MULTIPLIER = 2.5; 
 
 // NEW: Small screen specific Y offset for motion videos
@@ -130,8 +130,17 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     const videoContentBaseWidth = maxDimension * VIDEO_SIZE_MULTIPLIER;
     const videoContentBaseHeight = videoContentBaseWidth / videoAspectRatio;
 
-    const backingWallWidth = videoContentBaseWidth * MOTION_WALL_BACKING_MULTIPLIER;
-    const backingWallHeight = videoContentBaseHeight * MOTION_WALL_BACKING_MULTIPLIER;
+    // Calculate the iframe's actual rendered size first, then size the backing
+    // wall proportionally to the rendered iframe to keep padding uniform.
+    const iframeRenderedWidth = videoContentBaseWidth * VIDEO_INNER_CONTENT_MULTIPLIER;
+    const iframeRenderedHeight = videoContentBaseHeight * VIDEO_INNER_CONTENT_MULTIPLIER;
+
+    // Add fixed pixel padding (px) on each side of the iframe; convert to world units
+    const PIXEL_BACKING_PADDING = 5; // px per side
+    const paddingWorld = PIXEL_BACKING_PADDING / 100; // world units per side (HTML_SCALE_FACTOR = 100)
+
+    const backingWallWidth = iframeRenderedWidth * MOTION_WALL_BACKING_MULTIPLIER + paddingWorld * 2;
+    const backingWallHeight = iframeRenderedHeight * MOTION_WALL_BACKING_MULTIPLIER + paddingWorld * 2;
 
     const backingWallMeshCenterY = backingWallHeight / 2;
 
@@ -152,13 +161,13 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     useEffect(() => {
       if (onDimensionsCalculated) {
         onDimensionsCalculated(
-          videoContentBaseWidth,
-          videoContentBaseHeight,
+          iframeRenderedWidth,
+          iframeRenderedHeight,
           zPosition,
           htmlContentCenterY
         );
       }
-    }, [onDimensionsCalculated, videoContentBaseWidth, videoContentBaseHeight, zPosition, htmlContentCenterY]);
+    }, [onDimensionsCalculated, iframeRenderedWidth, iframeRenderedHeight, zPosition, htmlContentCenterY]);
 
     return (
       <group>

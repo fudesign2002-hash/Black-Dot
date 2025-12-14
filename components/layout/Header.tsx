@@ -123,15 +123,19 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
         </div>
         
         <div className={onlineUsersDisplayClasses}>
-            <div className="relative flex items-baseline leading-none">
-                <span className={`relative text-base font-serif font-medium -top-[6px] -right-[-6px] ${numeratorClasses}`} style={numeratorStyle}>
-                    {onlineUsers}
-                </span>
-                <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
-                <span className={`relative text-xs font-serif font-normal top-[0px] left-[2px] ${denominatorClasses}`}>
-                    {zoneCapacity}
-                </span>
+          <div className="relative flex items-center gap-4 leading-none">
+            <Users className={`w-4 h-4 shrink-0 ${uiConfig.subtext}`} aria-hidden="true" />
+
+            <div className="relative flex items-baseline">
+              <span className={`relative text-base font-serif font-medium -top-[6px] -right-[-6px] ${numeratorClasses}`} style={numeratorStyle}>
+                {onlineUsers}
+              </span>
+              <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
+              <span className={`relative text-xs font-serif font-normal top-[0px] left-[2px] ${denominatorClasses}`}>
+                {zoneCapacity}
+              </span>
             </div>
+          </div>
         </div>
       </div>
     </React.Fragment>
