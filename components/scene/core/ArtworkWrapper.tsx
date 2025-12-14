@@ -68,7 +68,7 @@ const ZERO_GRAVITY_GLOBAL_LOWER_OFFSET = 0;
 
 // Constants for dynamic angular amplitude mapping (higher floating items tilt more)
 const MIN_Y_OFFSET_FOR_AMPLITUDE_MAP = 2;  // Lower bound of artwork's floating height for mapping
-const MAX_Y_OFFSET_FOR_AMPLITUDE_MAP = 25; // Upper bound of artwork's floating height for mapping
+const MAX_Y_OFFSET_FOR_AMPLITUDE_MAP = 20; // Upper bound of artwork's floating height for mapping
 const MIN_ANGULAR_AMPLITUDE = 0.02; // Minimum angular amplitude (radians)
 const MAX_ANGULAR_AMPLITUDE = 0.5;  // Maximum angular amplitude (radians) - increased for stronger tilt
 // Exponent used to bias the mapping toward larger amplitudes for higher floats

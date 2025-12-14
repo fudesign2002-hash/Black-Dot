@@ -97,28 +97,28 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
               </div>
             </div>
 
-            <svg 
-                width="40"
-                height="40"
-                viewBox="0 0 100 100" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg" 
-                className={`stroke-current transition-transform duration-500 ease-out shrink-0 
-                    ${isSmallScreen ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}
-                `}
-                style={{ transform: logoRotationStyle }}
-                onClick={handleLogoClick}
-                aria-label="Toggle header details"
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none"
+              className={`stroke-current transition-transform duration-500 ease-out shrink-0 ${isSmallScreen ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
+              style={{ transform: logoRotationStyle }}
+              onClick={handleLogoClick}
+              aria-label="Toggle header details"
             >
-                <rect x="1" y="1" width="98" height="98" strokeWidth="2" />
-                <line x1="50" y1="0" x2="50" y2="100" strokeWidth="1" className="opacity-50" />
-                <line x1="0" y1="50" x2="100" y2="50" strokeWidth="1" className="opacity-50" />
-                <g className="opacity-40">
-                    <line x1="50" y1="0" x2="100" y2="50" strokeWidth="1.5" />
-                    <line x1="0" y1="50" x2="100" y2="50" strokeWidth="1.5" />
-                    <line x1="100" y1="50" x2="50" y2="100" strokeWidth="1.5" />
-                </g>
-                <circle cx="25" cy="75" r="7" className="fill-current" stroke="none" />
+              <g clipPath="url(#clip0_10_17)">
+                <rect x="0.3" y="0.3" width="39.4" height="39.4" stroke="black" strokeWidth="0.6"/>
+                <line x1="40" y1="25.3" y2="25.3" stroke="black" strokeWidth="0.6"/>
+                <line x1="24.7" y1="40" x2="24.7" y2="1.31134e-08" stroke="black" strokeWidth="0.6"/>
+                <line x1="14.9" y1="40" x2="14.9" y2="25" stroke="black" strokeWidth="0.2"/>
+                <line x1="33.9" y1="25" x2="33.9" y2="15" stroke="black" strokeWidth="0.2"/>
+                <line x1="15" y1="29.9" x2="25" y2="29.9" stroke="black" strokeWidth="0.2"/>
+                <line x1="25" y1="14.9" x2="40" y2="14.9" stroke="black" strokeWidth="0.2"/>
+                <circle cx="12.5" cy="12.5" r="12.4" stroke="black" strokeWidth="0.2"/>
+                <circle cx="8" cy="33" r="3" fill="black"/>
+              </g>
+              <defs>
+                <clipPath id="clip0_10_17">
+                  <rect width="40" height="40" fill="white"/>
+                </clipPath>
+              </defs>
             </svg>
         </div>
         

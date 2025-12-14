@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import firebase from 'firebase/compat/app';
 import { db } from '../firebase';
 import { Exhibition, ExhibitionZone, ExhibitionArtItem, SimplifiedLightingConfig, FirebaseArtwork } from '../types';
@@ -164,7 +164,19 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     // If ownerUid is provided we assume a signed-in owner view (show their items);
     // otherwise (guest) only show exhibitions marked as showcase.
     if (ownerUid) return processedAllExhibitions.filter(ex => ex.isPublic === true);
-    return processedAllExhibitions.filter(ex => ex.isShowcase === true);
+    // For guests filter to showcase and then sort by desired ordering below
+    const filtered = processedAllExhibitions.filter(ex => ex.isShowcase === true);
+    // Default ordering: status priority (past, current, permanent, others) then by dateFrom (newest first)
+    const statusRank: Record<string, number> = { past: 0, current: 1, permanent: 2 };
+    filtered.sort((a, b) => {
+      const ra = statusRank[a.status] ?? 3;
+      const rb = statusRank[b.status] ?? 3;
+      if (ra !== rb) return ra - rb;
+      const da = a.dateFrom ? Date.parse(String(a.dateFrom)) : 0;
+      const db = b.dateFrom ? Date.parse(String(b.dateFrom)) : 0;
+      return db - da; // newer dateFrom first
+    });
+    return filtered;
   }, [rawExhibitionDocs, firebaseArtworks, ownerUid]);
 
   useEffect(() => {
@@ -176,6 +188,22 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       setCurrentIndex(0);
     }
   }, [exhibitions, currentIndex]);
+
+  // Ensure first view on initial load focuses a 'now showing' exhibition if one exists.
+  const initialIndexAppliedRef = useRef(false);
+  // When the owner uid changes (user switched accounts), treat next load as initial.
+  useEffect(() => {
+    initialIndexAppliedRef.current = false;
+  }, [ownerUid]);
+  useEffect(() => {
+    if (!isLoading && !initialIndexAppliedRef.current && exhibitions.length > 0) {
+      const firstCurrent = exhibitions.findIndex(ex => ex.status === 'current');
+      if (firstCurrent !== -1) {
+        setCurrentIndex(firstCurrent);
+      }
+      initialIndexAppliedRef.current = true;
+    }
+  }, [isLoading, exhibitions]);
 
   const { activeExhibition, activeZone } = useMemo(() => {
     if (isLoading || exhibitions.length === 0) {
