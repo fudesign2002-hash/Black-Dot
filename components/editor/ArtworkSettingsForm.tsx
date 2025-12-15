@@ -349,8 +349,10 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
     );
   }, [artwork.id, onUpdateArtworkFile, handleUpdateStatus]);
 
-  const isGlb = artwork.artwork_file?.toLowerCase().includes('.glb') || artwork.file?.toLowerCase().includes('.glb');
-  const isVideo = artwork.artwork_file?.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) || artwork.file?.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/);
+  const getLastSegment = (u?: string) => (u ? u.split('?')[0].split('/').pop() || '' : '');
+  const lastSegment = getLastSegment(artwork.artwork_file) || getLastSegment(artwork.file);
+  const isGlb = /\.glb(?:$|-[0-9]+$)/i.test(lastSegment);
+  const isVideo = /\.(mp4|webm|ogg|mov)(?:$|-[0-9]+$)/i.test(lastSegment);
   const isImage = !isGlb && !isVideo;
 
   return (

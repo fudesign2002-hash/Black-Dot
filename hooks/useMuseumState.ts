@@ -163,7 +163,19 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     const processedAllExhibitions = processFirebaseExhibitions(rawExhibitionDocs, firebaseArtworks);
     // If ownerUid is provided we assume a signed-in owner view (show their items);
     // otherwise (guest) only show exhibitions marked as showcase.
-    if (ownerUid) return processedAllExhibitions.filter(ex => ex.isPublic === true);
+    if (ownerUid) {
+      const filteredOwner = processedAllExhibitions.filter(ex => ex.isPublic === true);
+      const statusRank: Record<string, number> = { past: 0, current: 1, permanent: 2 };
+      filteredOwner.sort((a, b) => {
+        const ra = statusRank[a.status] ?? 3;
+        const rb = statusRank[b.status] ?? 3;
+        if (ra !== rb) return ra - rb;
+        const da = a.dateFrom ? Date.parse(String(a.dateFrom)) : 0;
+        const db = b.dateFrom ? Date.parse(String(b.dateFrom)) : 0;
+        return db - da; // newer dateFrom first
+      });
+      return filteredOwner;
+    }
     // For guests filter to showcase and then sort by desired ordering below
     const filtered = processedAllExhibitions.filter(ex => ex.isShowcase === true);
     // Default ordering: status priority (past, current, permanent, others) then by dateFrom (newest first)

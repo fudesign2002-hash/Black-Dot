@@ -85,9 +85,10 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
 
         // FIX: Define fileUrl, isVideoFile, isImageFile, isGlbFile
         const fileUrl = firebaseArt.artwork_file || firebaseArt.file;
-        const isVideoFile = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)$/i.test(fileUrl.split('?')[0]));
-        const isImageFile = fileUrl && (/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(fileUrl.split('?')[0]));
-        const isGlbFile = fileUrl && fileUrl.toLowerCase().includes('.glb');
+        const lastSegment = (fileUrl || '').split('?')[0].split('/').pop() || '';
+        const isVideoFile = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)(?:$|-[0-9]+$)/i.test(lastSegment));
+        const isImageFile = fileUrl && /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(?:$|-[0-9]+$)/i.test(lastSegment);
+        const isGlbFile = fileUrl && /\.glb(?:$|-[0-9]+$)/i.test(lastSegment);
 
         switch (firebaseArt.artwork_type) {
             case 'painting':
@@ -173,9 +174,10 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
 
         // FIX: Define fileUrl, isVideoFile, isImageFile, isGlbFile
         const fileUrl = firebaseArt.artwork_file || firebaseArt.file;
-        const isVideoFile = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)$/i.test(fileUrl.split('?')[0]));
-        const isImageFile = fileUrl && (/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(fileUrl.split('?')[0]));
-        const isGlbFile = fileUrl && fileUrl.toLowerCase().includes('.glb');
+        const lastSegment = (fileUrl || '').split('?')[0].split('/').pop() || '';
+        const isVideoFile = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)(?:$|-[0-9]+$)/i.test(lastSegment));
+        const isImageFile = fileUrl && /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(?:$|-[0-9]+$)/i.test(lastSegment);
+        const isGlbFile = fileUrl && /\.glb(?:$|-[0-9]+$)/i.test(lastSegment);
 
         switch (firebaseArt.artwork_type) {
             case 'painting':

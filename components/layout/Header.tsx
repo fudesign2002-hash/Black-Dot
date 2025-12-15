@@ -103,19 +103,17 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
               onClick={handleLogoClick}
               aria-label="Toggle header details"
             >
-              <g clipPath="url(#clip0_10_17)">
-                <rect x="0.3" y="0.3" width="39.4" height="39.4" stroke="black" strokeWidth="0.6"/>
-                <line x1="40" y1="25.3" y2="25.3" stroke="black" strokeWidth="0.6"/>
-                <line x1="24.7" y1="40" x2="24.7" y2="1.31134e-08" stroke="black" strokeWidth="0.6"/>
-                <line x1="14.9" y1="40" x2="14.9" y2="25" stroke="black" strokeWidth="0.2"/>
-                <line x1="33.9" y1="25" x2="33.9" y2="15" stroke="black" strokeWidth="0.2"/>
-                <line x1="15" y1="29.9" x2="25" y2="29.9" stroke="black" strokeWidth="0.2"/>
-                <line x1="25" y1="14.9" x2="40" y2="14.9" stroke="black" strokeWidth="0.2"/>
-                <circle cx="12.5" cy="12.5" r="12.4" stroke="black" strokeWidth="0.2"/>
-                <circle cx="8" cy="33" r="3" fill="black"/>
+              <g clip-path="url(#clip0_14_21)">
+                <path d="M39.7002 0.299805V39.7002H0.299805V0.299805H39.7002Z" stroke="black" stroke-width="0.6"/>
+                <path d="M24.7214 0V40" stroke="black" stroke-width="0.6"/>
+                <path d="M0 24.7214H40" stroke="black" stroke-width="0.6"/>
+                <path d="M15.2786 24.7214V40" stroke="black" stroke-width="0.2"/>
+                <path d="M12.3604 0.0996094C19.1316 0.0996094 24.6209 5.58912 24.6211 12.3604C24.6211 19.1317 19.1317 24.6211 12.3604 24.6211C5.58912 24.6209 0.0996094 19.1316 0.0996094 12.3604C0.0997867 5.58923 5.58923 0.0997867 12.3604 0.0996094Z" stroke="black" stroke-width="0.2"/>
+                <path d="M7.63933 35.2786C9.25088 35.2786 10.5573 33.9722 10.5573 32.3607C10.5573 30.7491 9.25088 29.4427 7.63933 29.4427C6.02779 29.4427 4.72137 30.7491 4.72137 32.3607C4.72137 33.9722 6.02779 35.2786 7.63933 35.2786Z" fill="black"/>
+                <path d="M24.7214 15.2786H40" stroke="black" stroke-width="0.2"/>
               </g>
               <defs>
-                <clipPath id="clip0_10_17">
+                <clipPath id="clip0_14_21">
                   <rect width="40" height="40" fill="white"/>
                 </clipPath>
               </defs>

@@ -463,9 +463,10 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     const fileUrl = artwork.artwork_file || artwork.file;
     if (!fileUrl) return null;
 
-    const isVideo = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)$/i.test(fileUrl.split('?')[0]));
-    const isImage = fileUrl && (/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(fileUrl.split('?')[0]));
-    const isGlb = fileUrl && fileUrl.toLowerCase().includes('.glb');
+    const lastSegment = (fileUrl || '').split('?')[0].split('/').pop() || '';
+    const isVideo = fileUrl && (fileUrl.includes('vimeo.com') || fileUrl.includes('youtube.com') || /\.(mp4|webm|ogg|mov)(?:$|-[0-9]+$)/i.test(lastSegment));
+    const isImage = fileUrl && /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(?:$|-[0-9]+$)/i.test(lastSegment);
+    const isGlb = fileUrl && /\.glb(?:$|-[0-9]+$)/i.test(lastSegment);
 
     const hasError = previewMediaError[artwork.id];
     
