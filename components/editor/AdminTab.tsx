@@ -219,6 +219,51 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
     <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
       <div className="space-y-4">
         <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
+          <h4 className="font-bold text-sm mb-4">Embed Exhibition</h4>
+          <p className={`text-sm leading-relaxed ${subtext} mb-4`}>
+            Use the URL or iframe code below to embed this exhibition into another webpage.
+          </p>
+
+          <div className="mb-4">
+              <label className={`block text-xs font-bold uppercase mb-2 ${subtext}`}>Embed URL</label>
+              <div className="relative">
+                  <input
+                      type="text"
+                      readOnly
+                      value={embedUrl}
+                      className={`w-full pr-12 py-2 rounded-md text-xs ${input}`}
+                  />
+                  <button
+                      onClick={() => handleCopy(embedUrl)}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${copyStatus === 'copied' ? 'text-green-500' : (copyStatus === 'error' ? 'text-red-500' : '')}`}
+                      title="Copy URL"
+                  >
+                      {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+              </div>
+          </div>
+
+          <div>
+              <label className={`block text-xs font-bold uppercase mb-2 ${subtext}`}>Embed Code (Iframe)</label>
+              <div className="relative">
+                  <textarea
+                      readOnly
+                      value={embedCode}
+                      rows={5}
+                      className={`w-full pr-12 py-2 rounded-md text-xs ${input} resize-y`}
+                  />
+                   <button
+                      onClick={() => handleCopy(embedCode)}
+                      className={`absolute right-2 top-2 p-1.5 rounded-md transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${copyStatus === 'copied' ? 'text-green-500' : (copyStatus === 'error' ? 'text-red-500' : '')}`}
+                      title="Copy Code"
+                  >
+                      {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+              </div>
+          </div>
+        </div>
+
+        <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
           <h4 className="font-bold text-sm mb-4">Exhibition Details for "{activeExhibition.title}"</h4>
           <p className={`text-sm leading-relaxed ${subtext}`}>
             Edit the core information for this exhibition. Changes will be saved automatically.
@@ -247,50 +292,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
         <InputField label="Exhibition Poster URL" field="exhibit_poster" icon={Image} value={localExhibition.exhibit_poster} onChange={handleChange} statusIcon={getStatusIcon('exhibit_poster')} uiConfig={uiConfig} />
 
 
-        <div className={`p-4 rounded-xl border ${border} ${controlBgClass} mt-6`}>
-            <h4 className="font-bold text-sm mb-4">Embed Exhibition</h4>
-            <p className={`text-sm leading-relaxed ${subtext} mb-4`}>
-                Use the URL or iframe code below to embed this exhibition into another webpage.
-            </p>
-
-            <div className="mb-4">
-                <label className={`block text-xs font-bold uppercase mb-2 ${subtext}`}>Embed URL</label>
-                <div className="relative">
-                    <input
-                        type="text"
-                        readOnly
-                        value={embedUrl}
-                        className={`w-full pr-12 py-2 rounded-md text-xs ${input}`}
-                    />
-                    <button
-                        onClick={() => handleCopy(embedUrl)}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${copyStatus === 'copied' ? 'text-green-500' : (copyStatus === 'error' ? 'text-red-500' : '')}`}
-                        title="Copy URL"
-                    >
-                        {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                </div>
-            </div>
-
-            <div>
-                <label className={`block text-xs font-bold uppercase mb-2 ${subtext}`}>Embed Code (Iframe)</label>
-                <div className="relative">
-                    <textarea
-                        readOnly
-                        value={embedCode}
-                        rows={5}
-                        className={`w-full pr-12 py-2 rounded-md text-xs ${input} resize-y`}
-                    />
-                     <button
-                        onClick={() => handleCopy(embedCode)}
-                        className={`absolute right-2 top-2 p-1.5 rounded-md transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${copyStatus === 'copied' ? 'text-green-500' : (copyStatus === 'error' ? 'text-red-500' : '')}`}
-                        title="Copy Code"
-                    >
-                        {copyStatus === 'copied' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                </div>
-            </div>
-        </div>
+        {/* Embed panel moved to top */}
       </div>
     </div>
   );
