@@ -89,12 +89,14 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
     <React.Fragment>
       <div className={`absolute top-10 right-10 z-40 select-none transition-opacity duration-500 ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
         <div className={innerFlexContainerClasses}>
-            <div className={headerTextClasses}>
-              <div className="flex flex-col justify-center h-10 items-end">
-                <h1 className="font-serif text-2xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
-                <div className="flex items-center gap-1">
-                  <span className={`h-px w-3 ${uiConfig.lightsOn ? 'bg-neutral-400' : 'bg-neutral-600'}`}></span>
-                  <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${uiConfig.subtext}`}>museum technology</p>
+            <div className={`relative ${treatAsCompact ? (isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-100'}`}>
+              <div className="overflow-hidden h-10">
+                <div className={`flex flex-col justify-center h-10 items-end transform transition-all duration-500 ease-out ${treatAsCompact ? (isHeaderExpanded ? 'translate-x-0' : 'translate-x-full') : 'translate-x-0'}`}>
+                  <h1 className="font-serif text-2xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
+                  <div className="flex items-center gap-1">
+                    <span className={`h-px w-3 ${uiConfig.lightsOn ? 'bg-neutral-400' : 'bg-neutral-600'}`}></span>
+                    <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${uiConfig.subtext}`}>museum technology</p>
+                  </div>
                 </div>
               </div>
             </div>
