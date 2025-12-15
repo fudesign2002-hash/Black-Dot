@@ -1,7 +1,7 @@
 
 
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { Activity,Waves,Zap,Image, FlameKindling, Palette, Camera, Sparkles, X, Loader2, AlertCircle, Snowflake, Leaf, CloudRain, Wind, MoonStar,Bubbles, Umbrella,PartyPopper } from 'lucide-react'; // Icons for effects and controls
+import { Music,Activity,Waves,Zap,Image, FlameKindling, Palette, Camera, Sparkles, X, Loader2, AlertCircle, Snowflake, Leaf, CloudRain, Wind, MoonStar,Bubbles, Umbrella,PartyPopper } from 'lucide-react'; // Icons for effects and controls
 import { SimplifiedLightingConfig, SimplifiedLightingPreset, ZoneLightingDesign, EffectRegistryType } from '../../types';
 
 interface SceneTabProps {
@@ -39,6 +39,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Zap:Zap,
   Waves: Waves,
   Activity: Activity,
+  Music: Music,
 };
 
 
