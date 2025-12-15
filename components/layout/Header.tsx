@@ -10,11 +10,13 @@ interface HeaderProps {
   setIsHeaderExpanded: (expanded: boolean) => void;
   onlineUsers: number;
   zoneCapacity: number;
+  isEmbed?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, zoneCapacity }) => {
+const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, zoneCapacity, isEmbed = false }) => {
+  const treatAsCompact = isSmallScreen || isEmbed;
   const handleLogoClick = () => {
-    if (isSmallScreen) { 
+    if (treatAsCompact) {
       setIsHeaderExpanded(!isHeaderExpanded);
     }
   };
@@ -67,15 +69,15 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
   const { numeratorClasses, numeratorStyle, denominatorClasses, slashBgClass } = useMemo(() => getCapacityDisplayClasses(), [onlineUsers, zoneCapacity, uiConfig.lightsOn]);
 
   const innerFlexContainerClasses = `flex items-center gap-6 ${uiConfig.text} transition-all duration-500 ease-out
-    ${isSmallScreen ? (isHeaderExpanded ? 'justify-start' : 'justify-end') : 'justify-end'}
+    ${treatAsCompact ? (isHeaderExpanded ? 'justify-start' : 'justify-end') : 'justify-end'}
     `;
 
   const headerTextClasses = `flex flex-col items-end space-y-0.5
     transition-all duration-500 ease-out transform-gpu
-    ${isSmallScreen ? (isHeaderExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none') : 'opacity-100'}
+    ${treatAsCompact ? (isHeaderExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none') : 'opacity-100'}
   `;
   
-  const logoRotationStyle = isSmallScreen && isHeaderExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+  const logoRotationStyle = treatAsCompact && isHeaderExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
 
   const onlineUsersDisplayClasses = `
     absolute top-[68px] right-0 z-40 flex flex-col items-end gap-1
@@ -98,7 +100,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
             </div>
 
             <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none"
-              className={`stroke-current transition-transform duration-500 ease-out shrink-0 ${isSmallScreen ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
+              className={`stroke-current transition-transform duration-500 ease-out shrink-0 ${treatAsCompact ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
               style={{ transform: logoRotationStyle }}
               onClick={handleLogoClick}
               aria-label="Toggle header details"

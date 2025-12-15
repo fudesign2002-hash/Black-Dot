@@ -1348,6 +1348,7 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
         setIsHeaderExpanded={setIsHeaderExpanded}
         onlineUsers={currentActiveZoneOnlineUsers}
         zoneCapacity={zoneCapacity}
+        isEmbed={!!embedMode}
       />
 
       <CurrentExhibitionInfo
