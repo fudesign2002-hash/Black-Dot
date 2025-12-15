@@ -10,13 +10,12 @@ import InfoPanel from './components/info/InfoPanel';
 import SearchModal from './components/search/SearchModal';
 import MainControls from './components/controls/MainControls';
 import SideNavigation from './components/layout/SideNavigation';
-const FloorPlanEditor = React.lazy(() => import('./components/editor/FloorPlanEditor'));
 import TransitionOverlay from './components/ui/TransitionOverlay';
 import TopLeftLogout from './components/ui/TopLeftLogout';
 import CurrentExhibitionInfo from './components/info/CurrentExhibitionInfo';
 import ConfirmationDialog from './components/ui/ConfirmationDialog';
 import DevToolsPanel from './components/ui/DevToolsPanel';
-const ZeroGravityLegend = React.lazy(() => import('./components/ui/ZeroGravityLegend'));
+// ZeroGravityLegend is now conditionally imported inside MuseumApp based on feature flags
 import EmbeddedMuseumScene from './components/EmbeddedMuseumScene';
 
 import { useMuseumState } from './hooks/useMuseumState';
@@ -36,7 +35,7 @@ interface SceneRipple {
 // NEW: Define remote URL for effect bundle
 const REMOTE_EFFECT_BUNDLE_URL = "https://firebasestorage.googleapis.com/v0/b/blackdot-1890a.firebasestorage.app/o/effect_bundles%2Feffect_bundle.js?alt=media";
 
-function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; initialExhibitionId?: string | null } = {}) {
+function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMode?: boolean; initialExhibitionId?: string | null; embedFeatures?: string[] } = {}) {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -374,6 +373,10 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
 
   // NEW: Handle updating zone_theme in Firebase
   const handleUpdateZoneTheme = useCallback(async (themeName: string | null) => {
+    if (embedMode) {
+      console.warn('[embed] blocked handleUpdateZoneTheme');
+      return;
+    }
     if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
       return;
     }
@@ -403,6 +406,10 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
 
   // NEW: Handle updating zone_gravity in Firebase
   const handleUpdateZoneGravity = useCallback(async (gravityValue: number | undefined) => {
+    if (embedMode) {
+      console.warn('[embed] blocked handleUpdateZoneGravity');
+      return;
+    }
     if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
       return;
     }
@@ -561,6 +568,10 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
   }, [isEditorMode, activeEditorTab, setFocusedArtworkInstanceId]);
 
   const handleSaveLayout = useCallback(async (layoutToSave: ExhibitionArtItem[]) => {
+    if (embedMode) {
+        console.warn('[embed] blocked handleSaveLayout');
+        return;
+    }
     if (!layoutToSave || !activeZone?.id || activeZone.id === 'fallback_zone_id') return;
     const artworkSelectedData: ZoneArtworkItem[] = layoutToSave.map(item => ({
         artworkId: item.artworkId,
@@ -617,6 +628,24 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
     arrowBg: lightsOn ? "hover:bg-neutral-900/5" : "hover:bg-white/5",
     input: lightsOn ? "bg-neutral-100 focus:bg-white text-neutral-900" : "bg-neutral-800 focus:bg-neutral-700 text-white"
   }), [lightsOn]);
+
+  // Only create the editor lazy component when not in embed and when signed-in
+  const FloorPlanEditor = useMemo<React.LazyExoticComponent<React.ComponentType<any>> | null>(() => {
+    if (embedMode || !isSignedIn) return null;
+    return React.lazy(() => import('./components/editor/FloorPlanEditor'));
+  }, [embedMode, isSignedIn]);
+
+  // Conditionally lazy-load ZeroGravityLegend based on embed feature flags and sign-in
+  const ZeroGravityLegendLazy = useMemo<React.LazyExoticComponent<React.ComponentType<any>> | null>(() => {
+    const featureEnabled = !!(embedFeatures && embedFeatures.includes('zeroGravity'));
+    if (embedMode) {
+      if (!featureEnabled) return null;
+    } else {
+      // On main site: avoid loading for guests unless explicitly enabled via embedFeatures
+      if (!isSignedIn && !featureEnabled) return null;
+    }
+    return React.lazy(() => import('./components/ui/ZeroGravityLegend'));
+  }, [embedMode, isSignedIn, embedFeatures]);
 
   const handleSelectArtwork = useCallback((id: string | null) => {
     
@@ -678,6 +707,16 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
   // NEW: Handle update for lighting config including useExhibitionBackground
   const LOG_APP_LIGHTING = false;
   const handleLightingUpdate = useCallback(async (newConfig: SimplifiedLightingConfig) => {
+    // Prevent writes when in embed mode — still apply in-memory override for UX parity
+    if (embedMode) {
+      try {
+        setLightingOverride(activeZone.id, newConfig);
+        setUseExhibitionBackground(newConfig.useExhibitionBackground || false);
+      } catch (e) {}
+      console.warn('[embed] blocked handleLightingUpdate write');
+      return;
+    }
+
     // Detailed red console output for every lighting update (helps trace unexpected writes)
     try {
       console.groupCollapsed('%c[App] handleLightingUpdate', 'color: #fff; background: #b91c1c; padding:2px 6px; border-radius:3px');
@@ -754,6 +793,10 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
   }, [exhibitions.length, currentIndex, loadExhibition]);
 
   const handleUpdateArtworkFile = useCallback(async (artworkId: string, newFileUrl: string) => {
+    if (embedMode) {
+      console.warn('[embed] blocked handleUpdateArtworkFile');
+      return;
+    }
     try {
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       await artworkDocRef.update({ artwork_file: newFileUrl });
@@ -767,6 +810,10 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
   }, []);
 
   const handleUpdateArtworkData = useCallback(async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {
+    if (embedMode) {
+      console.warn('[embed] blocked handleUpdateArtworkData');
+      return;
+    }
     try {
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       const doc = await artworkDocRef.get();
@@ -782,6 +829,10 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
   }, []);
 
   const handleUpdateExhibition = useCallback(async (exhibitionId: string, updatedFields: Partial<Exhibition>) => {
+    if (embedMode) {
+      console.warn('[embed] blocked handleUpdateExhibition');
+      return;
+    }
     if (!exhibitionId || exhibitionId === 'fallback_id') {
       // 
       throw new Error("Invalid Exhibition ID");
@@ -798,6 +849,10 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
   }, []);
 
   const onRemoveArtworkFromLayout = useCallback(async (artworkIdToRemove: string) => {
+    if (embedMode) {
+      console.warn('[embed] blocked onRemoveArtworkFromLayout');
+      throw new Error('Embed mode: write blocked');
+    }
     if (!activeExhibition?.id || activeExhibition.id === 'fallback_id') {
       // 
       throw new Error("Invalid Exhibition ID");
@@ -841,6 +896,10 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
   }, [activeExhibition.id, activeZone.id]);
 
   const onAddArtworkToLayout = useCallback(async (artworkToAdd: FirebaseArtwork) => {
+    if (embedMode) {
+      console.warn('[embed] blocked onAddArtworkToLayout');
+      return false;
+    }
     if (!activeExhibition?.id || activeExhibition.id === 'fallback_id') {
       throw new Error("Invalid Exhibition ID");
     }
@@ -940,19 +999,24 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
   }, [cameraControlRef, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setisRankingMode, setIsZeroGravityMode, setHeartEmitterArtworkId, lightingConfig.customCameraPosition]);
 
   const updateArtworkLikesInFirebase = useCallback(async (artworkId: string, incrementBy: number) => {
+    if (embedMode) {
+      // In embed mode we don't write likes to DB
+      return;
+    }
     try {
-        const artworkDocRef = db.collection('artworks').doc(artworkId);
-        await artworkDocRef.update({
-            artwork_liked: firebase.firestore.FieldValue.increment(incrementBy)
-        });
+      const artworkDocRef = db.collection('artworks').doc(artworkId);
+      await artworkDocRef.update({
+        artwork_liked: firebase.firestore.FieldValue.increment(incrementBy)
+      });
     } catch (error) {
-        // 
+      // 
     }
   }, []);
 
   const viewedArtworkInstanceRef = useRef<string | null>(null);
 
   const updateArtworkViewsInFirebase = useCallback(async (artworkId: string) => {
+    if (embedMode) return;
     try {
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       await artworkDocRef.update({
@@ -1422,7 +1486,7 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
         customCameraPosition={lightingConfig.customCameraPosition}
       />
 
-      {isEditorMode && (
+      {isEditorMode && FloorPlanEditor && (
         <Suspense fallback={null}>
           <FloorPlanEditor
             isOpen={isEditorOpen}
@@ -1524,9 +1588,9 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
         />
       ))}
 
-      {isZeroGravityMode && (
+      {isZeroGravityMode && ZeroGravityLegendLazy && (
         <React.Suspense fallback={null}>
-          <ZeroGravityLegend
+          <ZeroGravityLegendLazy
             minViews={zeroGravityViews.minViews}
             maxViews={zeroGravityViews.maxViews}
             extraTicks={zeroGravityViews.extraTicks}
@@ -1543,12 +1607,10 @@ function App() {
   const params = new URLSearchParams(window.location.search);
   const isEmbedMode = params.get('embed') === 'true';
   const embedExhibitionId = params.get('exhibitionId');
+  const embedFeaturesParam = params.get('embedFeatures') || params.get('embed_features') || '';
+  const embedFeatures = embedFeaturesParam ? embedFeaturesParam.split(',').map(s => s.trim()).filter(Boolean) : undefined;
 
-  if (isEmbedMode) {
-    return <MuseumApp embedMode={true} initialExhibitionId={embedExhibitionId} />;
-  } else {
-    return <MuseumApp />;
-  }
+  return <MuseumApp embedMode={isEmbedMode} initialExhibitionId={embedExhibitionId} embedFeatures={embedFeatures} />;
 }
 
 export default App;
