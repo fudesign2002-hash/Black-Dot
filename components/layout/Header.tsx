@@ -91,10 +91,10 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
         <div className={innerFlexContainerClasses}>
             <div className={headerTextClasses}>
               <div className="flex flex-col justify-center h-10 items-end">
-                <h1 className="font-serif text-3xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
+                <h1 className="font-serif text-2xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
                 <div className="flex items-center gap-1">
-                  <span className={`h-px w-6 ${uiConfig.lightsOn ? 'bg-neutral-400' : 'bg-neutral-600'}`}></span>
-                  <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${uiConfig.subtext}`}>museum of everything</p>
+                  <span className={`h-px w-3 ${uiConfig.lightsOn ? 'bg-neutral-400' : 'bg-neutral-600'}`}></span>
+                  <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${uiConfig.subtext}`}>museum technology</p>
                 </div>
               </div>
             </div>
@@ -105,14 +105,14 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
               onClick={handleLogoClick}
               aria-label="Toggle header details"
             >
-              <g clip-path="url(#clip0_14_21)">
-                <path d="M39.7002 0.299805V39.7002H0.299805V0.299805H39.7002Z" stroke="black" stroke-width="0.6"/>
-                <path d="M24.7214 0V40" stroke="black" stroke-width="0.6"/>
-                <path d="M0 24.7214H40" stroke="black" stroke-width="0.6"/>
-                <path d="M15.2786 24.7214V40" stroke="black" stroke-width="0.2"/>
-                <path d="M12.3604 0.0996094C19.1316 0.0996094 24.6209 5.58912 24.6211 12.3604C24.6211 19.1317 19.1317 24.6211 12.3604 24.6211C5.58912 24.6209 0.0996094 19.1316 0.0996094 12.3604C0.0997867 5.58923 5.58923 0.0997867 12.3604 0.0996094Z" stroke="black" stroke-width="0.2"/>
-                <path d="M7.63933 35.2786C9.25088 35.2786 10.5573 33.9722 10.5573 32.3607C10.5573 30.7491 9.25088 29.4427 7.63933 29.4427C6.02779 29.4427 4.72137 30.7491 4.72137 32.3607C4.72137 33.9722 6.02779 35.2786 7.63933 35.2786Z" fill="black"/>
-                <path d="M24.7214 15.2786H40" stroke="black" stroke-width="0.2"/>
+              <g clipPath="url(#clip0_14_21)">
+                <path d="M39.7002 0.299805V39.7002H0.299805V0.299805H39.7002Z" stroke="currentColor" strokeWidth="0.6"/>
+                <path d="M24.7214 0V40" stroke="currentColor" strokeWidth="0.6"/>
+                <path d="M0 24.7214H40" stroke="currentColor" strokeWidth="0.6"/>
+                <path d="M15.2786 24.7214V40" stroke="currentColor" strokeWidth="0.2"/>
+                <path d="M12.3604 0.0996094C19.1316 0.0996094 24.6209 5.58912 24.6211 12.3604C24.6211 19.1317 19.1317 24.6211 12.3604 24.6211C5.58912 24.6209 0.0996094 19.1316 0.0996094 12.3604C0.0997867 5.58923 5.58923 0.0997867 12.3604 0.0996094Z" stroke="currentColor" strokeWidth="0.2"/>
+                <path d="M7.63933 35.2786C9.25088 35.2786 10.5573 33.9722 10.5573 32.3607C10.5573 30.7491 9.25088 29.4427 7.63933 29.4427C6.02779 29.4427 4.72137 30.7491 4.72137 32.3607C4.72137 33.9722 6.02779 35.2786 7.63933 35.2786Z" fill="currentColor"/>
+                <path d="M24.7214 15.2786H40" stroke="currentColor" strokeWidth="0.2"/>
               </g>
               <defs>
                 <clipPath id="clip0_14_21">
