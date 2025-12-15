@@ -39,6 +39,7 @@ interface MainControlsProps {
   setHeartEmitterArtworkId: (id: string | null) => void;
   hasMotionArtwork: boolean; // NEW: Add hasMotionArtwork prop
   customCameraPosition?: [number, number, number]; // NEW: Add customCameraPosition prop
+  isEmbed?: boolean; // NEW: hide certain controls when embedded
   // REMOVED: activeEffectName: string | null; // NEW: Add activeEffectName
   // REMOVED: onEffectToggle: (effectName: string) => void; // NEW: Add onEffectToggle
 }
@@ -75,6 +76,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   isSignedIn, // NEW: Destructure isSignedIn
   isCameraAtDefaultPosition, // NEW: Destructure isCameraAtDefaultPosition
   isResetCameraEnable, // NEW: Destructure isResetCameraEnable
+  isEmbed = false,
   setHeartEmitterArtworkId,
   hasMotionArtwork, // NEW: Destructure hasMotionArtwork
   customCameraPosition, // NEW: Destructure customCameraPosition
@@ -92,7 +94,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // MODIFIED: Hide lights toggle if in zero gravity mode
   const hasLightsToggle = !isEditorMode && !isRankingMode && !isZeroGravityMode;
   // MODIFIED: Hide editor mode toggle if in zero gravity mode
-  const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && !!isSignedIn;
+  const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && !!isSignedIn && !isEmbed;
   const hasEditorOpenSearch = isEditorMode; // Includes both editor open and search
   // REMOVED: const hasEffectButtons = !isEditorMode && !isRankingMode && !isArtworkFocusedForControls; // NEW: Effects can be toggled if not in editor or ranking mode, and not focused on artwork
 
@@ -104,7 +106,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const hasRankingToggle = !isEditorMode && !isZeroGravityMode; // Render ranking toggle; may be disabled when motion artwork present
   const hasZeroGravityToggle = !isEditorMode && !isRankingMode; // Zero Gravity Toggle (may be disabled when motion artwork present)
   // MODIFIED: Add !isRankingMode, !isZeroGravityMode to hide small screen navigation in ranking/zero gravity mode
-  const hasSmallScreenNav = isSmallScreen && !isEditorMode && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode; // Only show if not focused AND not in ranking/zero gravity mode
+  const hasSmallScreenNav = isSmallScreen && !isEditorMode && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && !isEmbed; // Only show if not focused AND not in ranking/zero gravity mode and not embed
 
   // Calculate if there are any visible buttons on the left or right side of the divider
   // MODIFIED: Remove effect buttons from condition

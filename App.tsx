@@ -36,7 +36,7 @@ interface SceneRipple {
 // NEW: Define remote URL for effect bundle
 const REMOTE_EFFECT_BUNDLE_URL = "https://firebasestorage.googleapis.com/v0/b/blackdot-1890a.firebasestorage.app/o/effect_bundles%2Feffect_bundle.js?alt=media";
 
-function MuseumApp() {
+function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; initialExhibitionId?: string | null } = {}) {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -155,6 +155,15 @@ function MuseumApp() {
     currentIndex,
     refreshNow,
   } = useMuseumState(isSnapshotEnabledGlobally, user?.uid); // Pass signed-in user's uid (owner view) or undefined for guests
+
+  // If embed provides an initial exhibition id, navigate to it when data is ready
+  useEffect(() => {
+    if (!embedMode || !initialExhibitionId || isLoading || exhibitions.length === 0) return;
+    const idx = exhibitions.findIndex(ex => ex.id === initialExhibitionId);
+    if (idx !== -1) {
+      handleNavigate(idx);
+    }
+  }, [embedMode, initialExhibitionId, isLoading, exhibitions, handleNavigate]);
 
   // Ref to request editorLayout reload after an external refresh (to avoid overwriting in-progress edits)
   const editorLayoutReloadRequested = useRef(false);
@@ -1272,7 +1281,7 @@ function MuseumApp() {
     <React.Fragment>
       <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
 
-      <TopLeftLogout user={user} onLogout={handleLogout} />
+      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} />}
 
       <React.Fragment>
         <Scene
@@ -1351,7 +1360,8 @@ function MuseumApp() {
         onInfoOpen={handleOpenInfo}
       />
 
-      <SideNavigation
+      {!embedMode && (
+        <SideNavigation
         uiConfig={uiConfig}
         isFirstItem={isFirstItem}
         isLastItem={exhibitions.length === 0 || currentIndex === exhibitions.length - 1}
@@ -1363,7 +1373,8 @@ function MuseumApp() {
         focusedArtworkInstanceId={focusedArtworkInstanceId}
         isRankingMode={isRankingMode}
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
-      />
+        />
+      )}
 
       <MainControls
         uiConfig={uiConfig}
@@ -1397,6 +1408,7 @@ function MuseumApp() {
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
         onZeroGravityToggle={handleZeroGravityToggle} // NEW: Pass onZeroGravityToggle
         isSignedIn={isSignedIn}
+        isEmbed={!!embedMode}
         isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status
         // NEW: global flag to control reset button visibility
         isResetCameraEnable={isResetCameraEnable}
@@ -1524,10 +1536,12 @@ function MuseumApp() {
 }
 
 function App() {
-  const isEmbedMode = new URLSearchParams(window.location.search).get('embed') === 'true';
+  const params = new URLSearchParams(window.location.search);
+  const isEmbedMode = params.get('embed') === 'true';
+  const embedExhibitionId = params.get('exhibitionId');
 
   if (isEmbedMode) {
-    return <EmbeddedMuseumScene />;
+    return <MuseumApp embedMode={true} initialExhibitionId={embedExhibitionId} />;
   } else {
     return <MuseumApp />;
   }
