@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Users } from 'lucide-react';
+import { HEADER_COLOR_CSS_VAR } from '../../constants/ui';
 
 interface HeaderProps {
   uiConfig: any;
@@ -11,9 +12,11 @@ interface HeaderProps {
   onlineUsers: number;
   zoneCapacity: number;
   isEmbed?: boolean;
+  useExhibitionBackground?: boolean;
+  activeExhibition?: any;
 }
 
-const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, zoneCapacity, isEmbed = false }) => {
+const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, zoneCapacity, isEmbed = false, useExhibitionBackground = false, activeExhibition = null }) => {
   const treatAsCompact = isSmallScreen || isEmbed;
   const handleLogoClick = () => {
     if (treatAsCompact) {
@@ -27,11 +30,11 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
     let numeratorClasses = ''; 
     let numeratorStyle: React.CSSProperties = {};
     
-    const denominatorClasses = uiConfig.text;
-    const slashBgClass = uiConfig.lightsOn ? 'bg-neutral-900' : 'bg-white';
+    const denominatorClasses = uiConfig.lightsOn ? 'text-current' : uiConfig.text;
+    const slashBgClass = uiConfig.lightsOn ? 'bg-current opacity-60' : 'bg-white';
 
     if (capacityPercentage < 100) { 
-      numeratorClasses = uiConfig.text;
+      numeratorClasses = uiConfig.lightsOn ? 'text-current' : uiConfig.text;
       numeratorStyle = { 
           animation: 'none',
       };
@@ -68,6 +71,16 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
 
   const { numeratorClasses, numeratorStyle, denominatorClasses, slashBgClass } = useMemo(() => getCapacityDisplayClasses(), [onlineUsers, zoneCapacity, uiConfig.lightsOn]);
 
+  const hasBg = Boolean(useExhibitionBackground && activeExhibition && activeExhibition.exhibit_background);
+
+  // Read color exclusively from uiConfig.headerColor; if exhibition background present use white
+  const headerColorValue = hasBg ? '#ffffff' : (uiConfig.headerColor as string | undefined);
+  const headerColorStyle: React.CSSProperties | undefined = uiConfig.lightsOn && headerColorValue
+    ? ({ [HEADER_COLOR_CSS_VAR]: headerColorValue, color: `var(${HEADER_COLOR_CSS_VAR})` } as React.CSSProperties)
+    : undefined;
+  const subtextClass = uiConfig.lightsOn ? 'text-current opacity-70' : uiConfig.subtext;
+  const smallUnderlineClass = uiConfig.lightsOn ? 'bg-current opacity-60' : 'bg-neutral-600';
+
   const innerFlexContainerClasses = `flex items-center gap-6 ${uiConfig.text} transition-all duration-500 ease-out
     ${treatAsCompact ? (isHeaderExpanded ? 'justify-start' : 'justify-end') : 'justify-end'}
     `;
@@ -88,15 +101,15 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
   return (
     <React.Fragment>
       <div className={`absolute top-10 right-10 z-40 select-none transition-opacity duration-500 ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
-        <div className={innerFlexContainerClasses}>
+        <div className={innerFlexContainerClasses} style={headerColorStyle}>
             <div className={`relative ${treatAsCompact ? (isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-100'}`}>
               <div className="overflow-hidden h-10">
                 <div className={`flex flex-col justify-center h-10 items-end transform transition-all duration-500 ease-out ${treatAsCompact ? (isHeaderExpanded ? 'translate-x-0' : 'translate-x-full') : 'translate-x-0'}`}>
-                  <h1 className="font-serif text-2xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
-                  <div className="flex items-center gap-1">
-                    <span className={`h-px w-3 ${uiConfig.lightsOn ? 'bg-neutral-400' : 'bg-neutral-600'}`}></span>
-                    <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${uiConfig.subtext}`}>museum technology</p>
-                  </div>
+                    <h1 className="font-serif text-2xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
+                    <div className="flex items-center gap-1">
+                      <span className={`h-px w-3 ${smallUnderlineClass}`}></span>
+                      <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${subtextClass}`}>museum technology</p>
+                    </div>
                 </div>
               </div>
             </div>
@@ -124,15 +137,15 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
             </svg>
         </div>
         
-        <div className={onlineUsersDisplayClasses}>
+        <div className={onlineUsersDisplayClasses} style={headerColorStyle}>
           <div className="relative flex items-center gap-4 leading-none">
-            <Users className={`w-4 h-4 shrink-0 ${uiConfig.subtext}`} aria-hidden="true" />
+            <Users className={`w-4 h-4 shrink-0 ${uiConfig.lightsOn ? 'text-current' : uiConfig.subtext}`} aria-hidden="true" />
 
             <div className="relative flex items-baseline">
               <span className={`relative text-base font-serif font-medium -top-[6px] -right-[-6px] ${numeratorClasses}`} style={numeratorStyle}>
                 {onlineUsers}
               </span>
-              <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
+                    <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
               <span className={`relative text-xs font-serif font-normal top-[0px] left-[2px] ${denominatorClasses}`}>
                 {zoneCapacity}
               </span>

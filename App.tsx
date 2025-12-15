@@ -1349,6 +1349,8 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
         onlineUsers={currentActiveZoneOnlineUsers}
         zoneCapacity={zoneCapacity}
         isEmbed={!!embedMode}
+        useExhibitionBackground={useExhibitionBackground}
+        activeExhibition={activeExhibition}
       />
 
       <CurrentExhibitionInfo
@@ -1359,6 +1361,7 @@ function MuseumApp({ embedMode, initialExhibitionId }: { embedMode?: boolean; in
         isSmallScreen={isSmallScreen}
         isCurrentExhibitionInfoHidden={isCurrentExhibitionInfoHidden}
         onInfoOpen={handleOpenInfo}
+        useExhibitionBackground={useExhibitionBackground}
       />
 
       {!embedMode && (
