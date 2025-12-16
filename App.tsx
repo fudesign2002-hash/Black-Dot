@@ -59,6 +59,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
 
   const [user, setUser] = useState<firebase.User | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
+  const [ownerOverrideUid, setOwnerOverrideUid] = useState<string | null>(null);
   const prevAuthUidRef = useRef<string | null | undefined>(undefined);
   const prevVisibleIdsRef = useRef<string | null>(null);
 
@@ -153,7 +154,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     setLightingOverride,
     currentIndex,
     refreshNow,
-  } = useMuseumState(isSnapshotEnabledGlobally, user?.uid); // Pass signed-in user's uid (owner view) or undefined for guests
+  } = useMuseumState(isSnapshotEnabledGlobally, ownerOverrideUid || user?.uid); // Pass override curator uid if present, else signed-in user's uid
 
   // If embed provides an initial exhibition id, navigate to it when data is ready
   useEffect(() => {
@@ -309,6 +310,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     try {
       await auth.signOut();
       setUser(null);
+      setOwnerOverrideUid(null);
     } catch (e) {
       // [log removed] App logout failed
       throw e;
@@ -1345,7 +1347,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     <React.Fragment>
       <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
 
-      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} />}
+      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} />}
 
       <React.Fragment>
         <Scene

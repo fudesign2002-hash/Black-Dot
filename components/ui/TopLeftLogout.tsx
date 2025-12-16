@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
+import BlackDotLogo from './BlackDotLogo';
 import firebase from 'firebase/compat/app';
-import { auth } from '../../firebase';
+import { auth, db } from '../../firebase';
 import { Mail, UserRoundCheck } from 'lucide-react';
 
 interface Props {
   user?: firebase.User | null;
   onLogout?: () => void;
+  onSignIn?: (teamCuratorUid?: string | null) => void;
 }
 
-export default function TopLeftLogout({ user, onLogout }: Props) {
+export default function TopLeftLogout({ user, onLogout, onSignIn }: Props) {
   const [open, setOpen] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -109,10 +111,20 @@ export default function TopLeftLogout({ user, onLogout }: Props) {
     }
   };
 
+  const handleOverlayBackgroundClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // only dismiss when clicking directly on the background (not the card)
+    if (e.target === e.currentTarget) {
+      setShowOverlay(false);
+      setEmailFormMode('idle');
+    }
+  };
+
   const signInWithGoogle = async () => {
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
-      await auth.signInWithPopup(provider);
+      const result = await auth.signInWithPopup(provider);
+      const signedUser = result.user || null;
+      await handlePostSignIn(signedUser);
       setShowOverlay(false);
       setOpen(false);
     } catch (e) {
@@ -136,6 +148,9 @@ export default function TopLeftLogout({ user, onLogout }: Props) {
     setAuthError(null);
     try {
       await auth.signInWithEmailAndPassword(emailValue, passwordValue);
+      // after sign-in, run post sign-in processing
+      const current = auth.currentUser as firebase.User | null;
+      await handlePostSignIn(current);
       setShowOverlay(false);
       setOpen(false);
       setEmailFormMode('idle');
@@ -151,6 +166,8 @@ export default function TopLeftLogout({ user, onLogout }: Props) {
     setAuthError(null);
     try {
       await auth.createUserWithEmailAndPassword(emailValue, passwordValue);
+      const current = auth.currentUser as firebase.User | null;
+      await handlePostSignIn(current);
       setShowOverlay(false);
       setOpen(false);
       setEmailFormMode('idle');
@@ -158,6 +175,115 @@ export default function TopLeftLogout({ user, onLogout }: Props) {
       setPasswordValue('');
     } catch (err: any) {
       setAuthError(err.message || 'Create account failed');
+    }
+  };
+
+  // Team code inputs and lookup
+  const [teamCodeChars, setTeamCodeChars] = useState<string[]>(Array(6).fill(''));
+  const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+  const teamCode = teamCodeChars.join('');
+  const teamCodeFilled = teamCode.length === 6 && !teamCodeChars.includes('');
+  const [teamLookupLoading, setTeamLookupLoading] = useState(false);
+  const [teamName, setTeamName] = useState<string | null>(null);
+  const [teamLookupError, setTeamLookupError] = useState<string | null>(null);
+  const [teamDocId, setTeamDocId] = useState<string | null>(null);
+  const [teamCuratorUid, setTeamCuratorUid] = useState<string | null>(null);
+
+  const handleDigitChange = (index: number, val: string) => {
+    const digit = val.slice(-1);
+    const next = [...teamCodeChars];
+    next[index] = digit;
+    setTeamCodeChars(next);
+    setTeamName(null);
+    setTeamLookupError(null);
+    if (digit) {
+      const nextInput = inputsRef.current[index + 1];
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (teamCodeChars[index]) {
+        const next = [...teamCodeChars];
+        next[index] = '';
+        setTeamCodeChars(next);
+      } else {
+        const prev = inputsRef.current[index - 1];
+        if (prev) {
+          prev.focus();
+          const n = [...teamCodeChars];
+          n[index - 1] = '';
+          setTeamCodeChars(n);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!teamCodeFilled) return;
+    setTeamLookupLoading(true);
+    setTeamLookupError(null);
+    (async () => {
+      try {
+        const q = await (db as any).collection('teams').where('team_code', '==', teamCode).limit(1).get();
+        if (cancelled) return;
+        if (!q.empty) {
+          const doc = q.docs[0];
+          const data = doc.data();
+          setTeamName(data.name || data.team_name || null);
+          setTeamDocId(doc.id);
+          // find curator uid in team_members array
+          const members = Array.isArray(data.team_members) ? data.team_members : [];
+          const curator = members.find((m: any) => m && m.role === 'curator');
+          setTeamCuratorUid(curator ? curator.uid : null);
+        } else {
+          setTeamName(null);
+          setTeamLookupError('No matching team');
+        }
+      } catch (err: any) {
+        if (cancelled) return;
+        console.error('team lookup failed', err);
+        setTeamName(null);
+        setTeamLookupError('Lookup failed');
+      } finally {
+        if (!cancelled) setTeamLookupLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [teamCodeFilled, teamCode]);
+
+  const handlePostSignIn = async (signedInUser: firebase.User | null) => {
+    if (!signedInUser) return;
+    try {
+      // Ensure users collection has a doc for this uid
+      await (db as any).collection('users').doc(signedInUser.uid).set({
+        email: signedInUser.email || null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      // If we have a matched team doc, ensure the user is a member
+      if (teamDocId) {
+        const teamRef = (db as any).collection('teams').doc(teamDocId);
+        const teamSnap = await teamRef.get();
+        if (teamSnap.exists) {
+          const data = teamSnap.data();
+          const members = Array.isArray(data.team_members) ? data.team_members : [];
+          const already = members.some((m: any) => m && m.uid === signedInUser.uid);
+          if (!already) {
+            await teamRef.update({
+              team_members: firebase.firestore.FieldValue.arrayUnion({ role: 'member', uid: signedInUser.uid })
+            });
+          }
+        }
+      }
+
+      // Notify parent about team curator override (if any)
+      if (typeof onSignIn === 'function') onSignIn(teamCuratorUid || null);
+    } catch (err) {
+      // swallow for now
+      console.error('post sign-in processing failed', err);
     }
   };
 
@@ -223,67 +349,116 @@ export default function TopLeftLogout({ user, onLogout }: Props) {
       )}
 
       {showOverlay && !isSignedIn && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-96 shadow-xl">
-            <h3 className="text-lg font-medium mb-4 text-center">Please sign in to manage your exhibits, artworks, and artists.</h3>
-
-            {emailFormMode === 'idle' && (
-              <div className="flex flex-col gap-3">
-                <button onClick={signInWithGoogle} className="flex items-center gap-3 justify-center border rounded-lg px-4 py-3 hover:shadow-sm">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Google_Favicon_2025.svg" alt="Google" className="w-5 h-5" />
-                  <span>Continue with Google</span>
-                </button>
-                <button onClick={() => setEmailFormMode('signin')} className="flex items-center gap-3 justify-center border rounded-lg px-4 py-3 hover:shadow-sm">
-                  <Mail className="w-5 h-5 text-slate-600" />
-                  <span>Continue with Email</span>
-                </button>
+        <div onMouseDown={handleOverlayBackgroundClick} className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-6">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex flex-col items-center gap-4">
+              {/* Logo box */}
+              <div className="w-20 h-20 rounded-lg flex items-center justify-center bg-white">
+                <BlackDotLogo treatAsCompact={false} logoRotationStyle="none" onClick={() => {}} ariaLabel="Black Dot logo" />
               </div>
-            )}
 
-            {emailFormMode !== 'idle' && (
-              <form onSubmit={emailFormMode === 'signin' ? submitEmailSignIn : submitCreateAccount} className="flex flex-col gap-4">
-                <div className="flex flex-col items-stretch gap-2">
-                  <div className="flex items-center bg-slate-50 rounded-xl px-3 py-3 border">
-                    <Mail className="w-5 h-5 text-slate-500 mr-3" />
-                    <input
-                      value={emailValue}
-                      onChange={(e) => setEmailValue(e.target.value)}
-                      placeholder="Email"
-                      type="email"
-                      className="flex-1 bg-transparent outline-none text-sm"
-                      required
-                    />
-                  </div>
+              <h1 className="text-3xl font-extrabold text-slate-900">Welcome to Black Dot</h1>
+              <p className="text-sm text-slate-500 text-center">Please sign in to manage exhibits, artworks, and artists.</p>
 
-                  <div className="flex items-center bg-slate-50 rounded-xl px-3 py-3 border">
-                    <svg width="18" height="18" viewBox="0 0 24 24" className="text-slate-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none"><path d="M12 11c1.656 0 3 .895 3 2v3H9v-3c0-1.105 1.344-2 3-2zm6-1V9a6 6 0 10-12 0v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    <input
-                      value={passwordValue}
-                      onChange={(e) => setPasswordValue(e.target.value)}
-                      placeholder="Password"
-                      type="password"
-                      className="flex-1 bg-transparent outline-none text-sm"
-                      required
-                    />
-                  </div>
-                </div>
+              <div className="w-full bg-white mt-4">
+                {emailFormMode === 'idle' ? (
+                  <>
+                    <div className="text-center text-sm text-slate-500 mb-3">Your Team Code</div>
+                    <div className="flex justify-center gap-2 mb-2">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <input
+                          key={i}
+                          ref={(el) => { inputsRef.current[i] = el; }}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={1}
+                          value={teamCodeChars[i] ?? ''}
+                          onChange={(e) => handleDigitChange(i, e.target.value.replace(/[^0-9]/g, ''))}
+                          onKeyDown={(e) => handleDigitKeyDown(i, e as unknown as React.KeyboardEvent<HTMLInputElement>)}
+                          className="w-12 h-12 rounded-md border border-slate-200 flex items-center justify-center text-center text-lg font-medium text-slate-900 outline-none"
+                        />
+                      ))}
+                    </div>
+                    <div className="text-center text-sm text-slate-500 mb-4">
+                      {teamLookupLoading ? (
+                        <span>Checking team…</span>
+                      ) : teamName ? (
+                        <span>You are joining team: "{teamName}"</span>
+                      ) : teamCodeFilled ? (
+                        <span className="text-red-600">No matching team for that code</span>
+                      ) : (
+                        <span className="text-slate-500">Enter 6-digit team code to continue</span>
+                      )}
+                    </div>
 
-                {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                    <div className="flex flex-col gap-3">
+                      <button
+                        type="button"
+                        onClick={signInWithGoogle}
+                        disabled={!teamName || teamLookupLoading}
+                        className={"flex items-center gap-3 justify-center border rounded-xl px-4 py-3 hover:shadow-sm " + ((!teamName || teamLookupLoading) ? 'opacity-50 cursor-not-allowed' : '')}
+                      >
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Google_Favicon_2025.svg" alt="Google" className="w-5 h-5" />
+                        <span className="font-medium">Continue with Google</span>
+                      </button>
 
-                <button type="submit" className="w-full bg-blue-600 text-white rounded-xl py-3 text-center">{emailFormMode === 'signin' ? 'Sign In' : 'Create Account'}</button>
-
-                {emailFormMode === 'signin' ? (
-                  <button type="button" onClick={() => setEmailFormMode('create')} className="w-full bg-slate-200 text-slate-900 rounded-xl py-3">Create Account</button>
+                      <button
+                        type="button"
+                        onClick={() => setEmailFormMode('signin')}
+                        disabled={!teamName || teamLookupLoading}
+                        className={"flex items-center gap-3 justify-center border rounded-xl px-4 py-3 hover:shadow-sm " + ((!teamName || teamLookupLoading) ? 'opacity-50 cursor-not-allowed' : '')}
+                      >
+                        <Mail className="w-5 h-5 text-slate-600" />
+                        <span className="font-medium">Continue with Email</span>
+                      </button>
+                    </div>
+                  </>
                 ) : (
-                  <button type="button" onClick={() => setEmailFormMode('signin')} className="w-full bg-slate-200 text-slate-900 rounded-xl py-3">Back to Sign In</button>
+                  <form onSubmit={emailFormMode === 'signin' ? submitEmailSignIn : submitCreateAccount} className="flex flex-col gap-4">
+                    <div className="flex flex-col items-stretch gap-3">
+                      <div className="flex items-center bg-slate-50 rounded-xl px-3 py-3 border">
+                        <Mail className="w-5 h-5 text-slate-500 mr-3" />
+                        <input
+                          autoFocus
+                          value={emailValue}
+                          onChange={(e) => setEmailValue(e.target.value)}
+                          placeholder="Email"
+                          type="email"
+                          className="flex-1 bg-transparent outline-none text-sm"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex items-center bg-slate-50 rounded-xl px-3 py-3 border">
+                        <svg width="18" height="18" viewBox="0 0 24 24" className="text-slate-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none"><path d="M12 11c1.656 0 3 .895 3 2v3H9v-3c0-1.105 1.344-2 3-2zm6-1V9a6 6 0 10-12 0v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <input
+                          value={passwordValue}
+                          onChange={(e) => setPasswordValue(e.target.value)}
+                          placeholder="Password"
+                          type="password"
+                          className="flex-1 bg-transparent outline-none text-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {authError && <div className="text-red-600 text-sm">{authError}</div>}
+
+                    <button disabled={!emailValue || !passwordValue} type="submit" className={"w-full rounded-xl py-3 text-center text-sm font-medium " + ((!emailValue || !passwordValue) ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-slate-900 text-white')}>{emailFormMode === 'signin' ? 'Sign In' : 'Create Account'}</button>
+
+                    {emailFormMode === 'signin' ? (
+                      <button type="button" onClick={() => setEmailFormMode('create')} className="w-full bg-slate-100 text-slate-900 rounded-xl py-3">Create Account</button>
+                    ) : (
+                      <button type="button" onClick={() => setEmailFormMode('signin')} className="w-full bg-slate-100 text-slate-900 rounded-xl py-3">Back to Sign In</button>
+                    )}
+
+                    <div className="mt-2 text-center text-sm text-slate-500">
+                      <button type="button" onClick={() => { setEmailFormMode('idle'); setAuthError(null); }} className="underline">Back to sign-in options</button>
+                    </div>
+                  </form>
                 )}
-
-                <div className="mt-2 text-center text-sm text-slate-500">
-                  <button onClick={() => { setShowOverlay(false); setEmailFormMode('idle'); }} className="underline">Back to sign-in options</button>
-                </div>
-              </form>
-            )}
-
+              </div>
+            </div>
           </div>
         </div>
       )}

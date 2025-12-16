@@ -82,6 +82,7 @@ const SceneContent: React.FC<SceneProps> = ({
 
   const lightBgColor = useMemo(() => new THREE.Color("#e4e4e4"), []);
   const darkBgColor = useMemo(() => new THREE.Color("#000000"), []);
+  // overlay mesh will be used instead of changing scene.background to black
   const lightFloorColor = useMemo(() => new THREE.Color("#eeeeee"), []);
   const darkFloorColor = useMemo(() => new THREE.Color("#000000"), []);
   // NOTE: These four values are the canonical initial color settings
@@ -124,6 +125,8 @@ const SceneContent: React.FC<SceneProps> = ({
   const currentEffectGroup = useRef<EffectGroup | null>(null); // NEW: Ref to hold the active effect's 3D group
   const currentEffectName = useRef<string | null>(null); // NEW: Ref to track the name of the active effect
   const [showGroundMarkers, setShowGroundMarkers] = useState(false); // Delayed visibility for ground markers
+  const overlayRef = useRef<THREE.Mesh | null>(null);
+  const overlayTmpDir = useMemo(() => new THREE.Vector3(), []);
 
 
   // NEW: Load background texture when exhibit_background changes and useExhibitionBackground is true
@@ -132,6 +135,13 @@ const SceneContent: React.FC<SceneProps> = ({
     // console.log(`[SceneContent] useExhibitionBackground: ${useExhibitionBackground}, exhibit_background: ${activeExhibition.exhibit_background}`);
 
     if (useExhibitionBackground && activeExhibition.exhibit_background) {
+      // Start loading new texture; show a camera-facing black overlay
+      // (handled in the render tree) while loading instead of changing
+      // the scene background directly.
+      // Start loading the new cube texture but DO NOT clear the currently
+      // applied texture immediately. Keep the previous texture visible until
+      // the new one is ready to be swapped in to avoid a flashed/cleared
+      // background when toggling lights or switching scenes.
       setIsBackgroundLoading(true);
       // console.log(`[SceneContent] Attempting to load background from URL: ${activeExhibition.exhibition_background}`);
 
@@ -141,30 +151,36 @@ const SceneContent: React.FC<SceneProps> = ({
 
       new THREE.CubeTextureLoader().loadAsync(cubeTextureUrls)
         .then(cubeTexture => {
-          // console.log("[SceneContent] CubeTexture loaded successfully.");
-          // Dispose of the previous texture if it exists
-          if (prevBackgroundTextureRef.current) {
-            prevBackgroundTextureRef.current.dispose();
-            // console.log("[SceneContent] Disposed previous background cubeTexture.");
-          }
+          // When the new texture is ready, swap it in immediately and only
+          // then dispose the old texture so there's no moment with no
+          // background texture visible.
+          const old = prevBackgroundTextureRef.current;
+          try {
+            scene.background = cubeTexture;
+            scene.environment = cubeTexture;
+          } catch (e) {}
           setCurrentBackgroundTexture(cubeTexture);
-          prevBackgroundTextureRef.current = cubeTexture; // Store current texture for future disposal
+          prevBackgroundTextureRef.current = cubeTexture; // now store new texture
           setIsBackgroundLoading(false);
+          if (old && old !== cubeTexture) {
+            try { old.dispose(); } catch (e) {}
+          }
         })
         .catch((e) => {
-          // console.error("[SceneContent] CubeTexture loading failed. Background will be solid color.", e);
-          // If cube texture also fails, reset to null and dispose previous
-          if (prevBackgroundTextureRef.current) {
-            prevBackgroundTextureRef.current.dispose();
-            // console.log("[SceneContent] Disposed previous background cubeTexture on error.");
-          }
+          // Loading failed. Keep any previously-applied texture (do not
+          // clear it), and fall back to solid background only if nothing
+          // existed before.
           setCurrentBackgroundTexture(null);
-          prevBackgroundTextureRef.current = null;
           setIsBackgroundLoading(false);
         });
     } else {
       // If useExhibitionBackground is false or no URL, clear the background texture
-      // console.log("[SceneContent] Not using exhibition background or no URL provided. Clearing background texture.");
+      // and immediately remove any references from the scene so an old image
+      // doesn't remain visible while other state updates happen.
+      try {
+        scene.background = null;
+        scene.environment = null;
+      } catch (e) {}
       if (prevBackgroundTextureRef.current) {
         prevBackgroundTextureRef.current.dispose();
         // console.log("[SceneContent] Disposed background cubeTexture due to toggle/no URL.");
@@ -176,6 +192,10 @@ const SceneContent: React.FC<SceneProps> = ({
 
     // Cleanup function: dispose of the last loaded texture when component unmounts
     return () => {
+      try {
+        scene.background = null;
+        scene.environment = null;
+      } catch (e) {}
       if (prevBackgroundTextureRef.current) {
         prevBackgroundTextureRef.current.dispose();
         // console.log("[SceneContent] Disposed background cubeTexture on unmount.");
@@ -283,32 +303,46 @@ const SceneContent: React.FC<SceneProps> = ({
       currentEffectGroup.current.update(delta);
     }
 
+    // Position and size the black overlay in front of the camera while loading
+    if (overlayRef.current) {
+      const dir = overlayTmpDir;
+      camera.getWorldDirection(dir);
+      overlayRef.current.position.copy(camera.position).add(dir.multiplyScalar(10));
+      overlayRef.current.quaternion.copy(camera.quaternion);
+      overlayRef.current.visible = !!isBackgroundLoading;
+      // large scale to ensure it covers view regardless of camera fov
+      overlayRef.current.scale.set(1000, 1000, 1);
+    }
+
     // CRITICAL CHANGE: Always run the default background/fog/floor logic, regardless of active effect.
     // Effects are now purely visual overlays and do not alter the scene's core environment properties.
-    if (useExhibitionBackground && currentBackgroundTexture && !isBackgroundLoading) {
-      // Set background to the loaded texture
-      scene.background = currentBackgroundTexture;
-      scene.environment = currentBackgroundTexture; // Also set as environment map
-      
-      // When a background texture is used, floor color comes from lightingConfig.floorColor
-      // Fog color should still blend with a neutral color that matches the overall lighting state.
-      const targetFogColor = lightsOn ? lightBgColor : darkBgColor; // Fog still adapts to lights on/off
-      if (!reusableFog.current) reusableFog.current = new THREE.Fog(targetFogColor, 20, 90);
-      // Ensure scene.fog is set to our reusable fog instance and immediately set its color
-      if (scene.fog !== reusableFog.current) scene.fog = reusableFog.current;
-      reusableFog.current.color.copy(targetFogColor);
-      
-      // NEW: Lerp floor color to effectiveFloorColor when custom colors are enabled
-      if (effectiveFloorColor) {
-        tmpTargetFloorColor.current.set(effectiveFloorColor);
-      } else {
-        tmpTargetFloorColor.current.set(initialFloorColor);
+    if (useExhibitionBackground) {
+      // If a texture is ready, use it. If loading is in progress, keep the
+      // black background we set earlier. If nothing is loading and no
+      // texture exists, fall back to solid color logic below.
+      if (currentBackgroundTexture) {
+        const texToUse = currentBackgroundTexture;
+        scene.background = texToUse;
+        scene.environment = texToUse; // Also set as environment map
+
+        const targetFogColor = lightsOn ? lightBgColor : darkBgColor;
+        if (!reusableFog.current) reusableFog.current = new THREE.Fog(targetFogColor, 20, 90);
+        if (scene.fog !== reusableFog.current) scene.fog = reusableFog.current;
+        reusableFog.current.color.copy(targetFogColor);
+
+        if (effectiveFloorColor) tmpTargetFloorColor.current.set(effectiveFloorColor);
+        else tmpTargetFloorColor.current.set(initialFloorColor);
+        if (floorMatRef.current) floorMatRef.current.color.copy(tmpTargetFloorColor.current);
+
+        if (scene.fog) scene.fog = null;
+      } else if (isBackgroundLoading) {
+        // While loading, we render a camera-facing black overlay mesh instead
+        // of changing the scene.background. Keep environment null and darken
+        // the floor so the overlay visually matches.
+        try { scene.environment = null; } catch (e) {}
+        if (floorMatRef.current) floorMatRef.current.color.copy(darkFloorColor);
+        if (scene.fog) scene.fog = null;
       }
-      if (floorMatRef.current) floorMatRef.current.color.copy(tmpTargetFloorColor.current);
-      
-      // Disable fog when using exhibition background
-      if (scene.fog) scene.fog = null;
-      // debug log removed
     } else {
       // Revert to solid color background if background texture is not used or loading
       // Determine target background color:
@@ -528,6 +562,16 @@ const SceneContent: React.FC<SceneProps> = ({
             <ZeroGravityEffects artworks={artworks} />
           </React.Suspense>
         )}
+
+        {/* Black overlay mesh that covers the camera view while a new background loads */}
+        <mesh
+          ref={overlayRef as any}
+          frustumCulled={false}
+          renderOrder={1000}
+        >
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial color="#000000" depthTest={false} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
 
         <NewCameraControl
           ref={cameraControlRef as any}

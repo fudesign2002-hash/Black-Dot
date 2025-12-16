@@ -99,7 +99,8 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // REMOVED: const hasEffectButtons = !isEditorMode && !isRankingMode && !isArtworkFocusedForControls; // NEW: Effects can be toggled if not in editor or ranking mode, and not focused on artwork
 
   // Determine right-side buttons based on their visibility conditions
-  const hasDevToolsToggle = isEditorMode;
+  // Temporarily hide DevTools toggle
+  const hasDevToolsToggle = false;
   // MODIFIED: Hide if in ranking mode, focused on artwork, or in zero gravity mode
   // Show reset iff global flag is enabled AND not in ranking/zero-gravity modes
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
@@ -199,12 +200,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                     }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active-scale-95 ${uiConfig.glass}`} title="Open Zone Editor">
                         <MapIcon className="w-4 h-4" />
                     </button>
-                    <button onClick={() => {
-                      setHeartEmitterArtworkId(null);
-                      setIsSearchOpen(true);
-                    }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`} title="Search Exhibitions">
-                        <Search className="w-4 h-4" />
-                    </button>
+                    {/* Temporarily hide Search Exhibitions button */}
                 </React.Fragment>
             )}
 
