@@ -26,7 +26,6 @@ const parseArtworkData = (rawData: any): ArtworkData | undefined => {
 
   return undefined;
 };
-
 export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]): Promise<FirebaseArtwork[]> => {
     const artworksPromises = docs.map(async doc => {
         const data = doc.data();
@@ -92,6 +91,7 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
 
         switch (firebaseArt.artwork_type) {
             case 'painting':
+            case 'photography':
                 itemType = 'canvas_square';
                 if (isImageFile) {
                     textureUrl = fileUrl;
@@ -134,7 +134,7 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
                 break;
         }
 
-        return {
+        const createdItem: ExhibitionArtItem = {
             id: `zone_art_${item.artworkId}_${index}`,
             artworkId: item.artworkId,
             type: itemType,
@@ -147,7 +147,21 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
             isMotionVideo: isMotionVideo,
             isFaultyMotionVideo: isFaultyMotionVideo,
             artworkGravity: firebaseArt.artwork_gravity, // NEW: Copy artwork_gravity
+            source_artwork_type: firebaseArt.artwork_type,
         };
+
+        // Photography height logic: compute vertical placement from aspect ratio
+        // Goal: taller photos sit at y = 3; shorter photos float higher so they're vertically centered
+        if (firebaseArt.artwork_type === 'photography') {
+            const ar = typeof createdItem.aspectRatio === 'number' && createdItem.aspectRatio > 0 ? createdItem.aspectRatio : 1;
+            const baseDisplayHeight = 2.5; // reference display height for a "normal" photo
+            const displayHeight = baseDisplayHeight * (1 / ar); // taller (portrait) => ar<1 => displayHeight > base
+            const positionY = displayHeight >= baseDisplayHeight ? 3 : 3 + ((baseDisplayHeight - displayHeight) / 2);
+            const pos = createdItem.position || [0, 0, 0];
+            createdItem.position = [pos[0], positionY, pos[2]];
+        }
+
+        return createdItem;
     }).filter((item): item is ExhibitionArtItem => item !== null);
 };
 
@@ -181,6 +195,7 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
 
         switch (firebaseArt.artwork_type) {
             case 'painting':
+            case 'photography':
                 itemType = 'canvas_square';
                 if (isImageFile) {
                     textureUrl = fileUrl;
@@ -223,11 +238,19 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
                 break;
         }
 
+        // Compute Y position for photography based on aspect ratio
+        let positionY = 0;
+        if (firebaseArt.artwork_type === 'photography') {
+            const ar = typeof aspectRatio === 'number' && aspectRatio > 0 ? aspectRatio : 1;
+            const baseDisplayHeight = 2.5;
+            const displayHeight = baseDisplayHeight * (1 / ar);
+            positionY = displayHeight >= baseDisplayHeight ? 3 : 3 + ((baseDisplayHeight - displayHeight) / 2);
+        }
         layoutItems.push({
             id: `firebase_art_${firebaseArt.id}_${index}`,
             artworkId: firebaseArt.id,
             type: itemType,
-            position: [startX + index * spacing, 0, 0],
+            position: [startX + index * spacing, positionY, 0],
             rotation: [0, 0, 0],
             scale: 1,
             textureUrl: textureUrl,
@@ -236,6 +259,7 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
             isMotionVideo: isMotionVideo,
             isFaultyMotionVideo: isFaultyMotionVideo,
             artworkGravity: firebaseArt.artwork_gravity, // NEW: Copy artwork_gravity
+            source_artwork_type: firebaseArt.artwork_type,
         });
     });
 

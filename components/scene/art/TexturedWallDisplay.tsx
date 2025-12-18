@@ -4,7 +4,7 @@
 import React, { useMemo, useState, useEffect, Suspense, useRef } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { ArtworkDimensions } from '../../../types';
+import { ArtworkDimensions, ArtType } from '../../../types';
 
 interface TexturedWallDisplayProps {
   textureUrl?: string;
@@ -16,9 +16,11 @@ interface TexturedWallDisplayProps {
   onDimensionsCalculated?: (width: number, height: number, artworkSurfaceZ: number, artworkCenterY: number) => void;
   isFocused: boolean;
   lightsOn: boolean;
+  artworkType?: ArtType;
+  sourceArtworkType?: string;
 }
 
-const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, mapTexture, maxDimension = 5.0, orientation, aspectRatio, isPainting, onDimensionsCalculated, isFocused, lightsOn }) => {
+const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, mapTexture, maxDimension = 5.0, orientation, aspectRatio, isPainting, onDimensionsCalculated, isFocused, lightsOn, artworkType, sourceArtworkType }) => {
   const [isInternalLoadingError, setIsInternalLoadingError] = useState(false);
   const [imageTexture, setImageTexture] = useState<THREE.Texture | null>(null);
 
@@ -180,6 +182,11 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     return [rpWidth, rpHeight, fWidth, fHeight];
   }, [wallWidth, wallHeight]);
 
+  // Hanging line visual parameters
+  const HANG_LINE_HEIGHT = 12; // long enough to appear hanging but not infinite
+  const HANG_LINE_THICKNESS = 0.012; // thinner
+  const HANG_LINE_COLOR = '#374151'; // dark gray
+
   if (isInternalLoadingError || (!finalMapTexture && textureUrl)) {
     return (
       <group>
@@ -274,6 +281,15 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
           <group position={new THREE.Vector3(0, artGroupY, wallBackingDepth + matDepth / 2)}>
               <mesh receiveShadow castShadow>
                     <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
+
+          {/* Photography hanging lines: two thin vertical lines anchored above the artwork frame and extending upward */}
+          {(typeof (props as any) !== 'undefined') && ( // ensure props defined for TS
+            (() => {
+              // Access artworkType via closure-safe lookup
+              const atype = (arguments[0] && arguments[0].artworkType) || undefined;
+              return null;
+            })()
+          )}
                     <meshStandardMaterial attach="material" color={new THREE.Color("#1a1a1a")} roughness={0.5} />
               </mesh>
               {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
@@ -286,6 +302,51 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
               </mesh>
           </group>
         )}
+
+            {/* Photography hanging lines (two vertical cables above the frame) */}
+            {sourceArtworkType === 'photography' && (
+              (() => {
+                // Determine top Y and X offsets depending on whether painting-style frame is used
+                const lineInset = Math.min(0.6, Math.max(0.2, Math.abs(matWidth) * 0.06)); // move closer to center dynamically
+                let topY = 0;
+                let leftX = - (matWidth / 2 - lineInset);
+                let rightX = (matWidth / 2 - lineInset);
+                let zPos = wallBackingDepth + matDepth / 2 + 0.02;
+
+                if (isPainting) {
+                  topY = (wallHeight / 2) + (frameHeight / 2);
+                  leftX = - (frameWidth / 2 - lineInset);
+                  rightX = (frameWidth / 2 - lineInset);
+                  zPos = wallBackingDepth + PAINTING_FRAME_THICKNESS / 2 + 0.02;
+                } else {
+                  topY = artGroupY + (matHeight / 2);
+                }
+
+                const centerY = topY + (HANG_LINE_HEIGHT / 2);
+
+                return (
+                  <group>
+                    <mesh position={new THREE.Vector3(leftX, centerY, zPos)} castShadow receiveShadow>
+                      <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, HANG_LINE_HEIGHT, 12]} />
+                      <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} />
+                    </mesh>
+                    <mesh position={new THREE.Vector3(rightX, centerY, zPos)} castShadow receiveShadow>
+                      <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, HANG_LINE_HEIGHT, 12]} />
+                      <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} />
+                    </mesh>
+                    {/* Small dark anchors */}
+                    <mesh position={new THREE.Vector3(leftX, topY + HANG_LINE_HEIGHT, zPos)}>
+                      <sphereGeometry attach="geometry" args={[HANG_LINE_THICKNESS * 0.9, 8, 8]} />
+                      <meshStandardMaterial attach="material" color={new THREE.Color('#111827')} metalness={0.1} roughness={0.8} />
+                    </mesh>
+                    <mesh position={new THREE.Vector3(rightX, topY + HANG_LINE_HEIGHT, zPos)}>
+                      <sphereGeometry attach="geometry" args={[HANG_LINE_THICKNESS * 0.9, 8, 8]} />
+                      <meshStandardMaterial attach="material" color={new THREE.Color('#111827')} metalness={0.1} roughness={0.8} />
+                    </mesh>
+                  </group>
+                );
+              })()
+            )}
     </group>
   );
 };

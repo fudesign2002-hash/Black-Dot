@@ -532,6 +532,7 @@ const SceneContent: React.FC<SceneProps> = ({
                     artworkPosition={art.originalPosition || art.position}
                     artworkRotation={art.originalRotation || art.rotation}
                     artworkType={art.type}
+                    sourceArtworkType={art.source_artwork_type}
                     isFocused={isExplicitlyFocused}
                     textureUrl={art.textureUrl}
                     artworkData={art.artworkData}

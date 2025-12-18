@@ -54,6 +54,7 @@ interface ArtComponentProps {
     artworkPosition: [number, number, number];
     artworkRotation: [number, number, number];
     artworkType: ArtType;
+    sourceArtworkType?: string | undefined;
     isFocused: boolean;
     textureUrl?: string;
     artworkData?: ArtworkData;
@@ -80,9 +81,9 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
     id,
     type, artworkPosition, artworkRotation, artworkType,
     isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn,
-    uiConfig, setFocusedArtworkInstanceId, activeExhibition, onInfoOpen, isDebugMode,
-    triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
-    isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen // NEW: Destructure isSmallScreen and isCameraMovingToArtwork
+      uiConfig, setFocusedArtworkInstanceId, activeExhibition, onInfoOpen, isDebugMode,
+      triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
+      isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType // NEW: Destructure isSmallScreen and sourceArtworkType
 }) => {
     const [visualDimensions, setVisualDimensions] = useState<ExhibitVisualDimensions | null>(null);
 
@@ -145,7 +146,8 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
 
     const commonProps = {
         isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn,
-        artworkPosition, artworkRotation, artworkType,
+      artworkPosition, artworkRotation, artworkType,
+      sourceArtworkType,
         onArtworkClickedHtml: handleArtworkClickedHtml,
         isSmallScreen, // NEW: Pass isSmallScreen
         opacity: (isCameraMovingToArtwork && !isFocused) ? 0.15 : 1.0, // NEW: Fade out non-focused artworks when camera is moving

@@ -488,7 +488,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                   const artwork = firebaseArtworks.find(fw => fw.id === selectedArt.artworkId);
                   return artwork ? (
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      artwork.artwork_type === 'painting' 
+                      (artwork.artwork_type === 'painting' || artwork.artwork_type === 'photography')
                         ? 'bg-cyan-100 text-cyan-700' 
                         : artwork.artwork_type === 'sculpture' 
                         ? 'bg-amber-100 text-amber-700'

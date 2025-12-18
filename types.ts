@@ -74,6 +74,7 @@ export interface ExhibitionArtItem {
   originalRotation?: [number, number, number];
   displayLikes?: number | null;
   artworkGravity?: number; // NEW: Add artworkGravity for zero gravity mode
+  source_artwork_type?: FirebaseArtType | 'unknown';
 }
 
 export type ExhibitionStatus = 'current' | 'past' | 'permanent' | 'future';
@@ -112,6 +113,7 @@ export interface ZoneArtworkItem {
 
 export type FirebaseArtType = 
   | 'painting'
+  | 'photography'
   | 'sculpture'
   | 'media'
   | 'motion';

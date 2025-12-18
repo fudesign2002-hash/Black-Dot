@@ -100,7 +100,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     const artworkIdsInLayout = new Set(currentLayout.map(item => item.artworkId));
     return firebaseArtworks.filter(art => 
       artworkIdsInLayout.has(art.id) &&
-      (art.artwork_type === 'painting' || art.artwork_type === 'motion' || art.artwork_type === 'sculpture')
+      (art.artwork_type === 'painting' || art.artwork_type === 'photography' || art.artwork_type === 'motion' || art.artwork_type === 'sculpture')
     );
   }, [firebaseArtworks, currentLayout]);
 
@@ -108,7 +108,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     const artworkIdsInLayout = new Set(currentLayout.map(item => item.artworkId));
     return firebaseArtworks.filter(art => 
       !artworkIdsInLayout.has(art.id) &&
-      (art.artwork_type === 'painting' || art.artwork_type === 'motion' || art.artwork_type === 'sculpture') &&
+      (art.artwork_type === 'painting' || art.artwork_type === 'photography' || art.artwork_type === 'motion' || art.artwork_type === 'sculpture') &&
       (art.title.toLowerCase().includes(addArtworkSearchQuery.toLowerCase()) ||
        (art.artist?.toLowerCase().includes(addArtworkSearchQuery.toLowerCase())) ||
        (art.artwork_type.toLowerCase().includes(addArtworkSearchQuery.toLowerCase())))
@@ -418,7 +418,8 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
 
     const storageRef = storage.ref();
     const newName = `${Date.now()}_${processedFile.name}`;
-    const artworkFilesRef = storageRef.child(`artwork_files/painting/${artworkId}/${newName}`);
+    const folderName = (artwork?.artwork_type || 'unknown').toString().toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    const artworkFilesRef = storageRef.child(`artwork_files/${folderName}/${artworkId}/${newName}`);
     const uploadTask = artworkFilesRef.put(processedFile);
 
     uploadTask.on(
@@ -613,7 +614,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
               <div className="flex items-center gap-2">
                 <h4 className="font-bold text-sm cursor-pointer" onDoubleClick={() => handleArtworkDoubleClick(artwork)}>{artwork.title} 123</h4>
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  artwork.artwork_type === 'painting' 
+                  (artwork.artwork_type === 'painting' || artwork.artwork_type === 'photography')
                     ? 'bg-cyan-100 text-cyan-700' 
                     : artwork.artwork_type === 'sculpture' 
                     ? 'bg-amber-100 text-amber-700'
@@ -643,7 +644,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
 
             {editingUrlArtworkId === artwork.id && (
               <div className="mt-4 space-y-4">
-                {artwork.artwork_type === 'painting' && (
+                {(artwork.artwork_type === 'painting' || artwork.artwork_type === 'photography') && (
                   <>
                     <div className="w-full aspect-video bg-neutral-200 dark:bg-neutral-800 rounded-md overflow-hidden flex items-center justify-center text-neutral-500">
                       {getMediaPreview(artwork)}

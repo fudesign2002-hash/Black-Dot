@@ -310,7 +310,8 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
 
     const storageRef = storage.ref();
     const newName = `${Date.now()}_${processedFile.name}`;
-    const fileRef = storageRef.child(`artwork_files/painting/${artwork.id}/${newName}`);
+    const folderName = (artwork.artwork_type || 'unknown').toString().toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    const fileRef = storageRef.child(`artwork_files/${folderName}/${artwork.id}/${newName}`);
     const uploadTask = fileRef.put(processedFile);
 
     uploadTask.on(
@@ -357,8 +358,8 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* Preview Area (only for paintings) */}
-      {artwork.artwork_type === 'painting' && (
+      {/* Preview Area (only for paintings / photography) */}
+      {(artwork.artwork_type === 'painting' || artwork.artwork_type === 'photography') && (
         <div className={`w-full aspect-video ${controlBgClass} rounded-lg overflow-hidden flex items-center justify-center relative border ${border}`}>
           {isGlb ? (
             <div className="flex flex-col items-center justify-center text-neutral-500">
@@ -405,8 +406,8 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
         </div>
       )}
 
-      {/* URL Input (only for paintings) */}
-      {artwork.artwork_type === 'painting' && (
+      {/* URL Input (only for paintings / photography) */}
+      {(artwork.artwork_type === 'painting' || artwork.artwork_type === 'photography') && (
         <div className="space-y-2">
           <div className="flex gap-2">
             <input
