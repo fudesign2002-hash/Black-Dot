@@ -17,6 +17,7 @@ import ArtworkWrapper from './ArtworkWrapper';
 import { getShadowMapSize } from '../../../utils/screenSettings'; // NEW: Import getShadowMapSize
 // REMOVED: import { EffectRegistry } from '../../../effect_bundle'; // NEW: Import EffectRegistry
 import { deepDispose } from '../../../utils/threeUtils'; // NEW: Import deepDispose
+import textureCache from '../../../services/textureCache';
 
 
 const SCENE_WIDTH = 100;
@@ -74,6 +75,51 @@ const SceneContent: React.FC<SceneProps> = ({
   const dirLight2Ref = useRef<THREE.DirectionalLight>(null);
   const floorMatRef = useRef<THREE.MeshStandardMaterial>(null);
   const { scene, camera } = useThree();
+
+  const CACHE_PIN_THRESHOLD = 13; // if number of artworks <= this, keep all pinned
+  const neighborPreloadsRef = useRef<string[]>([]);
+
+  // Pin all textures when gallery is small to avoid any reloads; otherwise unpin
+  useEffect(() => {
+    const urls = artworks.map(a => a.textureUrl).filter(Boolean) as string[];
+    if (urls.length <= CACHE_PIN_THRESHOLD) {
+      urls.forEach(u => textureCache.pinTexture(u));
+    } else {
+      // unpin any previously pinned ones (best-effort)
+      urls.forEach(u => textureCache.unpinTexture(u));
+    }
+    return () => {
+      // unpin on cleanup
+      urls.forEach(u => textureCache.unpinTexture(u));
+    };
+  }, [artworks.length]);
+
+  // Preload neighbor textures around focused artwork (previous/next 2)
+  useEffect(() => {
+    // clear previous preloads
+    neighborPreloadsRef.current.forEach(u => textureCache.releaseTexture(u));
+    neighborPreloadsRef.current = [];
+    if (!focusedArtworkInstanceId) return;
+    const idx = artworks.findIndex(a => a.id === focusedArtworkInstanceId);
+    if (idx === -1) return;
+    const neighbors: number[] = [];
+    for (let d = -2; d <= 2; d++) {
+      if (d === 0) continue;
+      const ni = idx + d;
+      if (ni >= 0 && ni < artworks.length) neighbors.push(ni);
+    }
+    neighbors.forEach(i => {
+      const u = artworks[i].textureUrl;
+      if (u) {
+        neighborPreloadsRef.current.push(u);
+        textureCache.retainTexture(u).catch(() => {});
+      }
+    });
+    return () => {
+      neighborPreloadsRef.current.forEach(u => textureCache.releaseTexture(u));
+      neighborPreloadsRef.current = [];
+    };
+  }, [focusedArtworkInstanceId, artworks]);
 
   // FIX: Initialize useRef with their default initial values
   const frameTimes = useRef<number[]>([]);
@@ -532,6 +578,7 @@ const SceneContent: React.FC<SceneProps> = ({
                     artworkPosition={art.originalPosition || art.position}
                     artworkRotation={art.originalRotation || art.rotation}
                     artworkType={art.type}
+                    aspectRatio={art.aspectRatio}
                     sourceArtworkType={art.source_artwork_type}
                     isFocused={isExplicitlyFocused}
                     textureUrl={art.textureUrl}

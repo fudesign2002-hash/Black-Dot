@@ -60,7 +60,7 @@ const ROTATION_SPEED_Z = 0.7; // Oscillations per second for Z rotation
 
 // Gravity mapping constants
 // Base floating height for artworks will now range between +2 and +25 relative to original Y.
-const MAX_BASE_FLOAT_Y = 20; // When artwork gravity is lowest (few views) -> float higher (y + 25)
+const MAX_BASE_FLOAT_Y = 14; // When artwork gravity is lowest (few views) -> float higher (y + 25)
 const MIN_BASE_FLOAT_Y = 2;  // When artwork gravity is highest (many views) -> float lower (y + 2)
 
 // Global offset to fine-tune final base (keeps values reasonable); set to 0 by default

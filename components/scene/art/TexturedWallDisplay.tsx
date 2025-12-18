@@ -28,10 +28,12 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
   // throwing inside the render tree (which would crash the <Canvas> if uncaught).
   useEffect(() => {
     let mounted = true;
-    // Dispose previous texture when changing
-    const prev = imageTexture;
-    if (prev) {
-      prev.dispose();
+    // Release previous retained texture if any
+    let prevUrl: string | null = null;
+    let prevTexture = imageTexture;
+    if (prevTexture) {
+      // we don't dispose directly; rely on cache release
+      prevUrl = (prevTexture as any).__cachedUrl || null;
       setImageTexture(null);
     }
 
@@ -40,27 +42,33 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
       return () => { mounted = false; };
     }
 
-    const loader = new THREE.TextureLoader();
-    loader.crossOrigin = 'anonymous';
-
-    loader.load(
-      textureUrl as string,
-      (tex) => {
-        if (!mounted) return;
-        setImageTexture(tex);
-        setIsInternalLoadingError(false);
-      },
-      undefined,
-      (err) => {
-        // [log removed] texture load failed
+    // Use global texture cache to load/retain textures so we can control eviction
+    let cancelled = false;
+    (async () => {
+      try {
+        const tex = await (await import('../../../services/textureCache')).default.retainTexture(textureUrl as string);
+        if (!mounted || cancelled) {
+          if (tex) (await import('../../../services/textureCache')).default.releaseTexture(textureUrl as string);
+          return;
+        }
+        if (tex) {
+          // attach cached url for potential future release tracking
+          try { (tex as any).__cachedUrl = textureUrl; } catch (e) {}
+          setImageTexture(tex);
+          setIsInternalLoadingError(false);
+        }
+      } catch (err) {
         if (!mounted) return;
         setIsInternalLoadingError(true);
       }
-    );
+    })();
 
     return () => {
       mounted = false;
-      // cleanup handled above when effect re-runs
+      cancelled = true;
+      if (textureUrl) {
+        (async () => { try { (await import('../../../services/textureCache')).default.releaseTexture(textureUrl as string); } catch (e) {} })();
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textureUrl, mapTexture]);
@@ -70,6 +78,38 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     if (imageTexture) return imageTexture;
     return null;
   }, [mapTexture, imageTexture]);
+
+  // Smooth fade-in for artwork textures to hide loading jumps
+  const opacityRef = useRef<number>(finalMapTexture ? 1 : 0);
+  const targetOpacityRef = useRef<number>(finalMapTexture ? 1 : 0);
+  const artworkMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const paintingMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+
+  useEffect(() => {
+    // When texture becomes available, target opacity -> 1, otherwise -> 0
+    if (finalMapTexture) targetOpacityRef.current = 1;
+    else targetOpacityRef.current = 0;
+  }, [finalMapTexture]);
+
+  // Animate opacity each frame
+  useFrame((state, delta) => {
+    const cur = opacityRef.current;
+    const target = targetOpacityRef.current;
+    if (Math.abs(cur - target) > 0.001) {
+      // lerp with a relatively quick speed so fade is fast but visible
+      const next = THREE.MathUtils.lerp(cur, target, Math.min(1, delta * 6));
+      opacityRef.current = next;
+      // apply to material if available
+      if (artworkMaterialRef.current) {
+        artworkMaterialRef.current.opacity = next;
+        artworkMaterialRef.current.transparent = next < 0.999;
+      }
+      if (paintingMaterialRef.current) {
+        paintingMaterialRef.current.opacity = next;
+        paintingMaterialRef.current.transparent = next < 0.999;
+      }
+    }
+  });
 
   useEffect(() => {
     setIsInternalLoadingError(false);
@@ -169,6 +209,11 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
 
   const wallBackingDepth = 0.4;
 
+  // Allow a thinner backing for photography so cables sit visibly behind a thinner wall
+  const effectiveWallBackingDepth = sourceArtworkType === 'photography' ? 0.18 : wallBackingDepth;
+  const effectiveArtSurfaceZ = effectiveWallBackingDepth + artworkFrameDepth - ARTWORK_RECESS_INTO_FRAME;
+  const CABLE_Z_OFFSET = 0; // how far behind the artwork surface the cables sit for photography (reduced to move cables forward)
+
   const PAINTING_RED_PLANE_MARGIN = 0.5;
   const PAINTING_FRAME_THICKNESS = 0.05;
   const PAINTING_FRAME_COLOR = '#000000';
@@ -183,9 +228,10 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
   }, [wallWidth, wallHeight]);
 
   // Hanging line visual parameters
-  const HANG_LINE_HEIGHT = 12; // long enough to appear hanging but not infinite
-  const HANG_LINE_THICKNESS = 0.012; // thinner
+  const HANG_LINE_HEIGHT = 24; // extended taller to make cables reach higher
+  const HANG_LINE_THICKNESS = 0.006; // make cables thinner
   const HANG_LINE_COLOR = '#374151'; // dark gray
+  const HANG_LINE_FADE_SEGMENTS = 8; // number of stacked segments for a smooth fade-out
 
   if (isInternalLoadingError || (!finalMapTexture && textureUrl)) {
     return (
@@ -210,13 +256,13 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
             <React.Fragment>
                 {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
                 <mesh 
-                  receiveShadow position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth / 2)}
+                  receiveShadow position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth / 2)}
                 >
-                    <boxGeometry attach="geometry" args={[wallWidth, wallHeight, wallBackingDepth]} />
+                    <boxGeometry attach="geometry" args={[wallWidth, wallHeight, effectiveWallBackingDepth]} />
                     <meshStandardMaterial attach="material" color={new THREE.Color("#ffffff")} roughness={1.0} metalness={0} />
                 </mesh>
                 {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
-                <group position={new THREE.Vector3(0, artGroupY, wallBackingDepth + matDepth / 2)}>
+                <group position={new THREE.Vector3(0, artGroupY, effectiveWallBackingDepth + matDepth / 2)}>
                      <mesh receiveShadow castShadow>
                         <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
                         <meshStandardMaterial attach="material" color={new THREE.Color("#333333")} roughness={0.5} />
@@ -240,9 +286,9 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
         <mesh 
           receiveShadow 
-          position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth / 2)} 
+          position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth / 2)} 
         >
-            <boxGeometry attach="geometry" args={[wallWidth, wallHeight, wallBackingDepth]} />
+            <boxGeometry attach="geometry" args={[wallWidth, wallHeight, effectiveWallBackingDepth]} />
             <meshStandardMaterial 
               attach="material"
               color={new THREE.Color("#ffffff")} 
@@ -254,23 +300,26 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         {isPainting && (
           <React.Fragment>
             {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
-            <mesh position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow castShadow>
+            <mesh position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow castShadow>
               <boxGeometry attach="geometry" args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
               <meshStandardMaterial attach="material" color={new THREE.Color(PAINTING_FRAME_COLOR)} roughness={0.8} metalness={0} />
             </mesh>
 
             {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
             <mesh 
-              position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05)} 
+              position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05)} 
               receiveShadow
             >
               <boxGeometry attach="geometry" args={[redPlaneWidth, redPlaneHeight, 0.02]} />
               {/* FIX: Use attach="material" for meshStandardMaterial when directly inside mesh to prevent type errors */}
               <meshStandardMaterial 
+                ref={paintingMaterialRef as any}
                 attach="material"
                 map={finalMapTexture}
                 roughness={1}
                 metalness={0}
+                transparent={true}
+                opacity={opacityRef.current}
               /> 
             </mesh>
           </React.Fragment>
@@ -278,7 +327,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
 
         {!isPainting && (
           // FIX: Use THREE.Vector3 for position and args prop for geometry
-          <group position={new THREE.Vector3(0, artGroupY, wallBackingDepth + matDepth / 2)}>
+          <group position={new THREE.Vector3(0, artGroupY, effectiveWallBackingDepth + matDepth / 2)}>
               <mesh receiveShadow castShadow>
                     <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
 
@@ -297,8 +346,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 position={new THREE.Vector3(0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME)}
               >
                 <planeGeometry attach="geometry" args={[artWidth, artHeight]} />
-                {/* FIX: Use attach="material" for meshStandardMaterial when directly inside mesh to prevent type errors */}
-                <meshStandardMaterial attach="material" map={finalMapTexture} roughness={1} metalness={0} />
+                  {/* FIX: Use attach="material" for meshStandardMaterial when directly inside mesh to prevent type errors */}
+                  <meshStandardMaterial ref={artworkMaterialRef as any} attach="material" map={finalMapTexture} roughness={1} metalness={0} transparent={true} opacity={opacityRef.current} />
               </mesh>
           </group>
         )}
@@ -311,13 +360,13 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 let topY = 0;
                 let leftX = - (matWidth / 2 - lineInset);
                 let rightX = (matWidth / 2 - lineInset);
-                let zPos = wallBackingDepth + matDepth / 2 + 0.02;
+                let zPos = effectiveArtSurfaceZ - CABLE_Z_OFFSET; // move cables further behind the artwork surface (subtract to decrease Z)
 
                 if (isPainting) {
                   topY = (wallHeight / 2) + (frameHeight / 2);
                   leftX = - (frameWidth / 2 - lineInset);
                   rightX = (frameWidth / 2 - lineInset);
-                  zPos = wallBackingDepth + PAINTING_FRAME_THICKNESS / 2 + 0.02;
+                  zPos = effectiveArtSurfaceZ - CABLE_Z_OFFSET; // keep painting branch consistent: slightly behind surface (subtract to decrease Z)
                 } else {
                   topY = artGroupY + (matHeight / 2);
                 }
@@ -326,20 +375,32 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
 
                 return (
                   <group>
-                    <mesh position={new THREE.Vector3(leftX, centerY, zPos)} castShadow receiveShadow>
-                      <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, HANG_LINE_HEIGHT, 12]} />
-                      <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} />
-                    </mesh>
-                    <mesh position={new THREE.Vector3(rightX, centerY, zPos)} castShadow receiveShadow>
-                      <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, HANG_LINE_HEIGHT, 12]} />
-                      <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} />
-                    </mesh>
+                    {/* Stacked short cylinders with decreasing opacity to simulate a vertical fade */}
+                    {Array.from({ length: HANG_LINE_FADE_SEGMENTS }).map((_, i) => {
+                      const segH = HANG_LINE_HEIGHT / HANG_LINE_FADE_SEGMENTS;
+                      const segCenterY = topY + segH * (i + 0.5);
+                      const t = i / Math.max(1, HANG_LINE_FADE_SEGMENTS - 1);
+                      const opacity = 1.0 - t * 0.92; // fade to ~0.08 at the tip
+                      return (
+                        <React.Fragment key={`left-cable-seg-${i}`}>
+                          <mesh position={new THREE.Vector3(leftX, segCenterY, zPos)} castShadow receiveShadow>
+                            <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, segH, 12]} />
+                            <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} transparent={true} opacity={opacity} />
+                          </mesh>
+                          <mesh position={new THREE.Vector3(rightX, segCenterY, zPos)} castShadow receiveShadow>
+                            <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, segH, 12]} />
+                            <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} transparent={true} opacity={opacity} />
+                          </mesh>
+                        </React.Fragment>
+                      );
+                    })}
                     {/* Small dark anchors */}
-                    <mesh position={new THREE.Vector3(leftX, topY + HANG_LINE_HEIGHT, zPos)}>
+                    {/* Small dark anchors at the top of the cables (slightly above the visible fade) */}
+                    <mesh position={new THREE.Vector3(leftX, topY + HANG_LINE_HEIGHT * 0.98, zPos)}>
                       <sphereGeometry attach="geometry" args={[HANG_LINE_THICKNESS * 0.9, 8, 8]} />
                       <meshStandardMaterial attach="material" color={new THREE.Color('#111827')} metalness={0.1} roughness={0.8} />
                     </mesh>
-                    <mesh position={new THREE.Vector3(rightX, topY + HANG_LINE_HEIGHT, zPos)}>
+                    <mesh position={new THREE.Vector3(rightX, topY + HANG_LINE_HEIGHT * 0.98, zPos)}>
                       <sphereGeometry attach="geometry" args={[HANG_LINE_THICKNESS * 0.9, 8, 8]} />
                       <meshStandardMaterial attach="material" color={new THREE.Color('#111827')} metalness={0.1} roughness={0.8} />
                     </mesh>
@@ -347,6 +408,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 );
               })()
             )}
+            {/* Debug marker removed for production; was visible inside photography images */}
     </group>
   );
 };
