@@ -646,6 +646,15 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     // If it's considered tap, we allow onClick to proceed; otherwise suppress
     suppressClickRef.current = !consideredTap;
 
+    if (consideredTap) {
+      // Directly invoke handler on pointerup/touchend for more reliable mobile behavior
+      try {
+        onCanvasArtworkClick && onCanvasArtworkClick(e as any);
+      } catch (err) {
+        // ignore handler errors
+      }
+    }
+
     // cleanup
     activePointerId.current = null;
     isDragging.current = false;
@@ -674,6 +683,27 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     onCanvasArtworkClick && onCanvasArtworkClick(e as any);
   };
 
+  // Touch fallback for browsers that may not emit pointer events reliably
+  const handleTouchStart = (e: TouchEvent) => {
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+    // build a synthetic pointer-like object
+    handlePointerDown({ pointerId: (t as any).identifier ?? 1, pointerType: 'touch', clientX: t.clientX, clientY: t.clientY, target: e.target });
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+    handlePointerMove({ pointerId: (t as any).identifier ?? 1, pointerType: 'touch', clientX: t.clientX, clientY: t.clientY, target: e.target });
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    // Use changedTouches to get the touch that ended
+    const t = e.changedTouches && e.changedTouches[0];
+    if (!t) return;
+    handlePointerUp({ pointerId: (t as any).identifier ?? 1, pointerType: 'touch', clientX: t.clientX, clientY: t.clientY, target: e.target });
+  };
+
   return (
     <group
       ref={groupRef}
@@ -681,6 +711,9 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      onTouchStart={(e) => { e.preventDefault && e.preventDefault(); handleTouchStart(e.nativeEvent); }}
+      onTouchMove={(e) => { e.preventDefault && e.preventDefault(); handleTouchMove(e.nativeEvent); }}
+      onTouchEnd={(e) => { e.preventDefault && e.preventDefault(); handleTouchEnd(e.nativeEvent); }}
       onClick={handleClick}
     >
       {children}
