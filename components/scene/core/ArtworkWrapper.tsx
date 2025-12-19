@@ -576,6 +576,20 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
   const handlePointerDown = (e: any) => {
     try {
+      // If this is an r3f pointer event, record the first intersection's object name/id
+      try {
+        if (e.intersections && e.intersections.length > 0) {
+          const obj = e.intersections[0].object;
+          lastHitRef.current = (obj && (obj.name || (obj.userData && obj.userData.id))) || (obj && obj.uuid) || String(obj);
+        } else if (e.object) {
+          const obj = e.object;
+          lastHitRef.current = (obj && (obj.name || (obj.userData && obj.userData.id))) || (obj && obj.uuid) || String(obj);
+        } else {
+          lastHitRef.current = null;
+        }
+      } catch (err) {
+        lastHitRef.current = null;
+      }
       // Count touches only for touch pointers
       if (e.pointerType === 'touch') {
         multiTouchCount.current += 1;
@@ -710,6 +724,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
   // --- Debug overlay for mobile testing: show pointer metrics in red text ---
   const debugDivRef = useRef<HTMLDivElement | null>(null);
+  const lastHitRef = useRef<string | null>(null);
 
   const updateDebugOverlay = () => {
     const div = debugDivRef.current;
@@ -723,7 +738,8 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     const suppress = suppressClickRef.current ? 'yes' : 'no';
     const now = performance.now();
     const dur = (pointerStartTime.current ? Math.max(0, now - pointerStartTime.current).toFixed(0) : '0');
-    div.innerText = `type: ${pt}\nactiveId: ${active}\nstart: ${startX},${startY}\nmaxMove: ${maxDist}px\nduration: ${dur}ms\n dragging: ${dragging}\n suppressClick: ${suppress}`;
+    const lastHit = lastHitRef.current || 'none';
+    div.innerText = `type: ${pt}\nactiveId: ${active}\nstart: ${startX},${startY}\nmaxMove: ${maxDist}px\nduration: ${dur}ms\n dragging: ${dragging}\n suppressClick: ${suppress}\n lastHit: ${lastHit}`;
   };
 
   useEffect(() => {
