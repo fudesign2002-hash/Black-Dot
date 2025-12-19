@@ -565,6 +565,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
   // Lightweight pointer/tap vs drag state (minimal allocations)
   const activePointerId = useRef<number | null>(null);
+  const pointerDownSeen = useRef<Set<number>>(new Set());
   const pointerStartX = useRef(0);
   const pointerStartY = useRef(0);
   const pointerStartTime = useRef(0);
@@ -576,6 +577,11 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
   const handlePointerDown = (e: any) => {
     try {
+      // Ignore duplicate bubbled pointerdown events for the same pointerId
+      if (pointerDownSeen.current.has(e.pointerId)) {
+        return;
+      }
+      pointerDownSeen.current.add(e.pointerId);
       // Count touches only for touch pointers
       if (e.pointerType === 'touch') {
         multiTouchCount.current += 1;
@@ -594,6 +600,15 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       isDragging.current = false;
       suppressClickRef.current = false;
 
+      if ((import.meta as any).env?.DEV) {
+        try {
+          const isTouch = e.pointerType === 'touch' || pointerTypeRef.current === 'touch';
+          if (isTouch) {
+            // eslint-disable-next-line no-console
+            console.warn('[ArtworkWrapper] pointerDown', { id, pointerId: e.pointerId, pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY });
+          }
+        } catch (err) {}
+      }
       // Try to capture to ensure consistent move/up events
       try {
         e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
@@ -610,7 +625,14 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     const dx = e.clientX - pointerStartX.current;
     const dy = e.clientY - pointerStartY.current;
     const dist = Math.hypot(dx, dy);
+    const prevMax = maxMoveDistance.current;
     if (dist > maxMoveDistance.current) maxMoveDistance.current = dist;
+    if ((import.meta as any).env?.DEV) {
+      try {
+        // eslint-disable-next-line no-console
+        console.warn('[ArtworkWrapper] pointerMove', { id, pointerId: e.pointerId, pointerType: e.pointerType, dx, dy, dist, prevMax, newMax: maxMoveDistance.current });
+      } catch (err) {}
+    }
 
     const threshold = pointerTypeRef.current === 'touch' ? TOUCH_DISTANCE_THRESHOLD : MOUSE_DISTANCE_THRESHOLD;
     if (maxMoveDistance.current > threshold) {
@@ -634,21 +656,41 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     }
 
     const duration = performance.now() - pointerStartTime.current;
-    const dist = maxMoveDistance.current;
+    // Use final endpoint distance (from start) instead of maxMoveDistance to decide tap vs drag
+    const dxFinal = e.clientX - pointerStartX.current;
+    const dyFinal = e.clientY - pointerStartY.current;
+    const finalDist = Math.hypot(dxFinal, dyFinal);
     const isMulti = multiTouchCount.current > 1;
     const isTouch = pointerTypeRef.current === 'touch';
 
     const durThreshold = isTouch ? TOUCH_DURATION_THRESHOLD : MOUSE_DURATION_THRESHOLD;
     const distThreshold = isTouch ? TOUCH_DISTANCE_THRESHOLD : MOUSE_DISTANCE_THRESHOLD;
 
-    const consideredTap = !isDragging.current && !isMulti && duration <= durThreshold && dist <= distThreshold;
+    // Consider tap when final endpoint displacement is small and within duration, and not multi-touch
+    const consideredTap = !isMulti && duration <= durThreshold && finalDist <= distThreshold;
 
-    // If it's considered tap, we allow onClick to proceed; otherwise suppress
+    // Preserve isDragging marker for internal use, but base suppression on the final endpoint check
+    if (maxMoveDistance.current > distThreshold) {
+      isDragging.current = true;
+    }
+
     suppressClickRef.current = !consideredTap;
+
+      if ((import.meta as any).env?.DEV) {
+        try {
+          const isTouch = pointerTypeRef.current === 'touch' || e.pointerType === 'touch';
+          if (isTouch) {
+            // eslint-disable-next-line no-console
+            console.warn('[ArtworkWrapper] pointerUp', { id, pointerId: e.pointerId, pointerType: e.pointerType, duration, dist, consideredTap, suppressClick: suppressClickRef.current });
+          }
+        } catch (err) {}
+      }
 
     // cleanup
     activePointerId.current = null;
     isDragging.current = false;
+    // remove seen marker so future interactions with same pointerId will be handled
+    try { pointerDownSeen.current.delete(e.pointerId); } catch (err) {}
     if (e.pointerType === 'touch') {
       multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
     }
@@ -661,9 +703,18 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     isDragging.current = false;
     suppressClickRef.current = true;
     if (e.pointerType === 'touch') multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
+    try { pointerDownSeen.current.delete(e.pointerId); } catch (err) {}
   };
 
   const handleClick = (e: any) => {
+    if ((import.meta as any).env?.DEV) {
+      try {
+        const dur = performance.now() - pointerStartTime.current;
+        // eslint-disable-next-line no-console
+        console.warn('[ArtworkWrapper] click', { id, suppressClick: suppressClickRef.current, pointerType: pointerTypeRef.current, duration: dur, maxMoveDistance: maxMoveDistance.current });
+      } catch (err) {}
+    }
+
     if (suppressClickRef.current) {
       // swallow this click
       e.stopPropagation && e.stopPropagation();

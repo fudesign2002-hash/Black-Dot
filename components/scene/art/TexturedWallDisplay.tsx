@@ -306,13 +306,31 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
             </mesh>
 
             {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
-            <mesh 
-              position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05)} 
+            <mesh
+              position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05)}
               receiveShadow
+              onPointerDown={(e: any) => {
+                if ((import.meta as any).env?.DEV) {
+                  try {
+                    const isTouch = e.pointerType === 'touch';
+                    if (isTouch || (typeof navigator !== 'undefined' && (navigator as any).maxTouchPoints > 0)) {
+                      // eslint-disable-next-line no-console
+                      console.warn('[TexturedWallDisplay] painting pointerDown', { pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY });
+                    }
+                  } catch (err) {}
+                }
+              }}
+              onClick={(e: any) => {
+                if ((import.meta as any).env?.DEV) {
+                  try {
+                    // eslint-disable-next-line no-console
+                    console.warn('[TexturedWallDisplay] painting click', { pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY });
+                  } catch (err) {}
+                }
+              }}
             >
               <boxGeometry attach="geometry" args={[redPlaneWidth, redPlaneHeight, 0.02]} />
-              {/* FIX: Use attach="material" for meshStandardMaterial when directly inside mesh to prevent type errors */}
-              <meshStandardMaterial 
+              <meshStandardMaterial
                 ref={paintingMaterialRef as any}
                 attach="material"
                 map={finalMapTexture}
@@ -320,7 +338,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 metalness={0}
                 transparent={true}
                 opacity={opacityRef.current}
-              /> 
+              />
             </mesh>
           </React.Fragment>
         )}
@@ -342,12 +360,30 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                     <meshStandardMaterial attach="material" color={new THREE.Color("#1a1a1a")} roughness={0.5} />
               </mesh>
               {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
-              <mesh 
+              <mesh
                 position={new THREE.Vector3(0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME)}
+                onPointerDown={(e: any) => {
+                  if ((import.meta as any).env?.DEV) {
+                    try {
+                      const isTouch = e.pointerType === 'touch';
+                      if (isTouch || (typeof navigator !== 'undefined' && (navigator as any).maxTouchPoints > 0)) {
+                        // eslint-disable-next-line no-console
+                        console.warn('[TexturedWallDisplay] photography pointerDown', { pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY });
+                      }
+                    } catch (err) {}
+                  }
+                }}
+                onClick={(e: any) => {
+                  if ((import.meta as any).env?.DEV) {
+                    try {
+                      // eslint-disable-next-line no-console
+                      console.warn('[TexturedWallDisplay] photography click', { pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY });
+                    } catch (err) {}
+                  }
+                }}
               >
                 <planeGeometry attach="geometry" args={[artWidth, artHeight]} />
-                  {/* FIX: Use attach="material" for meshStandardMaterial when directly inside mesh to prevent type errors */}
-                  <meshStandardMaterial ref={artworkMaterialRef as any} attach="material" map={finalMapTexture} roughness={1} metalness={0} transparent={true} opacity={opacityRef.current} />
+                <meshStandardMaterial ref={artworkMaterialRef as any} attach="material" map={finalMapTexture} roughness={1} metalness={0} transparent={true} opacity={opacityRef.current} />
               </mesh>
           </group>
         )}
