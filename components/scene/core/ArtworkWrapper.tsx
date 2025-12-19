@@ -576,20 +576,6 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
   const handlePointerDown = (e: any) => {
     try {
-      // If this is an r3f pointer event, record the first intersection's object name/id
-      try {
-        if (e.intersections && e.intersections.length > 0) {
-          const obj = e.intersections[0].object;
-          lastHitRef.current = (obj && (obj.name || (obj.userData && obj.userData.id))) || (obj && obj.uuid) || String(obj);
-        } else if (e.object) {
-          const obj = e.object;
-          lastHitRef.current = (obj && (obj.name || (obj.userData && obj.userData.id))) || (obj && obj.uuid) || String(obj);
-        } else {
-          lastHitRef.current = null;
-        }
-      } catch (err) {
-        lastHitRef.current = null;
-      }
       // Count touches only for touch pointers
       if (e.pointerType === 'touch') {
         multiTouchCount.current += 1;
@@ -614,7 +600,6 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       } catch (err) {
         // ignore
       }
-      updateDebugOverlay();
     } catch (err) {
       // defensive: don't break rendering if event is odd
     }
@@ -632,7 +617,6 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       isDragging.current = true;
       suppressClickRef.current = true;
     }
-    updateDebugOverlay();
   };
 
   const handlePointerUp = (e: any) => {
@@ -662,22 +646,12 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     // If it's considered tap, we allow onClick to proceed; otherwise suppress
     suppressClickRef.current = !consideredTap;
 
-    if (consideredTap) {
-      // Directly invoke handler on pointerup/touchend for more reliable mobile behavior
-      try {
-        onCanvasArtworkClick && onCanvasArtworkClick(e as any);
-      } catch (err) {
-        // ignore handler errors
-      }
-    }
-
     // cleanup
     activePointerId.current = null;
     isDragging.current = false;
     if (e.pointerType === 'touch') {
       multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
     }
-    updateDebugOverlay();
   };
 
   const handlePointerCancel = (e: any) => {
@@ -687,7 +661,6 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     isDragging.current = false;
     suppressClickRef.current = true;
     if (e.pointerType === 'touch') multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
-    updateDebugOverlay();
   };
 
   const handleClick = (e: any) => {
@@ -701,72 +674,6 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     onCanvasArtworkClick && onCanvasArtworkClick(e as any);
   };
 
-  // Touch fallback for browsers that may not emit pointer events reliably
-  const handleTouchStart = (e: TouchEvent) => {
-    const t = e.touches && e.touches[0];
-    if (!t) return;
-    // build a synthetic pointer-like object
-    handlePointerDown({ pointerId: (t as any).identifier ?? 1, pointerType: 'touch', clientX: t.clientX, clientY: t.clientY, target: e.target });
-  };
-
-  const handleTouchMove = (e: TouchEvent) => {
-    const t = e.touches && e.touches[0];
-    if (!t) return;
-    handlePointerMove({ pointerId: (t as any).identifier ?? 1, pointerType: 'touch', clientX: t.clientX, clientY: t.clientY, target: e.target });
-  };
-
-  const handleTouchEnd = (e: TouchEvent) => {
-    // Use changedTouches to get the touch that ended
-    const t = e.changedTouches && e.changedTouches[0];
-    if (!t) return;
-    handlePointerUp({ pointerId: (t as any).identifier ?? 1, pointerType: 'touch', clientX: t.clientX, clientY: t.clientY, target: e.target });
-  };
-
-  // --- Debug overlay for mobile testing: show pointer metrics in red text ---
-  const debugDivRef = useRef<HTMLDivElement | null>(null);
-  const lastHitRef = useRef<string | null>(null);
-
-  const updateDebugOverlay = () => {
-    const div = debugDivRef.current;
-    if (!div) return;
-    const pt = pointerTypeRef.current;
-    const active = activePointerId.current;
-    const startX = pointerStartX.current.toFixed(0);
-    const startY = pointerStartY.current.toFixed(0);
-    const maxDist = maxMoveDistance.current.toFixed(1);
-    const dragging = isDragging.current ? 'yes' : 'no';
-    const suppress = suppressClickRef.current ? 'yes' : 'no';
-    const now = performance.now();
-    const dur = (pointerStartTime.current ? Math.max(0, now - pointerStartTime.current).toFixed(0) : '0');
-    const lastHit = lastHitRef.current || 'none';
-    div.innerText = `type: ${pt}\nactiveId: ${active}\nstart: ${startX},${startY}\nmaxMove: ${maxDist}px\nduration: ${dur}ms\n dragging: ${dragging}\n suppressClick: ${suppress}\n lastHit: ${lastHit}`;
-  };
-
-  useEffect(() => {
-    // create overlay once
-    const div = document.createElement('div');
-    debugDivRef.current = div;
-    div.style.position = 'fixed';
-    div.style.left = '8px';
-    div.style.bottom = '8px';
-    div.style.padding = '6px 8px';
-    div.style.background = 'rgba(0,0,0,0.45)';
-    div.style.color = 'red';
-    div.style.fontSize = '12px';
-    div.style.lineHeight = '1.2';
-    div.style.whiteSpace = 'pre';
-    div.style.zIndex = '99999';
-    div.style.borderRadius = '6px';
-    div.style.pointerEvents = 'none';
-    document.body.appendChild(div);
-    updateDebugOverlay();
-    return () => {
-      try { document.body.removeChild(div); } catch (err) { /* ignore */ }
-      debugDivRef.current = null;
-    };
-  }, []);
-
-
   return (
     <group
       ref={groupRef}
@@ -774,9 +681,6 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
-      onTouchStart={(e) => { e.preventDefault && e.preventDefault(); handleTouchStart(e.nativeEvent); }}
-      onTouchMove={(e) => { e.preventDefault && e.preventDefault(); handleTouchMove(e.nativeEvent); }}
-      onTouchEnd={(e) => { e.preventDefault && e.preventDefault(); handleTouchEnd(e.nativeEvent); }}
       onClick={handleClick}
     >
       {children}
