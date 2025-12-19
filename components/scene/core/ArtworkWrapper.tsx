@@ -600,6 +600,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       } catch (err) {
         // ignore
       }
+      updateDebugOverlay();
     } catch (err) {
       // defensive: don't break rendering if event is odd
     }
@@ -617,6 +618,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       isDragging.current = true;
       suppressClickRef.current = true;
     }
+    updateDebugOverlay();
   };
 
   const handlePointerUp = (e: any) => {
@@ -661,6 +663,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     if (e.pointerType === 'touch') {
       multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
     }
+    updateDebugOverlay();
   };
 
   const handlePointerCancel = (e: any) => {
@@ -670,6 +673,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     isDragging.current = false;
     suppressClickRef.current = true;
     if (e.pointerType === 'touch') multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
+    updateDebugOverlay();
   };
 
   const handleClick = (e: any) => {
@@ -703,6 +707,49 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     if (!t) return;
     handlePointerUp({ pointerId: (t as any).identifier ?? 1, pointerType: 'touch', clientX: t.clientX, clientY: t.clientY, target: e.target });
   };
+
+  // --- Debug overlay for mobile testing: show pointer metrics in red text ---
+  const debugDivRef = useRef<HTMLDivElement | null>(null);
+
+  const updateDebugOverlay = () => {
+    const div = debugDivRef.current;
+    if (!div) return;
+    const pt = pointerTypeRef.current;
+    const active = activePointerId.current;
+    const startX = pointerStartX.current.toFixed(0);
+    const startY = pointerStartY.current.toFixed(0);
+    const maxDist = maxMoveDistance.current.toFixed(1);
+    const dragging = isDragging.current ? 'yes' : 'no';
+    const suppress = suppressClickRef.current ? 'yes' : 'no';
+    const now = performance.now();
+    const dur = (pointerStartTime.current ? Math.max(0, now - pointerStartTime.current).toFixed(0) : '0');
+    div.innerText = `type: ${pt}\nactiveId: ${active}\nstart: ${startX},${startY}\nmaxMove: ${maxDist}px\nduration: ${dur}ms\n dragging: ${dragging}\n suppressClick: ${suppress}`;
+  };
+
+  useEffect(() => {
+    // create overlay once
+    const div = document.createElement('div');
+    debugDivRef.current = div;
+    div.style.position = 'fixed';
+    div.style.left = '8px';
+    div.style.bottom = '8px';
+    div.style.padding = '6px 8px';
+    div.style.background = 'rgba(0,0,0,0.45)';
+    div.style.color = 'red';
+    div.style.fontSize = '12px';
+    div.style.lineHeight = '1.2';
+    div.style.whiteSpace = 'pre';
+    div.style.zIndex = '99999';
+    div.style.borderRadius = '6px';
+    div.style.pointerEvents = 'none';
+    document.body.appendChild(div);
+    updateDebugOverlay();
+    return () => {
+      try { document.body.removeChild(div); } catch (err) { /* ignore */ }
+      debugDivRef.current = null;
+    };
+  }, []);
+
 
   return (
     <group
