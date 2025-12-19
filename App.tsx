@@ -510,6 +510,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     // When exiting editor mode, it should be explicitly closed.
     // setIsEditorOpen(isEditorMode); 
     // This line is removed, FloorPlanEditor will now only open if the button is pressed.
+    console.log('[debug] isEditorMode effect run', { isEditorMode, isEditorOpen });
   }, [isEditorMode]);
 
   // MODIFIED: This useEffect focuses purely on resetting UI state when activeZone.id changes.
@@ -517,8 +518,21 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   // which then triggers the separate isEditorMode useEffect for camera reset.
   useEffect(() => {
     if (activeZone.id !== 'fallback_zone_id') {
+      console.log('[debug] activeZone.id change effect triggered', { activeZoneId: activeZone.id });
+
+      // If this zone change was triggered by an internal editor update (we set
+      // `editorLayoutReloadRequested.current = true` when updating artworks/exhibitions),
+      // skip closing the editor to avoid disrupting the user's session. Clear the flag
+      // and bail out early.
+      if (editorLayoutReloadRequested.current) {
+        console.log('[debug] Skipping editor close due to internal editorLayoutReloadRequested flag', { activeZoneId: activeZone.id });
+        editorLayoutReloadRequested.current = false;
+        return;
+      }
+
       // FIX: Corrected typo 'setisEditorMode' to 'setIsEditorMode'
       setIsEditorMode(false); // This will trigger the next useEffect with isEditorMode=false
+      console.log('[debug] setIsEditorOpen(false) due to activeZone change', { activeZoneId: activeZone.id });
       setIsEditorOpen(false);
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
@@ -526,7 +540,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       setisRankingMode(false);
       setIsZeroGravityMode(false); // NEW: Deactivate zero gravity when zone changes
       // NEW: When zone changes, reset first light toggle state
-      setIsFirstLightToggleOff(true); 
+      setIsFirstLightToggleOff(true);
     }
   }, [activeZone.id]);
 
@@ -821,19 +835,29 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       return;
     }
     try {
+<<<<<<< HEAD
       if ((import.meta as any).env?.DEV) {
         // eslint-disable-next-line no-console
         console.warn('[App] handleUpdateArtworkData start', { artworkId, updatedArtworkData, userUid: user?.uid ?? null, ownerOverrideUid });
       }
+=======
+      console.log('[debug] handleUpdateArtworkData START', { artworkId, updatedArtworkData });
+>>>>>>> 90db2e3b80a1353ccbc344e5835d40e17a3e7696
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       const doc = await artworkDocRef.get();
       const currentArtworkData = doc.data()?.artwork_data || {};
       const mergedArtworkData = { ...currentArtworkData, ...updatedArtworkData };
       await artworkDocRef.update({ artwork_data: mergedArtworkData });
+<<<<<<< HEAD
       try { await refreshNow?.(ownerOverrideUid ?? auth.currentUser?.uid ?? user?.uid ?? null); } catch (e) {}
+=======
+      try { await refreshNow?.(); console.log('[debug] refreshNow done after artwork update', artworkId); } catch (e) { console.error('[debug] refreshNow failed', e); }
+>>>>>>> 90db2e3b80a1353ccbc344e5835d40e17a3e7696
       editorLayoutReloadRequested.current = true;
+      console.log('[debug] handleUpdateArtworkData END', { artworkId });
     } catch (error) {
       // 
+      console.error('[debug] handleUpdateArtworkData ERROR', error);
       throw error;
     }
   }, [refreshNow, user, ownerOverrideUid]);
@@ -848,6 +872,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       throw new Error("Invalid Exhibition ID");
     }
     try {
+<<<<<<< HEAD
       if ((import.meta as any).env?.DEV) {
         // eslint-disable-next-line no-console
         console.warn('[App] handleUpdateExhibition start', { exhibitionId, updatedFields, userUid: user?.uid ?? null, ownerOverrideUid });
@@ -855,9 +880,17 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       const exhibitionDocRef = db.collection('exhibitions').doc(exhibitionId);
       await exhibitionDocRef.update(updatedFields);
       try { await refreshNow?.(ownerOverrideUid ?? auth.currentUser?.uid ?? user?.uid ?? null); } catch (e) {}
+=======
+      console.log('[debug] handleUpdateExhibition START', { exhibitionId, updatedFields });
+      const exhibitionDocRef = db.collection('exhibitions').doc(exhibitionId);
+      await exhibitionDocRef.update(updatedFields);
+      try { await refreshNow?.(); console.log('[debug] refreshNow done after exhibition update', exhibitionId); } catch (e) { console.error('[debug] refreshNow failed', e); }
+>>>>>>> 90db2e3b80a1353ccbc344e5835d40e17a3e7696
       editorLayoutReloadRequested.current = true;
+      console.log('[debug] handleUpdateExhibition END', { exhibitionId });
     } catch (error) {
       // 
+      console.error('[debug] handleUpdateExhibition ERROR', error);
       throw error;
     }
   }, [refreshNow, user, ownerOverrideUid]);

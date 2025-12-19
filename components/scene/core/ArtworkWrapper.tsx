@@ -74,6 +74,13 @@ const MAX_ANGULAR_AMPLITUDE = 0.5;  // Maximum angular amplitude (radians) - inc
 // Exponent used to bias the mapping toward larger amplitudes for higher floats
 const AMPLITUDE_EXPONENT = 2.0;
 
+// --- Lightweight pointer tap vs drag thresholds (minimal, per-device) ---
+const MOUSE_DURATION_THRESHOLD = 220; // ms
+const MOUSE_DISTANCE_THRESHOLD = 8; // px
+const TOUCH_DURATION_THRESHOLD = 400; // ms
+const TOUCH_DISTANCE_THRESHOLD = 28; // px
+
+
 
 const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
   id,
@@ -556,8 +563,126 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     }
   });
 
+  // Lightweight pointer/tap vs drag state (minimal allocations)
+  const activePointerId = useRef<number | null>(null);
+  const pointerStartX = useRef(0);
+  const pointerStartY = useRef(0);
+  const pointerStartTime = useRef(0);
+  const maxMoveDistance = useRef(0);
+  const isDragging = useRef(false);
+  const multiTouchCount = useRef(0);
+  const pointerTypeRef = useRef<'mouse' | 'touch' | 'pen' | 'unknown'>('unknown');
+  const suppressClickRef = useRef(false);
+
+  const handlePointerDown = (e: any) => {
+    try {
+      // Count touches only for touch pointers
+      if (e.pointerType === 'touch') {
+        multiTouchCount.current += 1;
+      }
+      // If another pointer is active and this is not the same id, mark multitouch
+      if (activePointerId.current !== null && activePointerId.current !== e.pointerId) {
+        multiTouchCount.current = Math.max(2, multiTouchCount.current);
+      }
+
+      activePointerId.current = e.pointerId;
+      pointerTypeRef.current = e.pointerType || 'unknown';
+      pointerStartX.current = e.clientX;
+      pointerStartY.current = e.clientY;
+      pointerStartTime.current = performance.now();
+      maxMoveDistance.current = 0;
+      isDragging.current = false;
+      suppressClickRef.current = false;
+
+      // Try to capture to ensure consistent move/up events
+      try {
+        e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+      } catch (err) {
+        // ignore
+      }
+    } catch (err) {
+      // defensive: don't break rendering if event is odd
+    }
+  };
+
+  const handlePointerMove = (e: any) => {
+    if (activePointerId.current !== e.pointerId) return;
+    const dx = e.clientX - pointerStartX.current;
+    const dy = e.clientY - pointerStartY.current;
+    const dist = Math.hypot(dx, dy);
+    if (dist > maxMoveDistance.current) maxMoveDistance.current = dist;
+
+    const threshold = pointerTypeRef.current === 'touch' ? TOUCH_DISTANCE_THRESHOLD : MOUSE_DISTANCE_THRESHOLD;
+    if (maxMoveDistance.current > threshold) {
+      isDragging.current = true;
+      suppressClickRef.current = true;
+    }
+  };
+
+  const handlePointerUp = (e: any) => {
+    if (activePointerId.current !== e.pointerId) {
+      // If pointer up for another pointer (multi-touch), decrement count and exit
+      if (e.pointerType === 'touch') multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
+      return;
+    }
+
+    // Release capture
+    try {
+      e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId);
+    } catch (err) {
+      // ignore
+    }
+
+    const duration = performance.now() - pointerStartTime.current;
+    const dist = maxMoveDistance.current;
+    const isMulti = multiTouchCount.current > 1;
+    const isTouch = pointerTypeRef.current === 'touch';
+
+    const durThreshold = isTouch ? TOUCH_DURATION_THRESHOLD : MOUSE_DURATION_THRESHOLD;
+    const distThreshold = isTouch ? TOUCH_DISTANCE_THRESHOLD : MOUSE_DISTANCE_THRESHOLD;
+
+    const consideredTap = !isDragging.current && !isMulti && duration <= durThreshold && dist <= distThreshold;
+
+    // If it's considered tap, we allow onClick to proceed; otherwise suppress
+    suppressClickRef.current = !consideredTap;
+
+    // cleanup
+    activePointerId.current = null;
+    isDragging.current = false;
+    if (e.pointerType === 'touch') {
+      multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
+    }
+  };
+
+  const handlePointerCancel = (e: any) => {
+    if (activePointerId.current === e.pointerId) {
+      activePointerId.current = null;
+    }
+    isDragging.current = false;
+    suppressClickRef.current = true;
+    if (e.pointerType === 'touch') multiTouchCount.current = Math.max(0, multiTouchCount.current - 1);
+  };
+
+  const handleClick = (e: any) => {
+    if (suppressClickRef.current) {
+      // swallow this click
+      e.stopPropagation && e.stopPropagation();
+      e.preventDefault && e.preventDefault();
+      return;
+    }
+    // forward to existing handler
+    onCanvasArtworkClick && onCanvasArtworkClick(e as any);
+  };
+
   return (
-    <group ref={groupRef} onClick={onCanvasArtworkClick}>
+    <group
+      ref={groupRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onClick={handleClick}
+    >
       {children}
       {/* ground marker removed from wrapper - now rendered at scene level */}
     </group>
