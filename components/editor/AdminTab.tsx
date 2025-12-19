@@ -176,6 +176,10 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
         handleUpdateStatus(field, 'saving');
         try {
           const updatedField: Partial<Exhibition> = { [field]: value };
+          if ((import.meta as any).env?.DEV) {
+            // eslint-disable-next-line no-console
+            console.warn('[AdminTab] onUpdateExhibition call', { field, value, exhibitionId: activeExhibition.id });
+          }
           await onUpdateExhibition(activeExhibition.id, updatedField);
           // FIX: Call the defined handleUpdateStatus
           handleUpdateStatus(field, 'saved');

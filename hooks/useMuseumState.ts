@@ -82,15 +82,24 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       const zonesColRef = db.collection('zones');
       const artworksColRef = db.collection('artworks');
 
-        const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
-          // [log removed] exhibitions snapshot
-          setRawExhibitionDocs(snapshot.docs);
-          loadedFlags.exhibitions = true;
-          checkAllLoaded();
-      }, (error) => {
-          // 
-          setIsLoading(false);
-      });
+          const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
+              // Debug: print ownerUid + incoming exhibition doc ids (dev-only)
+              try {
+            if ((import.meta as any).env?.DEV) {
+                  const docIds = snapshot.docs.map(d => d.id).join(',');
+                  // firebase.auth may be available; guard access
+                  const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
+                  // eslint-disable-next-line no-console
+                  console.warn('[useMuseumState] onSnapshot exhibitions', { ownerUid: ownerUid ?? null, currentAuthUid: currentUid, docIds });
+                }
+              } catch (e) {}
+              setRawExhibitionDocs(snapshot.docs);
+              loadedFlags.exhibitions = true;
+              checkAllLoaded();
+          }, (error) => {
+              // 
+              setIsLoading(false);
+          });
       unsubscribes.push(unsubscribeExhibitions); // NEW: Store unsubscribe function
 
         const unsubscribeZones = zonesColRef.onSnapshot((snapshot) => {
@@ -105,7 +114,14 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       unsubscribes.push(unsubscribeZones); // NEW: Store unsubscribe function
 
         const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
-          // [log removed] artworks snapshot
+          try {
+            if ((import.meta as any).env?.DEV) {
+              const docIds = snapshot.docs.map(d => d.id).join(',');
+              const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
+                        // eslint-disable-next-line no-console
+                        console.warn('[useMuseumState] onSnapshot artworks', { ownerUid: ownerUid ?? null, currentAuthUid: currentUid, docIds });
+            }
+          } catch (e) {}
           const processedArtworks = await processFirebaseArtworks(snapshot.docs);
           setFirebaseArtworks(processedArtworks);
           setRawArtworkDocs(snapshot.docs);
@@ -132,10 +148,11 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
   }, [enableSnapshots, ownerUid]); // NEW: Add enableSnapshots and ownerUid to dependency array
 
   // Manual refresh helper: fetch latest collections once and update state.
-  const refreshNow = useCallback(async () => {
+  const refreshNow = useCallback(async (overrideOwnerUid?: string | null) => {
     try {
       // Match the same server-side query used for snapshots: owners see their public exhibitions
-      const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
+      const effectiveOwner = typeof overrideOwnerUid !== 'undefined' ? overrideOwnerUid : ownerUid;
+      const exhibitionsColRef = effectiveOwner ? db.collection('exhibitions').where('ownerId', '==', effectiveOwner).where('isPublic', '==', true) : db.collection('exhibitions');
       const zonesColRef = db.collection('zones');
       const artworksColRef = db.collection('artworks');
 
@@ -153,10 +170,21 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       const processedArtworks = await processFirebaseArtworks(artSnap.docs);
       setFirebaseArtworks(processedArtworks);
       setRawArtworkDocs(artSnap.docs);
+
+      try {
+          if ((import.meta as any).env?.DEV) {
+          const exIds = exSnap.docs.map(d => d.id).join(',');
+          const artIds = artSnap.docs.map(d => d.id).join(',');
+          const zoneIds = zoneSnap.docs.map(d => d.id).join(',');
+          const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
+                    // eslint-disable-next-line no-console
+                    console.warn('[useMuseumState] refreshNow results', { ownerUid: effectiveOwner ?? null, currentAuthUid: currentUid, exIds, artIds, zoneIds });
+        }
+      } catch (e) {}
     } catch (e) {
       // swallow; snapshots should handle most updates
     }
-  }, []);
+  }, [ownerUid]);
 
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];

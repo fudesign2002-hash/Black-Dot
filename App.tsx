@@ -800,16 +800,20 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       return;
     }
     try {
+      if ((import.meta as any).env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn('[App] handleUpdateArtworkFile start', { artworkId, newFileUrl, userUid: user?.uid ?? null, ownerOverrideUid });
+      }
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       await artworkDocRef.update({ artwork_file: newFileUrl });
-      try { await refreshNow?.(); } catch (e) {}
+      try { await refreshNow?.(ownerOverrideUid ?? auth.currentUser?.uid ?? user?.uid ?? null); } catch (e) {}
       // If editor is open, request a reload of the editorLayout once the hook data updates
       editorLayoutReloadRequested.current = true;
     } catch (error) {
       // 
       throw error;
     }
-  }, []);
+  }, [refreshNow, user, ownerOverrideUid]);
 
   const handleUpdateArtworkData = useCallback(async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {
     if (embedMode) {
@@ -817,18 +821,22 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       return;
     }
     try {
+      if ((import.meta as any).env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn('[App] handleUpdateArtworkData start', { artworkId, updatedArtworkData, userUid: user?.uid ?? null, ownerOverrideUid });
+      }
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       const doc = await artworkDocRef.get();
       const currentArtworkData = doc.data()?.artwork_data || {};
       const mergedArtworkData = { ...currentArtworkData, ...updatedArtworkData };
       await artworkDocRef.update({ artwork_data: mergedArtworkData });
-      try { await refreshNow?.(); } catch (e) {}
+      try { await refreshNow?.(ownerOverrideUid ?? auth.currentUser?.uid ?? user?.uid ?? null); } catch (e) {}
       editorLayoutReloadRequested.current = true;
     } catch (error) {
       // 
       throw error;
     }
-  }, []);
+  }, [refreshNow, user, ownerOverrideUid]);
 
   const handleUpdateExhibition = useCallback(async (exhibitionId: string, updatedFields: Partial<Exhibition>) => {
     if (embedMode) {
@@ -840,15 +848,19 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       throw new Error("Invalid Exhibition ID");
     }
     try {
+      if ((import.meta as any).env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn('[App] handleUpdateExhibition start', { exhibitionId, updatedFields, userUid: user?.uid ?? null, ownerOverrideUid });
+      }
       const exhibitionDocRef = db.collection('exhibitions').doc(exhibitionId);
       await exhibitionDocRef.update(updatedFields);
-      try { await refreshNow?.(); } catch (e) {}
+      try { await refreshNow?.(ownerOverrideUid ?? auth.currentUser?.uid ?? user?.uid ?? null); } catch (e) {}
       editorLayoutReloadRequested.current = true;
     } catch (error) {
       // 
       throw error;
     }
-  }, []);
+  }, [refreshNow, user, ownerOverrideUid]);
 
   const onRemoveArtworkFromLayout = useCallback(async (artworkIdToRemove: string) => {
     if (embedMode) {
