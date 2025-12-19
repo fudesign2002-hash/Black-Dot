@@ -195,9 +195,12 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
     });
 
     try {
+      console.log('[debug] ArtworkSettingsForm.handleGlbAxisRotate START', { artworkId: artwork.id, uiAxisIndex, newRotationOffsetRadians });
         await onUpdateArtworkData(artwork.id, { rotation_offset: newRotationOffsetRadians });
+      console.log('[debug] ArtworkSettingsForm.handleGlbAxisRotate END', { artworkId: artwork.id });
         handleUpdateStatus('saved');
     } catch (error) {
+      console.error('[debug] ArtworkSettingsForm.handleGlbAxisRotate ERROR', error);
         handleUpdateStatus('error', 3000);
     }
   }, [glbPreviewRotation, artwork, onUpdateArtworkData, handleUpdateStatus]);
@@ -205,10 +208,13 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
   const handleSaveMaterial = useCallback(async (presetId: string, materialConfig: ArtworkMaterialConfig | null) => {
     handleUpdateStatus('saving');
     try {
+        console.log('[debug] ArtworkSettingsForm.handleSaveMaterial START', { artworkId: artwork.id, presetId });
         setSelectedMaterialPresetId(presetId);
         await onUpdateArtworkData(artwork.id, { material: materialConfig });
+        console.log('[debug] ArtworkSettingsForm.handleSaveMaterial END', { artworkId: artwork.id });
         handleUpdateStatus('saved');
     } catch (error) {
+        console.error('[debug] ArtworkSettingsForm.handleSaveMaterial ERROR', error);
         handleUpdateStatus('error', 3000);
     }
   }, [onUpdateArtworkData, handleUpdateStatus, artwork.id]);
@@ -223,9 +229,12 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
     setLocalScale(newScale);
 
     try {
+      console.log('[debug] ArtworkSettingsForm.handleScaleChange START', { artworkId: artwork.id, newScale });
         await onUpdateArtworkData(artwork.id, { scale_offset: newScale });
+      console.log('[debug] ArtworkSettingsForm.handleScaleChange END', { artworkId: artwork.id });
         handleUpdateStatus('saved');
     } catch (error) {
+      console.error('[debug] ArtworkSettingsForm.handleScaleChange ERROR', error);
         handleUpdateStatus('error', 3000);
     }
   }, [artwork, onUpdateArtworkData, handleUpdateStatus]);
@@ -328,6 +337,7 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
       async () => {
         const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
         try {
+          console.log('[debug] ArtworkSettingsForm.upload complete, updating artwork file', { artworkId: artwork.id, downloadURL });
           await onUpdateArtworkFile(artwork.id, downloadURL);
           // after updating DB, attempt to delete previous stored file (if any)
           const previousUrl = artwork.artwork_file || artwork.file || '';
