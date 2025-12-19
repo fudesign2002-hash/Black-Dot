@@ -192,7 +192,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     // otherwise (guest) only show exhibitions marked as showcase.
     if (ownerUid) {
       const filteredOwner = processedAllExhibitions.filter(ex => ex.isPublic === true);
-      const statusRank: Record<string, number> = { past: 0, current: 1, permanent: 2 };
+      const statusRank: Record<string, number> = { 'now showing': 0, permanent: 1, past: 2 };
       filteredOwner.sort((a, b) => {
         const ra = statusRank[a.status] ?? 3;
         const rb = statusRank[b.status] ?? 3;
@@ -206,7 +206,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     // For guests filter to showcase and then sort by desired ordering below
     const filtered = processedAllExhibitions.filter(ex => ex.isShowcase === true);
     // Default ordering: status priority (past, current, permanent, others) then by dateFrom (newest first)
-    const statusRank: Record<string, number> = { past: 0, current: 1, permanent: 2 };
+    const statusRank: Record<string, number> = { 'now showing': 0, permanent: 1, past: 2 };
     filtered.sort((a, b) => {
       const ra = statusRank[a.status] ?? 3;
       const rb = statusRank[b.status] ?? 3;
@@ -236,10 +236,8 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
   }, [ownerUid]);
   useEffect(() => {
     if (!isLoading && !initialIndexAppliedRef.current && exhibitions.length > 0) {
-      const firstCurrent = exhibitions.findIndex(ex => ex.status === 'current');
-      if (firstCurrent !== -1) {
-        setCurrentIndex(firstCurrent);
-      }
+      // Always start at the first exhibition in the sorted list (index 0) after load/sign changes
+      setCurrentIndex(0);
       initialIndexAppliedRef.current = true;
     }
   }, [isLoading, exhibitions]);

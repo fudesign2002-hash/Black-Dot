@@ -600,15 +600,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       isDragging.current = false;
       suppressClickRef.current = false;
 
-      if ((import.meta as any).env?.DEV) {
-        try {
-          const isTouch = e.pointerType === 'touch' || pointerTypeRef.current === 'touch';
-          if (isTouch) {
-            // eslint-disable-next-line no-console
-            console.warn('[ArtworkWrapper] pointerDown', { id, pointerId: e.pointerId, pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY });
-          }
-        } catch (err) {}
-      }
+      // dev logs removed
       // Try to capture to ensure consistent move/up events
       try {
         e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
@@ -627,12 +619,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     const dist = Math.hypot(dx, dy);
     const prevMax = maxMoveDistance.current;
     if (dist > maxMoveDistance.current) maxMoveDistance.current = dist;
-    if ((import.meta as any).env?.DEV) {
-      try {
-        // eslint-disable-next-line no-console
-        console.warn('[ArtworkWrapper] pointerMove', { id, pointerId: e.pointerId, pointerType: e.pointerType, dx, dy, dist, prevMax, newMax: maxMoveDistance.current });
-      } catch (err) {}
-    }
+    // dev logs removed
 
     const threshold = pointerTypeRef.current === 'touch' ? TOUCH_DISTANCE_THRESHOLD : MOUSE_DISTANCE_THRESHOLD;
     if (maxMoveDistance.current > threshold) {
@@ -676,15 +663,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
     suppressClickRef.current = !consideredTap;
 
-      if ((import.meta as any).env?.DEV) {
-        try {
-          const isTouch = pointerTypeRef.current === 'touch' || e.pointerType === 'touch';
-          if (isTouch) {
-            // eslint-disable-next-line no-console
-            console.warn('[ArtworkWrapper] pointerUp', { id, pointerId: e.pointerId, pointerType: e.pointerType, duration, dist, consideredTap, suppressClick: suppressClickRef.current });
-          }
-        } catch (err) {}
-      }
+      // dev logs removed
 
     // cleanup
     activePointerId.current = null;
@@ -707,13 +686,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
   };
 
   const handleClick = (e: any) => {
-    if ((import.meta as any).env?.DEV) {
-      try {
-        const dur = performance.now() - pointerStartTime.current;
-        // eslint-disable-next-line no-console
-        console.warn('[ArtworkWrapper] click', { id, suppressClick: suppressClickRef.current, pointerType: pointerTypeRef.current, duration: dur, maxMoveDistance: maxMoveDistance.current });
-      } catch (err) {}
-    }
+    // dev logs removed
 
     if (suppressClickRef.current) {
       // swallow this click

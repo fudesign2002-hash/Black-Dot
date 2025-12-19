@@ -39,7 +39,7 @@ const EMBED_VIDEO_VERTICAL_OFFSET = 0;
 const MOTION_WALL_BACKING_MULTIPLIER = 2.5; 
 
 // NEW: Small screen specific Y offset for motion videos
-const SMALL_SCREEN_MOTION_Y_OFFSET = 2;
+const SMALL_SCREEN_MOTION_Y_OFFSET = 0;
 
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
   artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0 // NEW: Destructure isSmallScreen and opacity

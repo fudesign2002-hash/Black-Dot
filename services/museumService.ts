@@ -266,12 +266,12 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
     return layoutItems;
 };
 
-const normalizeStatus = (statusStr: string | undefined): 'current' | 'past' | 'permanent' | 'future' => {
-    const normalized = (statusStr || '').trim().toLowerCase();
-    switch (normalized) {
-      case 'now showing':
-      case 'current':
-        return 'current';
+const normalizeStatus = (statusStr: string | undefined): 'now showing' | 'past' | 'permanent' | 'future' => {
+        const normalized = (statusStr || '').trim().toLowerCase();
+        switch (normalized) {
+            case 'now showing':
+            case 'current':
+                return 'now showing';
       case 'past':
         return 'past';
       case 'permanent':

@@ -12,7 +12,7 @@ interface SearchModalProps {
 
 const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, uiConfig, exhibitions, onExhibitionSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchFilter, setSearchFilter] = useState<'all' | 'current' | 'past' | 'permanent' | 'future'>('all');
+    const [searchFilter, setSearchFilter] = useState<'all' | 'now showing' | 'past' | 'permanent' | 'future'>('all');
   const { lightsOn } = uiConfig;
 
   if (!isOpen) return null;
@@ -27,7 +27,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, uiConfig, ex
 
   const getStatusColor = (status: string) => {
       switch(status) {
-          case 'current': return 'bg-cyan-500 shadow-[0_0_8px_cyan]';
+        case 'now showing': return 'bg-cyan-500 shadow-[0_0_8px_cyan]';
           case 'past': return 'bg-red-500';
           case 'permanent': return 'bg-black';
           case 'future': return 'bg-green-500';
@@ -63,7 +63,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, uiConfig, ex
                     />
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    {['all', 'current', 'permanent', 'past', 'future'].map(filter => (
+                    {['all', 'now showing', 'permanent', 'past', 'future'].map(filter => (
                         <button
                             key={filter}
                             onClick={() => setSearchFilter(filter as any)}
@@ -96,7 +96,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, uiConfig, ex
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className={`text-[10px] font-bold tracking-widest uppercase opacity-50 ${uiConfig.text}`}>{exhibition.status}</span>
-                                {exhibition.status === 'current' && <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-500 text-[9px] font-bold">LIVE</span>}
+                                {exhibition.status === 'now showing' && <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-500 text-[9px] font-bold">LIVE</span>}
                             </div>
                             <h4 className={`text-lg font-serif font-medium truncate ${uiConfig.text}`}>{exhibition.title}</h4>
                             <p className={`text-xs truncate ${uiConfig.subtext}`}>{exhibition.artist}</p>

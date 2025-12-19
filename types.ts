@@ -77,7 +77,7 @@ export interface ExhibitionArtItem {
   source_artwork_type?: FirebaseArtType | 'unknown';
 }
 
-export type ExhibitionStatus = 'current' | 'past' | 'permanent' | 'future';
+export type ExhibitionStatus = 'now showing' | 'past' | 'permanent' | 'future';
 
 export interface Exhibition {
   id: string;

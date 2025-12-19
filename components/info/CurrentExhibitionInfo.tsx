@@ -17,7 +17,7 @@ interface CurrentExhibitionInfoProps {
 const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo(({ uiConfig, isLoading, activeExhibition, isInfoOpen, isSmallScreen, isCurrentExhibitionInfoHidden, onInfoOpen, useExhibitionBackground = false }) => {
     const getStatusColor = (status: string) => {
         switch(status) {
-            case 'current': return 'bg-cyan-500 shadow-[0_0_8px_cyan]';
+            case 'now showing': return 'bg-cyan-500 shadow-[0_0_8px_cyan]';
             case 'past': return 'bg-red-500';
             case 'permanent': return 'bg-black';
             case 'future': return 'bg-green-500';
@@ -50,7 +50,7 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                     <div className={`flex items-center gap-2 mb-4 ${subtextClass}`}>
                         <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${getStatusColor(activeExhibition.status)}`}></span>
                         <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-current">
-                            {activeExhibition.status === 'current' ? 'Now Showing' : activeExhibition.status + ' Exhibition'}
+                            {activeExhibition.status === 'now showing' ? 'Now Showing' : activeExhibition.status + ' Exhibition'}
                         </span>
                     </div>
                     <h2 className={`text-4xl md:text-5xl font-serif font-medium leading-tight uppercase ${textClass} mb-2`}>

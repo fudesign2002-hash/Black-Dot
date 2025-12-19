@@ -64,10 +64,10 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
       >
         <div className="p-10 flex justify-between items-start">
           <div>
-            <span className={`text-[10px] font-bold tracking-[0.2em] uppercase block mb-3 ${showArtworkData ? 'text-cyan-500' : (activeExhibition.status === 'current' ? 'text-cyan-500' : 'text-neutral-500')}`}>
+            <span className={`text-[10px] font-bold tracking-[0.2em] uppercase block mb-3 ${showArtworkData ? 'text-cyan-500' : (activeExhibition.status === 'now showing' ? 'text-cyan-500' : 'text-neutral-500')}`}>
               {showArtworkData ? 'Artwork Details' : 'Exhibition Details'}
             </span>
-            <h3 className={`text-3xl font-serif uppercase ${uiConfig.text}`}>{showArtworkData ? artworkDataForPanel?.title : activeExhibition.title}</h3>
+                    <h3 className={`text-3xl font-serif uppercase ${uiConfig.text}`}>{showArtworkData ? artworkDataForPanel?.title : activeExhibition.title}</h3>
             {showArtworkData ? (
               <div className="flex items-center gap-4 mt-2">
                  <p className={`text-sm opacity-60 ${uiConfig.text}`}>{`by ${artworkDataForPanel?.artist || 'Unknown Artist'}`}</p>

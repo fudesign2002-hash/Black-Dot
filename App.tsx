@@ -701,6 +701,29 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     return React.lazy(() => import('./components/ui/ZeroGravityLegend'));
   }, [embedMode, isSignedIn, embedFeatures]);
 
+  // Preload important lazy modules at startup to reduce first-render lag.
+  // This warms the module cache for React.lazy imports used elsewhere (ArtComponent, CanvasExhibit, SculptureExhibit, editor, UI bits).
+  React.useEffect(() => {
+    const preloads: Promise<any>[] = [];
+
+    // Core scene exhibits (warm CanvasExhibit and SculptureExhibit)
+    preloads.push(import('./components/scene/art/CanvasExhibit').catch(() => {}));
+    preloads.push(import('./components/scene/art/SculptureExhibit').catch(() => {}));
+
+    // If the FloorPlanEditor lazy component was created (signed-in & not embed), also preload its module
+    if (FloorPlanEditor) {
+      preloads.push(import('./components/editor/FloorPlanEditor').catch(() => {}));
+    }
+
+    // Preload zero-gravity legend when feature is enabled / lazy component exists
+    if (ZeroGravityLegendLazy) {
+      preloads.push(import('./components/ui/ZeroGravityLegend').catch(() => {}));
+    }
+
+    // Fire-and-forget: warm modules but don't block render
+    Promise.allSettled(preloads).catch(() => {});
+  }, [FloorPlanEditor, ZeroGravityLegendLazy]);
+
   const handleSelectArtwork = useCallback((id: string | null) => {
     
     if (isEditorMode) {
