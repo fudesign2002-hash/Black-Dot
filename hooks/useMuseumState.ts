@@ -148,11 +148,10 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
   }, [enableSnapshots, ownerUid]); // NEW: Add enableSnapshots and ownerUid to dependency array
 
   // Manual refresh helper: fetch latest collections once and update state.
-  const refreshNow = useCallback(async (overrideOwnerUid?: string | null) => {
+  const refreshNow = useCallback(async () => {
     try {
       // Match the same server-side query used for snapshots: owners see their public exhibitions
-      const effectiveOwner = typeof overrideOwnerUid !== 'undefined' ? overrideOwnerUid : ownerUid;
-      const exhibitionsColRef = effectiveOwner ? db.collection('exhibitions').where('ownerId', '==', effectiveOwner).where('isPublic', '==', true) : db.collection('exhibitions');
+      const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
       const zonesColRef = db.collection('zones');
       const artworksColRef = db.collection('artworks');
 
@@ -178,7 +177,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
           const zoneIds = zoneSnap.docs.map(d => d.id).join(',');
           const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
                     // eslint-disable-next-line no-console
-                    console.warn('[useMuseumState] refreshNow results', { ownerUid: effectiveOwner ?? null, currentAuthUid: currentUid, exIds, artIds, zoneIds });
+                    console.warn('[useMuseumState] refreshNow results', { ownerUid: ownerUid ?? null, currentAuthUid: currentUid, exIds, artIds, zoneIds });
         }
       } catch (e) {}
     } catch (e) {
