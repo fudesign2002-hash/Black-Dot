@@ -18,9 +18,10 @@ interface TexturedWallDisplayProps {
   lightsOn: boolean;
   artworkType?: ArtType;
   sourceArtworkType?: string;
+  artworkData?: any;
 }
 
-const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, mapTexture, maxDimension = 5.0, orientation, aspectRatio, isPainting, onDimensionsCalculated, isFocused, lightsOn, artworkType, sourceArtworkType }) => {
+const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, mapTexture, maxDimension = 5.0, orientation, aspectRatio, isPainting, onDimensionsCalculated, isFocused, lightsOn, artworkType, sourceArtworkType, artworkData }) => {
   const [isInternalLoadingError, setIsInternalLoadingError] = useState(false);
   const [imageTexture, setImageTexture] = useState<THREE.Texture | null>(null);
 
@@ -78,6 +79,44 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     if (imageTexture) return imageTexture;
     return null;
   }, [mapTexture, imageTexture]);
+
+  // Apply material overrides from artworkData when provided
+  useEffect(() => {
+    const matCfg = (artworkData && (artworkData as any).material) || ({} as any);
+    try {
+      // eslint-disable-next-line no-console
+      console.warn('[TexturedWallDisplay] apply material effect', { textureUrl, matCfg });
+    } catch (e) {}
+    // painting material
+    if (paintingMaterialRef.current) {
+      try {
+        const m = paintingMaterialRef.current;
+        const before = { color: m.color ? m.color.getHexString() : null, roughness: m.roughness, metalness: m.metalness, opacity: m.opacity };
+        if (matCfg.color) m.color = new THREE.Color(matCfg.color);
+        if (typeof matCfg.roughness === 'number') m.roughness = matCfg.roughness;
+        if (typeof matCfg.metalness === 'number') m.metalness = matCfg.metalness;
+        if (matCfg.emissive) m.emissive = new THREE.Color(matCfg.emissive);
+        if (typeof matCfg.emissiveIntensity === 'number') m.emissiveIntensity = matCfg.emissiveIntensity;
+        if (typeof matCfg.opacity === 'number') { m.opacity = matCfg.opacity; m.transparent = matCfg.opacity < 0.999; }
+        if (typeof (m as any).needsUpdate !== 'undefined') (m as any).needsUpdate = true;
+        try { console.warn('[TexturedWallDisplay] paintingMaterial after', { before, after: { color: m.color?.getHexString?.() || null, roughness: m.roughness, metalness: m.metalness, opacity: m.opacity } }); } catch (e) {}
+      } catch (e) {}
+    }
+    if (artworkMaterialRef.current) {
+      try {
+        const m = artworkMaterialRef.current;
+        const before2 = { color: m.color ? m.color.getHexString() : null, roughness: m.roughness, metalness: m.metalness, opacity: m.opacity };
+        if (matCfg.color) m.color = new THREE.Color(matCfg.color);
+        if (typeof matCfg.roughness === 'number') m.roughness = matCfg.roughness;
+        if (typeof matCfg.metalness === 'number') m.metalness = matCfg.metalness;
+        if (matCfg.emissive) m.emissive = new THREE.Color(matCfg.emissive);
+        if (typeof matCfg.emissiveIntensity === 'number') m.emissiveIntensity = matCfg.emissiveIntensity;
+        if (typeof matCfg.opacity === 'number') { m.opacity = matCfg.opacity; m.transparent = matCfg.opacity < 0.999; }
+        if (typeof (m as any).needsUpdate !== 'undefined') (m as any).needsUpdate = true;
+        try { console.warn('[TexturedWallDisplay] artworkMaterial after', { before: before2, after: { color: m.color?.getHexString?.() || null, roughness: m.roughness, metalness: m.metalness, opacity: m.opacity } }); } catch (e) {}
+      } catch (e) {}
+    }
+  }, [artworkData]);
 
   // Smooth fade-in for artwork textures to hide loading jumps
   const opacityRef = useRef<number>(finalMapTexture ? 1 : 0);
@@ -331,13 +370,6 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                     <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
 
           {/* Photography hanging lines: two thin vertical lines anchored above the artwork frame and extending upward */}
-          {(typeof (props as any) !== 'undefined') && ( // ensure props defined for TS
-            (() => {
-              // Access artworkType via closure-safe lookup
-              const atype = (arguments[0] && arguments[0].artworkType) || undefined;
-              return null;
-            })()
-          )}
                     <meshStandardMaterial attach="material" color={new THREE.Color("#1a1a1a")} roughness={0.5} />
               </mesh>
               {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}

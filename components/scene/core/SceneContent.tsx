@@ -76,6 +76,7 @@ const SceneContent: React.FC<SceneProps> = ({
   const floorMatRef = useRef<THREE.MeshStandardMaterial>(null);
   const { scene, camera } = useThree();
 
+  // Cache/pin behaviour: keep simple, fixed defaults
   const CACHE_PIN_THRESHOLD = 13; // if number of artworks <= this, keep all pinned
   const neighborPreloadsRef = useRef<string[]>([]);
 
@@ -94,7 +95,7 @@ const SceneContent: React.FC<SceneProps> = ({
     };
   }, [artworks.length]);
 
-  // Preload neighbor textures around focused artwork (previous/next 2)
+  // Preload neighbor textures around focused artwork (previous/next radius)
   useEffect(() => {
     // clear previous preloads
     neighborPreloadsRef.current.forEach(u => textureCache.releaseTexture(u));
@@ -103,7 +104,8 @@ const SceneContent: React.FC<SceneProps> = ({
     const idx = artworks.findIndex(a => a.id === focusedArtworkInstanceId);
     if (idx === -1) return;
     const neighbors: number[] = [];
-    for (let d = -2; d <= 2; d++) {
+    const radius = 2;
+    for (let d = -radius; d <= radius; d++) {
       if (d === 0) continue;
       const ni = idx + d;
       if (ni >= 0 && ni < artworks.length) neighbors.push(ni);

@@ -84,14 +84,8 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
 
           const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
               // Debug: print ownerUid + incoming exhibition doc ids (dev-only)
-              try {
-            if ((import.meta as any).env?.DEV) {
-                  const docIds = snapshot.docs.map(d => d.id).join(',');
-                  // firebase.auth may be available; guard access
-                  const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
-                  // eslint-disable-next-line no-console
-                  console.warn('[useMuseumState] onSnapshot exhibitions', { ownerUid: ownerUid ?? null, currentAuthUid: currentUid, docIds });
-                }
+                  try {
+                // DEV-only instrumentation removed to reduce console noise
               } catch (e) {}
               setRawExhibitionDocs(snapshot.docs);
               loadedFlags.exhibitions = true;
@@ -114,16 +108,22 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       unsubscribes.push(unsubscribeZones); // NEW: Store unsubscribe function
 
         const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
-          try {
-            if ((import.meta as any).env?.DEV) {
-              const docIds = snapshot.docs.map(d => d.id).join(',');
-              const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
-                        // eslint-disable-next-line no-console
-                        console.warn('[useMuseumState] onSnapshot artworks', { ownerUid: ownerUid ?? null, currentAuthUid: currentUid, docIds });
-            }
-          } catch (e) {}
+            try {
+              if ((import.meta as any).env?.DEV) {
+                const docIds = snapshot.docs.map(d => d.id).join(',');
+                const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
+                // eslint-disable-next-line no-console
+                console.warn('[useMuseumState] onSnapshot artworks received', { ownerUid: ownerUid ?? null, currentAuthUid: currentUid, docIds });
+              }
+            } catch (e) {}
           const processedArtworks = await processFirebaseArtworks(snapshot.docs);
           setFirebaseArtworks(processedArtworks);
+          try {
+            if ((import.meta as any).env?.DEV) {
+              // eslint-disable-next-line no-console
+              console.warn('[useMuseumState] processedArtworks set', { ownerUid: ownerUid ?? null, count: processedArtworks.length });
+            }
+          } catch (e) {}
           setRawArtworkDocs(snapshot.docs);
           loadedFlags.artworks = true;
           checkAllLoaded();
@@ -171,19 +171,24 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       setRawArtworkDocs(artSnap.docs);
 
       try {
-          if ((import.meta as any).env?.DEV) {
-          const exIds = exSnap.docs.map(d => d.id).join(',');
-          const artIds = artSnap.docs.map(d => d.id).join(',');
-          const zoneIds = zoneSnap.docs.map(d => d.id).join(',');
-          const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
-                    // eslint-disable-next-line no-console
-                    console.warn('[useMuseumState] refreshNow results', { ownerUid: ownerUid ?? null, currentAuthUid: currentUid, exIds, artIds, zoneIds });
-        }
+        // DEV-only instrumentation removed to reduce console noise
       } catch (e) {}
     } catch (e) {
       // swallow; snapshots should handle most updates
     }
   }, [ownerUid]);
+
+  // Optimistic local update helper: merge updatedArtworkData into existing firebaseArtworks array
+  const updateLocalArtworkData = useCallback((artworkId: string, updatedArtworkData: Partial<any>) => {
+    setFirebaseArtworks(prev => {
+      if (!prev || prev.length === 0) return prev;
+      return prev.map(a => {
+        if (a.id !== artworkId) return a;
+        const newData = { ...(a.artwork_data || {}), ...updatedArtworkData };
+        return { ...a, artwork_data: newData };
+      });
+    });
+  }, []);
 
   const exhibitions = useMemo(() => {
     if (rawExhibitionDocs.length === 0) return [];
@@ -326,6 +331,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     handleNavigate,
     setLightingOverride,
     refreshNow,
+    updateLocalArtworkData,
   };
 };
 

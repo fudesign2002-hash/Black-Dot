@@ -154,6 +154,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     setLightingOverride,
     currentIndex,
     refreshNow,
+    updateLocalArtworkData,
   } = useMuseumState(isSnapshotEnabledGlobally, ownerOverrideUid || user?.uid); // Pass override curator uid if present, else signed-in user's uid
 
   // If embed provides an initial exhibition id, navigate to it when data is ready
@@ -251,14 +252,11 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
         for (const doc of teamsSnap.docs) {
           const data: any = doc.data();
           const members = Array.isArray(data.team_members) ? data.team_members : [];
-          if (members.some((m: any) => m && m.uid === user.uid)) {
+            if (members.some((m: any) => m && m.uid === user.uid)) {
             const curator = members.find((m: any) => m && m.role === 'curator');
             const resolved = curator ? (curator.uid || user.uid) : user.uid;
             setOwnerOverrideUid(resolved);
-            if ((import.meta as any).env?.DEV) {
-              // eslint-disable-next-line no-console
-              console.warn('[App] resolved ownerOverrideUid from team', { userUid: user.uid, resolved, teamDocId: doc.id });
-            }
+            // DEV-only instrumentation removed to reduce console noise
             found = true;
             break;
           }
@@ -266,18 +264,12 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
         if (!found) {
           // No team found; use the user's own uid as the owner fallback
           setOwnerOverrideUid(user.uid);
-          if ((import.meta as any).env?.DEV) {
-            // eslint-disable-next-line no-console
-            console.warn('[App] no team found; using user.uid as ownerOverrideUid', { userUid: user.uid });
-          }
+          // DEV-only instrumentation removed to reduce console noise
         }
       } catch (err) {
         // On error, still ensure we set something to avoid null ownerUid while signed-in
         try { setOwnerOverrideUid(user.uid); } catch (e) {}
-        if ((import.meta as any).env?.DEV) {
-          // eslint-disable-next-line no-console
-          console.warn('[App] failed resolving team for user; falling back to user.uid', { err });
-        }
+        // DEV-only instrumentation removed to reduce console noise
       }
     })();
 
@@ -704,6 +696,8 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   // Preload important lazy modules at startup to reduce first-render lag.
   // This warms the module cache for React.lazy imports used elsewhere (ArtComponent, CanvasExhibit, SculptureExhibit, editor, UI bits).
   React.useEffect(() => {
+    // Preload important lazy modules at startup to reduce first-render lag.
+    // This warms the module cache for React.lazy imports used elsewhere.
     const preloads: Promise<any>[] = [];
 
     // Core scene exhibits (warm CanvasExhibit and SculptureExhibit)
@@ -904,8 +898,24 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       const doc = await artworkDocRef.get();
       const currentArtworkData = doc.data()?.artwork_data || {};
       const mergedArtworkData = { ...currentArtworkData, ...updatedArtworkData };
+
+      // Optimistically update local state so scene updates immediately
+      try {
+        if (typeof updateLocalArtworkData === 'function') {
+          updateLocalArtworkData(artworkId, mergedArtworkData);
+          try { console.warn('[App] optimistic local artworkData applied', { artworkId }); } catch (e) {}
+        }
+      } catch (e) {}
+
       await artworkDocRef.update({ artwork_data: mergedArtworkData });
-      try { await refreshNow?.(); } catch (e) {}
+      try {
+        // Debug: log around refresh to trace timing
+        try { console.warn('[App] handleUpdateArtworkData calling refreshNow', { artworkId, mergedArtworkData }); } catch (e) {}
+        await refreshNow?.();
+        try { console.warn('[App] handleUpdateArtworkData refreshNow complete', { artworkId }); } catch (e) {}
+      } catch (e) {
+        try { console.warn('[App] handleUpdateArtworkData refreshNow failed', { artworkId, err: e }); } catch (err) {}
+      }
       editorLayoutReloadRequested.current = true;
     } catch (error) {
       // 
@@ -1250,6 +1260,10 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   }, [focusedArtworkInstanceId, cameraControlRef, setIsArtworkFocusedForControls, setFocusedArtworkInstanceId, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId]);
 
   const handleOpenInfo = useCallback(() => {
+    try {
+      // eslint-disable-next-line no-console
+      console.warn('[App] handleOpenInfo called', new Error().stack);
+    } catch (e) {}
     if (focusedArtworkInstanceId) {
       const artworkInLayout = currentLayout.find(item => item.id === focusedArtworkInstanceId);
       if (artworkInLayout) {
@@ -1434,7 +1448,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     <React.Fragment>
       <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
 
-      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} />}
+      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} onRequestCloseInfo={() => { try { setIsInfoOpen(false); } catch (e) {} }} />}
 
       <React.Fragment>
         <Scene

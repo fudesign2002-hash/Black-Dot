@@ -85,6 +85,10 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
       triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
       isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType // NEW: Destructure isSmallScreen and sourceArtworkType
 }) => {
+  // Debug: log when artworkData prop changes for this component
+  React.useEffect(() => {
+    try { console.warn('[ArtComponent] artworkData prop changed', { id, artworkData: artworkData ? { material: artworkData.material } : null }); } catch (e) {}
+  }, [artworkData]);
     const [visualDimensions, setVisualDimensions] = useState<ExhibitVisualDimensions | null>(null);
 
     const isPaintingArtwork = artworkType.startsWith('canvas_');
@@ -154,9 +158,9 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
     };
 
     const componentMap: { [key: string]: React.ReactNode } = {
-        'canvas_portrait': <LazyCanvasExhibit orientation="portrait" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} />,
-        'canvas_landscape': <LazyCanvasExhibit orientation="landscape" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} />,
-        'canvas_square': <LazyCanvasExhibit orientation="square" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} />,
+        'canvas_portrait': <LazyCanvasExhibit orientation="portrait" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,
+        'canvas_landscape': <LazyCanvasExhibit orientation="landscape" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,
+        'canvas_square': <LazyCanvasExhibit orientation="square" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,
         'sculpture_base': <LazySculptureExhibit {...commonProps} onDimensionsCalculated={handleSculptureDimensionsCalculated} />,
     };
 

@@ -106,10 +106,20 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
   // NEW: Effect to manage the lifecycle and material application of the cloned GLB scene.
   // This useEffect now runs only when cleanedGlbScene or material properties actually change.
   useEffect(() => {
+    // Debugging: log material and scene change detection to help diagnose first-click missing apply
+    try {
+      // eslint-disable-next-line no-console
+      console.warn('[SculptureExhibit] material apply effect start', { textureUrl, isGLB, hasCleanedGlb: !!cleanedGlbScene, currentMaterial: artworkData?.material, prevMaterial: prevMaterialConfigRef.current });
+    } catch (e) {}
     // If the GLB scene object itself has changed or material config is different
     const currentMaterialConfig = artworkData?.material;
     const materialConfigChanged = !shallowEqual(prevMaterialConfigRef.current, currentMaterialConfig);
     const glbSceneChanged = cleanedGlbScene !== prevGlbSceneRef.current;
+
+    try {
+      // eslint-disable-next-line no-console
+      console.warn('[SculptureExhibit] change detection', { materialConfigChanged, glbSceneChanged });
+    } catch (e) {}
 
     if (!isGLB || !cleanedGlbScene || glbSceneChanged || materialConfigChanged) {
       // Dispose of the existing model in the ref before potentially replacing it
@@ -175,6 +185,16 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
 
                 child.material = newMaterial;
                 child.material.needsUpdate = true;
+                try {
+                  // eslint-disable-next-line no-console
+                  console.debug('[SculptureExhibit] applied material to mesh', { meshName: child.name || null, meshUuid: child.uuid, newMaterial: {
+                    color: (newMaterial as any).color?.getHexString ? (newMaterial as any).color.getHexString() : undefined,
+                    roughness: (newMaterial as any).roughness,
+                    metalness: (newMaterial as any).metalness,
+                    opacity: (newMaterial as any).opacity,
+                    transparent: (newMaterial as any).transparent,
+                  }});
+                } catch (e) {}
               }
             });
           }
@@ -396,6 +416,14 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     };
   }, [artworkData, defaultMaterialProps]);
 
+  const materialKey = useMemo(() => {
+    try {
+      return JSON.stringify(artworkData?.material || {});
+    } catch (e) {
+      return String(Date.now());
+    }
+  }, [artworkData?.material]);
+
   const finalGroupYPosition = useMemo(() => {
     // If podium is not rendered, the base Y position should be 0 (ground level) instead of actualPodiumHeight.
     const baseHeight = shouldRenderPodium ? actualPodiumHeight : 0;
@@ -445,14 +473,14 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
             scale={glbRenderProps.scale * scaleOffset} // MODIFIED: Apply overall scale to GLB group
             rotation={glbRotationEuler}
           >
-            <primitive object={glbWithAppliedMaterialsRef.current} castShadow receiveShadow />
+            <primitive key={materialKey} object={glbWithAppliedMaterialsRef.current} castShadow receiveShadow />
           </group>
         </Suspense>
       ) : (
         // FIX: Use THREE.Vector3 for position
         <group position={new THREE.Vector3(positionOffset[0], finalGroupYPosition, positionOffset[2])}>
           {/* FIX: Apply scaleOffset to primitive mesh */}
-          <mesh castShadow receiveShadow scale={scaleOffset}> 
+          <mesh key={materialKey} castShadow receiveShadow scale={scaleOffset}> 
             {geometryComponent.type === 'boxGeometry' && <boxGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?, number?]} />}
             {geometryComponent.type === 'cylinderGeometry' && <cylinderGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?, boolean?, number?, number?]} />}
             {geometryComponent.type === 'icosahedronGeometry' && <icosahedronGeometry attach="geometry" args={geometryComponent.args as [number?, number?]} />}

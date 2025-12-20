@@ -26,6 +26,7 @@ interface CanvasExhibitProps {
   onArtworkClickedHtml: (e: React.MouseEvent<HTMLDivElement>, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType) => void;
   isSmallScreen: boolean; // NEW: Add isSmallScreen prop
   opacity?: number; // NEW: Opacity for fading
+  artworkData?: any;
 }
 
 const isImageUrl = (url: string | undefined): boolean => {
@@ -42,7 +43,7 @@ const MOTION_WALL_BACKING_MULTIPLIER = 2.5;
 const SMALL_SCREEN_MOTION_Y_OFFSET = 0;
 
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
-  artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0 // NEW: Destructure isSmallScreen and opacity
+  artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0, artworkData // NEW: accept artworkData
 }) => {
   let maxDimension = 3.0; 
   
@@ -224,6 +225,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     <React.Fragment>
       <TexturedWallDisplay 
         textureUrl={textureUrl} 
+        artworkData={artworkData}
         mapTexture={null}
         maxDimension={maxDimension}
         orientation={orientation} 

@@ -686,7 +686,10 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
   };
 
   const handleClick = (e: any) => {
-    // dev logs removed
+    try {
+      // eslint-disable-next-line no-console
+      console.debug('[ArtworkWrapper] handleClick', { suppress: suppressClickRef.current, pointerType: e?.pointerType, target: e?.target });
+    } catch (err) {}
 
     if (suppressClickRef.current) {
       // swallow this click
@@ -695,6 +698,10 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       return;
     }
     // forward to existing handler
+    try {
+      // eslint-disable-next-line no-console
+      console.warn('[ArtworkWrapper] forwarding click to onCanvasArtworkClick', { pointerType: e?.pointerType, target: e?.target });
+    } catch (err) {}
     onCanvasArtworkClick && onCanvasArtworkClick(e as any);
   };
 

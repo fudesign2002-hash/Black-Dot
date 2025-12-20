@@ -8,9 +8,10 @@ interface Props {
   user?: firebase.User | null;
   onLogout?: () => void;
   onSignIn?: (teamCuratorUid?: string | null) => void;
+  onRequestCloseInfo?: () => void; // optional callback to request closing the InfoPanel
 }
 
-export default function TopLeftLogout({ user, onLogout, onSignIn }: Props) {
+export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestCloseInfo }: Props) {
   const [open, setOpen] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -291,9 +292,20 @@ export default function TopLeftLogout({ user, onLogout, onSignIn }: Props) {
     <div ref={containerRef} className="fixed top-3 left-3 z-50">
       <button
         aria-label="user menu"
-        onClick={() => {
+        onPointerDown={(e) => { e.stopPropagation(); }}
+        onMouseDown={(e) => { e.stopPropagation(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          try {
+            // eslint-disable-next-line no-console
+            console.warn('[TopLeftLogout] open click', { isSignedIn, isSmallScreen: window.innerWidth < 768 }, new Error().stack);
+          } catch (err) {}
           if (isSignedIn) setOpen(v => !v);
-          else setShowOverlay(true);
+          else {
+            // request parent to close InfoPanel (workaround for overlay opening at same time)
+            try { onRequestCloseInfo && onRequestCloseInfo(); } catch (err) {}
+            setShowOverlay(true);
+          }
         }}
         className="bg-transparent dark:bg-transparent rounded-full p-1 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-400"
       >

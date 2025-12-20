@@ -19,6 +19,17 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const prevIsOpenRef = React.useRef<boolean>(isOpen);
 
+  React.useEffect(() => {
+    try {
+      const el = panelRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      // eslint-disable-next-line no-console
+      console.warn('[InfoPanel] isOpen changed', { isOpen, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, transform: style.transform, overflow: style.overflow, display: style.display });
+    } catch (e) {}
+  }, [isOpen]);
+
   // Blur focused element inside the panel when it is closed to avoid aria-hidden warnings
   React.useEffect(() => {
     if (prevIsOpenRef.current && !isOpen) {
@@ -60,6 +71,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
 
       <div 
         ref={panelRef}
+        style={{ display: isOpen ? undefined : 'none' }}
         className={`absolute top-0 right-0 h-full w-full md:w-[600px] z-[55] backdrop-blur-xl shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden flex flex-col border-l ${uiConfig.border} ${uiConfig.panelBg} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-10 flex justify-between items-start">

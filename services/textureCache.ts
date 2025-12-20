@@ -8,6 +8,7 @@ type CacheEntry = {
 };
 
 const cache = new Map<string, CacheEntry>();
+
 let maxCacheSize = 24; // default max cached textures
 
 const loader = new THREE.TextureLoader();
@@ -28,7 +29,9 @@ async function loadTexture(url: string): Promise<THREE.Texture> {
     loader.load(url, (t) => resolve(t), undefined, (e) => reject(e));
   });
 
-  tex.encoding = (THREE as any).sRGBEncoding || (THREE as any).sRGBEncoding;
+  try {
+    (tex as any).encoding = (THREE as any).sRGBEncoding || (THREE as any).sRGBEncoding;
+  } catch (e) {}
 
   cache.set(url, { texture: tex, refCount: 0, pinned: false, lastUsed: now() });
   enforceLimit();
@@ -89,6 +92,7 @@ function setMaxCacheSize(n: number) {
   maxCacheSize = Math.max(1, Math.floor(n));
   enforceLimit();
 }
+
 
 function enforceLimit() {
   if (cache.size <= maxCacheSize) return;
