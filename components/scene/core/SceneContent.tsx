@@ -80,6 +80,24 @@ const SceneContent: React.FC<SceneProps> = ({
   const CACHE_PIN_THRESHOLD = 13; // if number of artworks <= this, keep all pinned
   const neighborPreloadsRef = useRef<string[]>([]);
 
+  // Cache artworkData objects by artworkId and reuse identical objects to
+  // preserve reference identity across renders. This helps avoid unnecessary
+  // effect retriggers in children that depend on artworkData identity.
+  const artworkDataCacheRef = useRef<Map<string, any>>(new Map());
+
+  const shallowEqualArtworkData = (a: any, b: any) => {
+    if (a === b) return true;
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    for (let i = 0; i < aKeys.length; i++) {
+      const k = aKeys[i];
+      if (a[k] !== b[k]) return false;
+    }
+    return true;
+  };
+
   // Pin all textures when gallery is small to avoid any reloads; otherwise unpin
   useEffect(() => {
     const urls = artworks.map(a => a.textureUrl).filter(Boolean) as string[];
@@ -94,6 +112,19 @@ const SceneContent: React.FC<SceneProps> = ({
       urls.forEach(u => textureCache.unpinTexture(u));
     };
   }, [artworks.length]);
+
+  // Auto-pin a small number of likely-visible artwork textures when the scene mounts
+  // This reduces first-frame stalls caused by downloading large textures when the
+  // user first enters the scene. We pin the first N artworks (or fewer) and unpin
+  // them on cleanup. This is a lightweight, conservative approach that avoids
+  // changing any higher-level data flow.
+  useEffect(() => {
+    const PIN_ON_ENTER_COUNT = 6;
+    const urls = artworks.slice(0, PIN_ON_ENTER_COUNT).map(a => a.textureUrl).filter(Boolean) as string[];
+    if (urls.length === 0) return undefined;
+    urls.forEach(u => textureCache.pinTexture(u));
+    return () => { urls.forEach(u => textureCache.unpinTexture(u)); };
+  }, [artworks]);
 
   // Preload neighbor textures around focused artwork (previous/next radius)
   useEffect(() => {
@@ -110,13 +141,18 @@ const SceneContent: React.FC<SceneProps> = ({
       const ni = idx + d;
       if (ni >= 0 && ni < artworks.length) neighbors.push(ni);
     }
-    neighbors.forEach(i => {
-      const u = artworks[i].textureUrl;
-      if (u) {
-        neighborPreloadsRef.current.push(u);
-        textureCache.retainTexture(u).catch(() => {});
-      }
-    });
+    if ((import.meta as any).env?.DEV) console.time('[PERF] SceneContent neighborPreloads');
+    try {
+      neighbors.forEach(i => {
+        const u = artworks[i].textureUrl;
+        if (u) {
+          neighborPreloadsRef.current.push(u);
+          textureCache.retainTexture(u).catch(() => {});
+        }
+      });
+    } finally {
+      if ((import.meta as any).env?.DEV) console.timeEnd('[PERF] SceneContent neighborPreloads');
+    }
     return () => {
       neighborPreloadsRef.current.forEach(u => textureCache.releaseTexture(u));
       neighborPreloadsRef.current = [];
@@ -197,8 +233,10 @@ const SceneContent: React.FC<SceneProps> = ({
       // Define array of six identical image paths for CubeTextureLoader
       const cubeTextureUrls = Array(6).fill(imagePath);
 
+      if ((import.meta as any).env?.DEV) console.time('[PERF] SceneContent backgroundLoad');
       new THREE.CubeTextureLoader().loadAsync(cubeTextureUrls)
         .then(cubeTexture => {
+          if ((import.meta as any).env?.DEV) console.timeEnd('[PERF] SceneContent backgroundLoad');
           // When the new texture is ready, swap it in immediately and only
           // then dispose the old texture so there's no moment with no
           // background texture visible.
@@ -215,6 +253,7 @@ const SceneContent: React.FC<SceneProps> = ({
           }
         })
         .catch((e) => {
+          if ((import.meta as any).env?.DEV) console.timeEnd('[PERF] SceneContent backgroundLoad');
           // Loading failed. Keep any previously-applied texture (do not
           // clear it), and fall back to solid background only if nothing
           // existed before.
@@ -525,6 +564,17 @@ const SceneContent: React.FC<SceneProps> = ({
 
             {/* FIX: Map over artworks to render ArtComponent */}
             {artworks.map((art, index) => {
+              // Reuse previously cached artworkData when semantically identical
+              const stableArtworkData = (() => {
+                const key = art.artworkId || art.id;
+                const prev = artworkDataCacheRef.current.get(key);
+                if (prev && shallowEqualArtworkData(prev, art.artworkData)) {
+                  return prev;
+                }
+                // store whatever value (possibly undefined) so we can compare next render
+                artworkDataCacheRef.current.set(key, art.artworkData);
+                return art.artworkData;
+              })();
               // Determine externalOffsetX for slide-out when camera is zooming to a focused artwork
               const focusedArt = artworks.find(a => a.id === focusedArtworkInstanceId);
               let externalOffsetX = 0;
@@ -584,7 +634,7 @@ const SceneContent: React.FC<SceneProps> = ({
                     sourceArtworkType={art.source_artwork_type}
                     isFocused={isExplicitlyFocused}
                     textureUrl={art.textureUrl}
-                    artworkData={art.artworkData}
+                    artworkData={stableArtworkData}
                     isMotionVideo={art.isMotionVideo}
                     isFaultyMotionVideo={art.isFaultyMotionVideo}
                     lightsOn={lightsOn}

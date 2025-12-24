@@ -45,24 +45,42 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
 
     // Use global texture cache to load/retain textures so we can control eviction
     let cancelled = false;
-    (async () => {
-      try {
-        const tex = await (await import('../../../services/textureCache')).default.retainTexture(textureUrl as string);
-        if (!mounted || cancelled) {
-          if (tex) (await import('../../../services/textureCache')).default.releaseTexture(textureUrl as string);
-          return;
+      (async () => {
+        const perfLabel = `[PERF] retainTexture ${textureUrl}`;
+        let perfStarted = false;
+        try {
+          if ((import.meta as any).env?.DEV) {
+            // guard duplicate timer starts (React StrictMode may double-invoke effects in DEV)
+            try {
+              if (!(TexturedWallDisplay as any).__perfTimers) (TexturedWallDisplay as any).__perfTimers = new Set<string>();
+              const s: Set<string> = (TexturedWallDisplay as any).__perfTimers;
+              if (!s.has(perfLabel)) { console.time(perfLabel); s.add(perfLabel); perfStarted = true; }
+              else perfStarted = false;
+            } catch (e) { /* ignore */ }
+          }
+          const tex = await (await import('../../../services/textureCache')).default.retainTexture(textureUrl as string);
+          if (!mounted || cancelled) {
+            if (tex) (await import('../../../services/textureCache')).default.releaseTexture(textureUrl as string);
+            return;
+          }
+          if (tex) {
+            // attach cached url for potential future release tracking
+            try { (tex as any).__cachedUrl = textureUrl; } catch (e) {}
+            setImageTexture(tex);
+            setIsInternalLoadingError(false);
+          }
+        } catch (err) {
+          if (!mounted) return;
+          setIsInternalLoadingError(true);
+        } finally {
+          if ((import.meta as any).env?.DEV) {
+            try {
+              const s: Set<string> = (TexturedWallDisplay as any).__perfTimers || new Set<string>();
+              if (perfStarted && s.has(perfLabel)) { console.timeEnd(perfLabel); s.delete(perfLabel); }
+            } catch (e) { /* ignore */ }
+          }
         }
-        if (tex) {
-          // attach cached url for potential future release tracking
-          try { (tex as any).__cachedUrl = textureUrl; } catch (e) {}
-          setImageTexture(tex);
-          setIsInternalLoadingError(false);
-        }
-      } catch (err) {
-        if (!mounted) return;
-        setIsInternalLoadingError(true);
-      }
-    })();
+      })();
 
     return () => {
       mounted = false;

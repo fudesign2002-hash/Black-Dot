@@ -9,12 +9,15 @@ type CacheEntry = {
 
 const cache = new Map<string, CacheEntry>();
 
-let maxCacheSize = 24; // default max cached textures
+let maxCacheSize = 64; // default max cached textures (increase to reduce eviction thrashing)
 
 const loader = new THREE.TextureLoader();
 loader.crossOrigin = 'anonymous';
 
 function now() { return Date.now(); }
+
+// Track in-progress loads to dedupe concurrent requests for same URL
+const inProgress = new Map<string, Promise<THREE.Texture>>();
 
 async function loadTexture(url: string): Promise<THREE.Texture> {
   if (!url) throw new Error('No url');
@@ -24,10 +27,21 @@ async function loadTexture(url: string): Promise<THREE.Texture> {
     return existing.texture;
   }
 
-  // load async
-  const tex = await new Promise<THREE.Texture>((resolve, reject) => {
+  // If a load is already in progress for this url, return the same promise
+  const prog = inProgress.get(url);
+  if (prog) return prog;
+
+  // load async (store promise in inProgress to dedupe)
+  const promise = new Promise<THREE.Texture>((resolve, reject) => {
     loader.load(url, (t) => resolve(t), undefined, (e) => reject(e));
-  });
+  }).then((tex) => {
+    // after successful load, remove from inProgress and proceed
+    inProgress.delete(url);
+    return tex;
+  }).catch((err) => { inProgress.delete(url); throw err; });
+
+  inProgress.set(url, promise);
+  const tex = await promise;
 
   try {
     (tex as any).encoding = (THREE as any).sRGBEncoding || (THREE as any).sRGBEncoding;
@@ -45,6 +59,11 @@ async function retainTexture(url?: string | null): Promise<THREE.Texture | null>
     try {
       const tex = await loadTexture(url);
       entry = cache.get(url)!;
+      // it's possible loadTexture populated cache; if not, set it now
+      if (!entry) {
+        cache.set(url, { texture: tex, refCount: 0, pinned: false, lastUsed: now() });
+        entry = cache.get(url)!;
+      }
     } catch (e) {
       return null;
     }

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info, Eye } from 'lucide-react';
 import { Exhibition, FirebaseArtwork } from '../../types';
 
@@ -59,11 +60,14 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
     return type.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
   };
 
-  return (
+  // If the panel is closed, don't render it at all to avoid layout/stacking leaks
+  if (!isOpen) return null;
+
+  const panelContent = (
     <React.Fragment>
       {isOpen && (
         <div
-          className="absolute inset-0 z-40"
+          className="fixed inset-0 z-40"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -71,8 +75,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
 
       <div 
         ref={panelRef}
-        style={{ display: isOpen ? undefined : 'none' }}
-        className={`absolute top-0 right-0 h-full w-full md:w-[600px] z-[55] backdrop-blur-xl shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden flex flex-col border-l ${uiConfig.border} ${uiConfig.panelBg} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full md:w-[600px] z-50 backdrop-blur-xl shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden flex flex-col border-l ${uiConfig.border} ${uiConfig.panelBg} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-10 flex justify-between items-start">
           <div>
@@ -281,6 +284,11 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
       </div>
     </React.Fragment>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(panelContent, document.body);
+  }
+  return panelContent;
 };
 
 export default InfoPanel;

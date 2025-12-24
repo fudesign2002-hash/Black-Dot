@@ -3,6 +3,24 @@ import firebase from 'firebase/compat/app';
 import { Exhibition, ExhibitionZone, FirebaseArtwork, ExhibitionArtItem, ArtType, ZoneArtworkItem, ArtworkData } from '../types';
 import { storage } from '../firebase';
 
+// Cache parsed artwork_data per document id to avoid returning a new object
+// reference when the semantic content hasn't changed. This reduces upstream
+// prop churn (e.g. in React state) and prevents unnecessary effect re-runs.
+const artworkDataCacheById: Map<string, ArtworkData | undefined> = new Map();
+
+const shallowEqual = (a: any, b: any) => {
+    if (a === b) return true;
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    for (let i = 0; i < aKeys.length; i++) {
+        const k = aKeys[i];
+        if (a[k] !== b[k]) return false;
+    }
+    return true;
+};
+
 const parseArtworkData = (rawData: any): ArtworkData | undefined => {
   if (!rawData) {
     return undefined;
@@ -29,25 +47,35 @@ const parseArtworkData = (rawData: any): ArtworkData | undefined => {
 export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]): Promise<FirebaseArtwork[]> => {
     const artworksPromises = docs.map(async doc => {
         const data = doc.data();
+                const parsedArtworkData = parseArtworkData(data.artwork_data);
+                // Reuse cached parsed object when semantically identical
+                const prev = artworkDataCacheById.get(doc.id);
+                let artworkDataToUse: ArtworkData | undefined = parsedArtworkData;
+                if (prev && parsedArtworkData && shallowEqual(prev, parsedArtworkData)) {
+                    artworkDataToUse = prev;
+                } else {
+                    // update cache even if undefined so we remember its last state
+                    artworkDataCacheById.set(doc.id, parsedArtworkData);
+                }
 
-        return {
-            id: doc.id,
-            artworkID: data.artworkID || '',
-            artwork_type: data.artwork_type || 'unknown',
-            title: data.title || 'Untitled Artwork',
-            artist: data.artist || undefined,
-            file: data.file,
-            artwork_file: data.artwork_file,
-            digitalSize: data.digitalSize,
-            materials: data.materials,
-            size: data.size,
-            artwork_data: parseArtworkData(data.artwork_data),
-            fileSizeMB: typeof data.artwork_filesize === 'number' ? data.artwork_filesize / (1024 * 1024) : undefined,
-            artwork_liked: typeof data.artwork_liked === 'number' ? data.artwork_liked : 0,
-            artwork_viewed: typeof data.artwork_viewed === 'number' ? data.artwork_viewed : 0,
-            artwork_shared: typeof data.artwork_shared === 'number' ? data.artwork_shared : undefined,
-            artwork_gravity: typeof data.artwork_gravity === 'number' ? data.artwork_gravity : 0,
-        };
+                return {
+                        id: doc.id,
+                        artworkID: data.artworkID || '',
+                        artwork_type: data.artwork_type || 'unknown',
+                        title: data.title || 'Untitled Artwork',
+                        artist: data.artist || undefined,
+                        file: data.file,
+                        artwork_file: data.artwork_file,
+                        digitalSize: data.digitalSize,
+                        materials: data.materials,
+                        size: data.size,
+                        artwork_data: artworkDataToUse,
+                        fileSizeMB: typeof data.artwork_filesize === 'number' ? data.artwork_filesize / (1024 * 1024) : undefined,
+                        artwork_liked: typeof data.artwork_liked === 'number' ? data.artwork_liked : 0,
+                        artwork_viewed: typeof data.artwork_viewed === 'number' ? data.artwork_viewed : 0,
+                        artwork_shared: typeof data.artwork_shared === 'number' ? data.artwork_shared : undefined,
+                        artwork_gravity: typeof data.artwork_gravity === 'number' ? data.artwork_gravity : 0,
+                };
     });
 
     const artworks = await Promise.all(artworksPromises);
