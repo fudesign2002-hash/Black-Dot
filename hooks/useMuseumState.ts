@@ -109,20 +109,12 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
 
         const unsubscribeArtworks = artworksColRef.onSnapshot(async (snapshot) => {
             try {
-              if ((import.meta as any).env?.DEV) {
-                const docIds = snapshot.docs.map(d => d.id).join(',');
-                const currentUid = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
-                // eslint-disable-next-line no-console
-                console.warn('[useMuseumState] onSnapshot artworks received', { ownerUid: ownerUid ?? null, currentAuthUid: currentUid, docIds });
-              }
+              // DEV-only log removed to reduce console noise
             } catch (e) {}
           const processedArtworks = await processFirebaseArtworks(snapshot.docs);
           setFirebaseArtworks(processedArtworks);
           try {
-            if ((import.meta as any).env?.DEV) {
-              // eslint-disable-next-line no-console
-              console.warn('[useMuseumState] processedArtworks set', { ownerUid: ownerUid ?? null, count: processedArtworks.length });
-            }
+            // DEV-only log removed to reduce console noise
           } catch (e) {}
           setRawArtworkDocs(snapshot.docs);
           loadedFlags.artworks = true;

@@ -85,10 +85,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
       triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
       isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType // NEW: Destructure isSmallScreen and sourceArtworkType
 }) => {
-  // Debug: log when artworkData prop changes for this component
-  React.useEffect(() => {
-    try { console.warn('[ArtComponent] artworkData prop changed', { id, artworkData: artworkData ? { material: artworkData.material } : null }); } catch (e) {}
-  }, [artworkData]);
+  // Debug logging removed to reduce console noise in production/dev
     const [visualDimensions, setVisualDimensions] = useState<ExhibitVisualDimensions | null>(null);
 
     const isPaintingArtwork = artworkType.startsWith('canvas_');
@@ -148,14 +145,41 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
         onArtworkClicked(e, id, position, rotation, type, !!isMotionVideo);
     }, [onArtworkClicked, id, isMotionVideo]);
 
-    const commonProps = {
-        isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn,
-      artworkPosition, artworkRotation, artworkType,
+    const materialJson = React.useMemo(() => {
+      try { return artworkData ? JSON.stringify(artworkData.material || {}) : ''; } catch (e) { return ''; }
+    }, [artworkData]);
+
+    const commonProps = React.useMemo(() => ({
+      isFocused,
+      textureUrl,
+      artworkData,
+      isMotionVideo,
+      isFaultyMotionVideo,
+      aspectRatio,
+      lightsOn,
+      artworkPosition,
+      artworkRotation,
+      artworkType,
       sourceArtworkType,
-        onArtworkClickedHtml: handleArtworkClickedHtml,
-        isSmallScreen, // NEW: Pass isSmallScreen
-        opacity: (isCameraMovingToArtwork && !isFocused) ? 0.15 : 1.0, // NEW: Fade out non-focused artworks when camera is moving
-    };
+      onArtworkClickedHtml: handleArtworkClickedHtml,
+      isSmallScreen,
+      opacity: (isCameraMovingToArtwork && !isFocused) ? 0.15 : 1.0,
+    }), [
+      isFocused,
+      textureUrl,
+      isMotionVideo,
+      isFaultyMotionVideo,
+      aspectRatio,
+      lightsOn,
+      JSON.stringify(artworkPosition),
+      JSON.stringify(artworkRotation),
+      artworkType,
+      sourceArtworkType,
+      handleArtworkClickedHtml,
+      isSmallScreen,
+      isCameraMovingToArtwork,
+      materialJson,
+    ]);
 
     const componentMap: { [key: string]: React.ReactNode } = {
         'canvas_portrait': <LazyCanvasExhibit orientation="portrait" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,

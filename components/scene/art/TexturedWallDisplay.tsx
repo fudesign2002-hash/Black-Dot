@@ -46,25 +46,13 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     // Use global texture cache to load/retain textures so we can control eviction
     let cancelled = false;
       (async () => {
-        const perfLabel = `[PERF] retainTexture ${textureUrl}`;
-        let perfStarted = false;
         try {
-          if ((import.meta as any).env?.DEV) {
-            // guard duplicate timer starts (React StrictMode may double-invoke effects in DEV)
-            try {
-              if (!(TexturedWallDisplay as any).__perfTimers) (TexturedWallDisplay as any).__perfTimers = new Set<string>();
-              const s: Set<string> = (TexturedWallDisplay as any).__perfTimers;
-              if (!s.has(perfLabel)) { console.time(perfLabel); s.add(perfLabel); perfStarted = true; }
-              else perfStarted = false;
-            } catch (e) { /* ignore */ }
-          }
           const tex = await (await import('../../../services/textureCache')).default.retainTexture(textureUrl as string);
           if (!mounted || cancelled) {
             if (tex) (await import('../../../services/textureCache')).default.releaseTexture(textureUrl as string);
             return;
           }
           if (tex) {
-            // attach cached url for potential future release tracking
             try { (tex as any).__cachedUrl = textureUrl; } catch (e) {}
             setImageTexture(tex);
             setIsInternalLoadingError(false);
@@ -72,13 +60,6 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         } catch (err) {
           if (!mounted) return;
           setIsInternalLoadingError(true);
-        } finally {
-          if ((import.meta as any).env?.DEV) {
-            try {
-              const s: Set<string> = (TexturedWallDisplay as any).__perfTimers || new Set<string>();
-              if (perfStarted && s.has(perfLabel)) { console.timeEnd(perfLabel); s.delete(perfLabel); }
-            } catch (e) { /* ignore */ }
-          }
         }
       })();
 
@@ -101,10 +82,6 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
   // Apply material overrides from artworkData when provided
   useEffect(() => {
     const matCfg = (artworkData && (artworkData as any).material) || ({} as any);
-    try {
-      // eslint-disable-next-line no-console
-      console.warn('[TexturedWallDisplay] apply material effect', { textureUrl, matCfg });
-    } catch (e) {}
     // painting material
     if (paintingMaterialRef.current) {
       try {
@@ -117,7 +94,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         if (typeof matCfg.emissiveIntensity === 'number') m.emissiveIntensity = matCfg.emissiveIntensity;
         if (typeof matCfg.opacity === 'number') { m.opacity = matCfg.opacity; m.transparent = matCfg.opacity < 0.999; }
         if (typeof (m as any).needsUpdate !== 'undefined') (m as any).needsUpdate = true;
-        try { console.warn('[TexturedWallDisplay] paintingMaterial after', { before, after: { color: m.color?.getHexString?.() || null, roughness: m.roughness, metalness: m.metalness, opacity: m.opacity } }); } catch (e) {}
+        try { /* painting material updated */ } catch (e) {}
       } catch (e) {}
     }
     if (artworkMaterialRef.current) {
@@ -131,7 +108,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         if (typeof matCfg.emissiveIntensity === 'number') m.emissiveIntensity = matCfg.emissiveIntensity;
         if (typeof matCfg.opacity === 'number') { m.opacity = matCfg.opacity; m.transparent = matCfg.opacity < 0.999; }
         if (typeof (m as any).needsUpdate !== 'undefined') (m as any).needsUpdate = true;
-        try { console.warn('[TexturedWallDisplay] artworkMaterial after', { before: before2, after: { color: m.color?.getHexString?.() || null, roughness: m.roughness, metalness: m.metalness, opacity: m.opacity } }); } catch (e) {}
+        try { /* artwork material updated */ } catch (e) {}
       } catch (e) {}
     }
   }, [artworkData]);

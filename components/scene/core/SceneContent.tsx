@@ -141,7 +141,6 @@ const SceneContent: React.FC<SceneProps> = ({
       const ni = idx + d;
       if (ni >= 0 && ni < artworks.length) neighbors.push(ni);
     }
-    if ((import.meta as any).env?.DEV) console.time('[PERF] SceneContent neighborPreloads');
     try {
       neighbors.forEach(i => {
         const u = artworks[i].textureUrl;
@@ -151,7 +150,6 @@ const SceneContent: React.FC<SceneProps> = ({
         }
       });
     } finally {
-      if ((import.meta as any).env?.DEV) console.timeEnd('[PERF] SceneContent neighborPreloads');
     }
     return () => {
       neighborPreloadsRef.current.forEach(u => textureCache.releaseTexture(u));
@@ -233,10 +231,8 @@ const SceneContent: React.FC<SceneProps> = ({
       // Define array of six identical image paths for CubeTextureLoader
       const cubeTextureUrls = Array(6).fill(imagePath);
 
-      if ((import.meta as any).env?.DEV) console.time('[PERF] SceneContent backgroundLoad');
       new THREE.CubeTextureLoader().loadAsync(cubeTextureUrls)
         .then(cubeTexture => {
-          if ((import.meta as any).env?.DEV) console.timeEnd('[PERF] SceneContent backgroundLoad');
           // When the new texture is ready, swap it in immediately and only
           // then dispose the old texture so there's no moment with no
           // background texture visible.

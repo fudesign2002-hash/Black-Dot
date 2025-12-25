@@ -106,21 +106,14 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
   // NEW: Effect to manage the lifecycle and material application of the cloned GLB scene.
   // This useEffect now runs only when cleanedGlbScene or material properties actually change.
   useEffect(() => {
-    if ((import.meta as any).env?.DEV) console.time('[PERF] SculptureExhibit applyMaterials');
     // Debugging: log material and scene change detection to help diagnose first-click missing apply
-    try {
-      // eslint-disable-next-line no-console
-      console.warn('[SculptureExhibit] material apply effect start', { textureUrl, isGLB, hasCleanedGlb: !!cleanedGlbScene, currentMaterial: artworkData?.material, prevMaterial: prevMaterialConfigRef.current });
-    } catch (e) {}
+    // material apply debug logging removed to reduce console noise
     // If the GLB scene object itself has changed or material config is different
     const currentMaterialConfig = artworkData?.material;
     const materialConfigChanged = !shallowEqual(prevMaterialConfigRef.current, currentMaterialConfig);
     const glbSceneChanged = cleanedGlbScene !== prevGlbSceneRef.current;
 
-    try {
-      // eslint-disable-next-line no-console
-      console.warn('[SculptureExhibit] change detection', { materialConfigChanged, glbSceneChanged });
-    } catch (e) {}
+    // change detection logging removed
 
     if (!isGLB || !cleanedGlbScene || glbSceneChanged || materialConfigChanged) {
       // Dispose of the existing model in the ref before potentially replacing it
@@ -207,7 +200,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     // Update refs for the next comparison
     prevMaterialConfigRef.current = currentMaterialConfig;
     prevGlbSceneRef.current = cleanedGlbScene;
-    if ((import.meta as any).env?.DEV) console.timeEnd('[PERF] SculptureExhibit applyMaterials');
+    
 
     // Return a cleanup function to dispose the model when the component unmounts or dependencies change
     return () => {
@@ -276,8 +269,6 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
   }, [rotationOffset]);
 
   const glbRenderProps = useMemo(() => {
-    if ((import.meta as any).env?.DEV) console.time('[PERF] SculptureExhibit glbRenderProps');
-    try {
     // This memo computes the base scaling factor for the GLB model
     // and its intrinsic dimensions (height, footprint) when unscaled by `scaleOffset`.
     // It should *not* depend on `scaleOffset` itself, as `scaleOffset` is applied separately.
@@ -327,9 +318,6 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
 
 
     return { scale: scaleFactor, yOffset, horizontalFootprint, height, xCenterOffset, zCenterOffset };
-    } finally {
-      if ((import.meta as any).env?.DEV) console.timeEnd('[PERF] SculptureExhibit glbRenderProps');
-    }
   }, [isGLB, cleanedGlbScene, glbRotationEuler]); // Removed scaleOffset from dependencies here
 
   // NEW: Calculate dynamic GLB dimensions by applying scaleOffset here
