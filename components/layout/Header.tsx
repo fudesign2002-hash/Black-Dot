@@ -101,7 +101,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
 
   return (
     <React.Fragment>
-      <div className={`absolute top-10 right-10 z-40 select-none transition-opacity duration-500 ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
+      <div className={`fixed top-10 right-10 z-40 select-none transition-opacity duration-500 overflow-hidden ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
         <div className={innerFlexContainerClasses} style={headerColorStyle}>
             <div className={`relative ${treatAsCompact ? (isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-100'}`}>
               <div className="overflow-hidden h-10">

@@ -14,6 +14,8 @@ interface Props {
 export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestCloseInfo }: Props) {
   const [open, setOpen] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const isSignedIn = Boolean(user && (user.providerData && user.providerData.length > 0));
@@ -288,23 +290,88 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
     }
   };
 
+  // Debug helpers for stepwise inspection (opened via Shift+Click on the user icon)
+  const runDebugStep = async (step: number) => {
+    const append = (s: string) => setDebugLogs(l => [...l, s]);
+    try {
+      if (step === 1) {
+        append(`step1: isSignedIn = ${isSignedIn}`);
+        append(`step1: displayAvatar present = ${!!displayAvatar}`);
+      } else if (step === 2) {
+        append('step2: toggling profile menu (open state before) = ' + String(open));
+        setOpen(v => { append('step2: open toggled'); return !v; });
+      } else if (step === 3) {
+        append('step3: calling onRequestCloseInfo (if provided)');
+        try {
+          if (onRequestCloseInfo) {
+            onRequestCloseInfo();
+            append('step3: onRequestCloseInfo called');
+          } else {
+            append('step3: onRequestCloseInfo not provided');
+          }
+        } catch (err: any) {
+          append('step3: onRequestCloseInfo threw: ' + String(err));
+        }
+      } else if (step === 4) {
+        append('step4: setting showOverlay=true (will render sign-in card)');
+        setShowOverlay(true);
+      } else if (step === 5) {
+        append('step5: logging viewport widths');
+        append(`window.innerWidth=${window.innerWidth}, documentElement.clientWidth=${document.documentElement.clientWidth}, document.body.clientWidth=${document.body.clientWidth}, scrollWidth=${document.documentElement.scrollWidth}`);
+        const rect = containerRef.current?.getBoundingClientRect();
+        append('step5: user-button rect=' + (rect ? JSON.stringify(rect.toJSON()) : 'null'));
+      }
+    } catch (e: any) {
+      append('error running step ' + step + ': ' + String(e));
+    }
+  };
+
   return (
     <div ref={containerRef} className="fixed top-3 left-3 z-50">
       <button
         aria-label="user menu"
         onPointerDown={(e) => { e.stopPropagation(); }}
         onMouseDown={(e) => { e.stopPropagation(); }}
-        onClick={(e) => {
+          onClick={(e) => {
           e.stopPropagation();
+          // Shift+Click opens the debug panel
+          if ((e as unknown as MouseEvent).shiftKey) {
+            setDebugLogs([]);
+            setDebugPanelOpen(true);
+            return;
+          }
+
+          // NORMAL MODE: execute steps 1-3 only (compute isSignedIn, toggle menu if signed in, else call onRequestCloseInfo)
           try {
-            // eslint-disable-next-line no-console
-            console.warn('[TopLeftLogout] open click', { isSignedIn, isSmallScreen: window.innerWidth < 768 }, new Error().stack);
+            console.info('[TopLeftLogout] executing steps 1-3');
           } catch (err) {}
-          if (isSignedIn) setOpen(v => !v);
-          else {
-            // request parent to close InfoPanel (workaround for overlay opening at same time)
-            try { onRequestCloseInfo && onRequestCloseInfo(); } catch (err) {}
+
+          try {
+            // step 1: compute isSignedIn (already derived above)
+            console.info('[TopLeftLogout] step1: isSignedIn=', isSignedIn);
+
+            // step 2: toggle profile menu if signed in
+            if (isSignedIn) {
+              setOpen(v => !v);
+              console.info('[TopLeftLogout] step2: toggled profile menu');
+              return;
+            }
+
+            // step 3: if not signed in, request parent to close InfoPanel
+            if (onRequestCloseInfo) {
+              try {
+                onRequestCloseInfo();
+                console.info('[TopLeftLogout] step3: onRequestCloseInfo called');
+              } catch (err) {
+                console.error('[TopLeftLogout] step3: onRequestCloseInfo threw', err);
+              }
+            }
+
+            // Show the sign-in overlay
             setShowOverlay(true);
+            return;
+          } catch (err) {
+            console.error('[TopLeftLogout] click handler error', err);
           }
         }}
         className="bg-transparent dark:bg-transparent rounded-full p-1 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-400"
@@ -361,8 +428,8 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
       )}
 
       {showOverlay && !isSignedIn && (
-        <div onMouseDown={handleOverlayBackgroundClick} className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-6">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+        <div onMouseDown={handleOverlayBackgroundClick} className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 overflow-hidden p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl box-border overflow-hidden">
             <div className="flex flex-col items-center gap-4">
               {/* Logo box */}
               <div className="w-20 h-20 rounded-lg flex items-center justify-center bg-white">
@@ -376,7 +443,7 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
                 {emailFormMode === 'idle' ? (
                   <>
                     <div className="text-center text-sm text-slate-500 mb-3">Your Team Code</div>
-                    <div className="flex justify-center gap-2 mb-2">
+                    <div className="flex justify-center gap-1 sm:gap-2 mb-2">
                       {Array.from({ length: 6 }).map((_, i) => (
                         <input
                           key={i}
@@ -387,7 +454,7 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
                           value={teamCodeChars[i] ?? ''}
                           onChange={(e) => handleDigitChange(i, e.target.value.replace(/[^0-9]/g, ''))}
                           onKeyDown={(e) => handleDigitKeyDown(i, e as unknown as React.KeyboardEvent<HTMLInputElement>)}
-                          className="w-12 h-12 rounded-md border border-slate-200 flex items-center justify-center text-center text-lg font-medium text-slate-900 outline-none"
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-md border border-slate-200 flex items-center justify-center text-center text-lg font-medium text-slate-900 outline-none"
                         />
                       ))}
                     </div>
@@ -469,6 +536,68 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
                     </div>
                   </form>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Debug panel (Shift+Click on user icon to open) */}
+      {debugPanelOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50" onClick={() => setDebugPanelOpen(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl box-border max-w-full overflow-auto">
+            <h2 className="text-lg font-bold mb-3">User icon click — Debug Steps</h2>
+            <p className="text-sm mb-4">按下各步驟按鈕逐一執行，觀察是否會觸發橫向溢出。</p>
+            <div className="space-y-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Step 1</div>
+                  <div className="text-xs text-neutral-500">檢查登入狀態與 avatar</div>
+                </div>
+                <button className="px-3 py-1 rounded bg-neutral-200" onClick={(e) => { e.stopPropagation(); runDebugStep(1); }}>Run</button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Step 2</div>
+                  <div className="text-xs text-neutral-500">切換內建 profile menu（signed-in 狀態下）</div>
+                </div>
+                <button className="px-3 py-1 rounded bg-neutral-200" onClick={(e) => { e.stopPropagation(); runDebugStep(2); }}>Run</button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Step 3</div>
+                  <div className="text-xs text-neutral-500">呼叫 onRequestCloseInfo（如果 parent 提供）</div>
+                </div>
+                <button className="px-3 py-1 rounded bg-neutral-200" onClick={(e) => { e.stopPropagation(); runDebugStep(3); }}>Run</button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Step 4</div>
+                  <div className="text-xs text-neutral-500">顯示登入 overlay（showOverlay = true）</div>
+                </div>
+                <button className="px-3 py-1 rounded bg-neutral-200" onClick={(e) => { e.stopPropagation(); runDebugStep(4); }}>Run</button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Step 5</div>
+                  <div className="text-xs text-neutral-500">記錄 viewport 與 user-button bounding rect</div>
+                </div>
+                <button className="px-3 py-1 rounded bg-neutral-200" onClick={(e) => { e.stopPropagation(); runDebugStep(5); }}>Run</button>
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <div className="text-sm font-medium mb-2">Logs</div>
+              <div className="max-h-48 overflow-auto text-xs bg-neutral-50 p-2 rounded">
+                {debugLogs.length === 0 ? <div className="text-neutral-400">尚無紀錄</div> : debugLogs.map((l, i) => <div key={i} className="whitespace-pre-wrap">{l}</div>)}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button className="px-3 py-1 rounded bg-neutral-200" onClick={(e) => { e.stopPropagation(); setDebugLogs([]); }}>Clear</button>
+                <button className="px-3 py-1 rounded bg-neutral-200" onClick={(e) => { e.stopPropagation(); setDebugPanelOpen(false); }}>Close</button>
               </div>
             </div>
           </div>

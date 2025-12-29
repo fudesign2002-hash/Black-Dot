@@ -1260,10 +1260,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   }, [focusedArtworkInstanceId, cameraControlRef, setIsArtworkFocusedForControls, setFocusedArtworkInstanceId, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId]);
 
   const handleOpenInfo = useCallback(() => {
-    try {
-      // eslint-disable-next-line no-console
-      console.warn('[App] handleOpenInfo called', new Error().stack);
-    } catch (e) {}
+    // Removed noisy stack log
     if (focusedArtworkInstanceId) {
       const artworkInLayout = currentLayout.find(item => item.id === focusedArtworkInstanceId);
       if (artworkInLayout) {

@@ -101,16 +101,29 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     targetPosition.current.set(final[0], final[1], final[2]);
     targetLookAt.current.copy(controlsRef.current.target);
 
-    // Snap immediately
-    camera.position.copy(targetPosition.current);
-    // do not override controlsRef.current.target (preserve user look-at)
-    controlsRef.current.update();
-    previousCameraPosition.current.copy(targetPosition.current);
-    previousCameraTarget.current.copy(targetLookAt.current);
-    if (props.onCameraPositionChange) props.onCameraPositionChange(true);
-    // Log position source: user custom vs system default
-    const source = customCameraPosition ? 'user_custom' : 'system_default';
-  }, [camera, props.onCameraPositionChange]);
+    // Animate smoothly to the initial position instead of snapping
+    try {
+      const fromPos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
+      const fromTgt: [number, number, number] = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] : INITIAL_CAMERA_TARGET;
+      const toPos = final as [number, number, number];
+      const toTgt = fromTgt;
+      // trigger animation using the moveToConfig helper
+      props.onCameraAnimationStateChange?.(true);
+      props.onCameraPositionChange?.(false);
+      // shorter duration for reset to feel quick but smooth
+      const RESET_CAMERA_DURATION = 300;
+      setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: toPos, toTarget: toTgt, duration: RESET_CAMERA_DURATION, key: 'reset' });
+      previousCameraPosition.current.copy(new THREE.Vector3(...toPos));
+      previousCameraTarget.current.copy(new THREE.Vector3(...toTgt));
+    } catch (e) {
+      // fallback to immediate snap if animation setup fails
+      camera.position.copy(targetPosition.current);
+      controlsRef.current.update();
+      previousCameraPosition.current.copy(targetPosition.current);
+      previousCameraTarget.current.copy(targetLookAt.current);
+      props.onCameraPositionChange?.(true);
+    }
+  }, [camera, props.onCameraPositionChange, props.onCameraAnimationStateChange]);
 
   const moveCameraToArtwork = useCallback((artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => {
     if (!controlsRef.current) return;
@@ -499,9 +512,10 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
           onComplete={() => {
             // finished move
             props.onCameraAnimationStateChange?.(false);
-            // If we moved to ranking/zerog target, camera is not at default
-            const atInitial = (moveToConfig.key === 'ranking-exit' || moveToConfig.key === 'zerog-exit') ? true : false;
-            props.onCameraPositionChange?.(atInitial);
+            // Determine whether the camera is now at the default initial position.
+            // Treat explicit 'reset' and ranking-exit/zerog-exit as at-initial.
+            const atInitial = ['ranking-exit', 'zerog-exit', 'reset'].includes(moveToConfig.key || '');
+            props.onCameraPositionChange(atInitial);
             setMoveToConfig(null);
           }}
         />

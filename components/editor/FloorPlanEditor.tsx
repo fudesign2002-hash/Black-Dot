@@ -151,18 +151,14 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     onActiveTabChange(tab);
   }, [onActiveTabChange]);
 
-  // NEW: Handle clicks on the overlay to prevent closing during drag operations
-  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !isAnyLayoutItemDragging) { // MODIFIED: Add !isAnyLayoutItemDragging
-      onClose();
-    }
-  }, [onClose, isAnyLayoutItemDragging]); // MODIFIED: Add isAnyLayoutItemDragging to deps
+  // If the panel is closed, don't render it at all to avoid layout/stacking leaks
+  if (!isOpen) return null;
 
   return (
     <React.Fragment>
       {isOpen && (
         <div
-          className="absolute inset-0 z-40"
+          className="fixed inset-0 z-40"
           onClick={handleOverlayClick} // MODIFIED: Use new handleOverlayClick
           aria-hidden="true"
         />
@@ -170,7 +166,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
       <div 
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        className={`absolute top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${uiConfig.border} ${uiConfig.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${uiConfig.border} ${uiConfig.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className={`px-4 py-3 border-b flex justify-between items-center ${uiConfig.border}`}>
           <div className="flex items-center gap-2">

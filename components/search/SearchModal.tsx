@@ -35,12 +35,12 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, uiConfig, ex
       }
   };
 
-  return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-        <div 
-          className={`w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden transition-all ${lightsOn ? 'bg-white' : 'bg-neutral-900 border border-neutral-800'}`}
-          onClick={e => e.stopPropagation()}
-        >
+    return (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+                <div 
+                    className={`w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden transition-all box-border max-w-full ${lightsOn ? 'bg-white' : 'bg-neutral-900 border border-neutral-800'}`}
+                    onClick={e => e.stopPropagation()}
+                >
             <div className={`p-6 border-b flex items-center justify-between ${uiConfig.border}`}>
                 <div>
                     <h3 className={`text-xl font-serif font-bold ${uiConfig.text}`}>Exhibition Archive</h3>

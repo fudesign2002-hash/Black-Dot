@@ -28,7 +28,7 @@ const SideNavigation: React.FC<SideNavigationProps> = React.memo(({ uiConfig, is
   return (
     <React.Fragment>
         {!isSmallScreen && !isFirstItem && prevItem && (
-            <div className={`absolute top-1/2 left-0 -translate-y-1/2 z-30 h-64 w-24 flex items-center justify-start pl-4 cursor-pointer group ${uiConfig.arrowBg} ${animationClasses} ${isNavigationHidden ? '-translate-x-full' : 'translate-x-0'}`} onClick={onPrev}>
+            <div className={`fixed top-1/2 left-0 -translate-y-1/2 z-30 h-64 w-24 flex items-center justify-start pl-4 cursor-pointer group ${uiConfig.arrowBg} ${animationClasses} ${isNavigationHidden ? '-translate-x-full' : 'translate-x-0'}`} onClick={onPrev}>
                 <div className="flex items-center gap-4">
                     <ChevronLeft className={`w-8 h-8 opacity-50 group-hover:opacity-100 transition-opacity ${uiConfig.text}`} />
                     <div className="flex flex-col items-start overflow-hidden w-48 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -39,7 +39,7 @@ const SideNavigation: React.FC<SideNavigationProps> = React.memo(({ uiConfig, is
             </div>
         )}
         {!isSmallScreen && !isLastItem && nextItem && (
-            <div className={`absolute top-1/2 right-0 -translate-y-1/2 z-30 h-64 w-24 flex items-center justify-end pr-4 cursor-pointer group ${uiConfig.arrowBg} ${animationClasses} ${isNavigationHidden ? 'translate-x-full' : 'translate-x-0'}`} onClick={onNext}>
+            <div className={`fixed top-1/2 right-0 -translate-y-1/2 z-30 h-64 w-24 flex items-center justify-end pr-4 cursor-pointer group ${uiConfig.arrowBg} ${animationClasses} ${isNavigationHidden ? 'translate-x-full' : 'translate-x-0'}`} onClick={onNext}>
                 <div className="flex flex-row-reverse items-center gap-4">
                     <ChevronRight className={`w-8 h-8 opacity-50 group-hover:opacity-100 transition-opacity ${uiConfig.text}`} />
                     <div className="flex flex-col items-end overflow-hidden w-48 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
