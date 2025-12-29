@@ -412,7 +412,11 @@ const SceneContent: React.FC<SceneProps> = ({
         targetBgColor = tmpTargetBgColor.current;
 
         if (!(scene.background instanceof THREE.Color) || !scene.background.equals(targetBgColor)) {
-          scene.background = targetBgColor.clone();
+          if (scene.background instanceof THREE.Color) {
+            scene.background.copy(targetBgColor);
+          } else {
+            scene.background = targetBgColor.clone();
+          }
         }
         
         // While loading, we also have the overlay mesh, but we set the background color
@@ -510,6 +514,7 @@ const SceneContent: React.FC<SceneProps> = ({
   const floorMeshPos = useMemo(() => new THREE.Vector3(0, 0, 0), []);
   const floorMeshRot = useMemo(() => new THREE.Euler(-Math.PI / 2, 0, 0), []);
   const fillLightColor = useMemo(() => new THREE.Color("#dbeafe"), []);
+  const initialFloorColorObj = useMemo(() => new THREE.Color(initialFloorColor), []);
 
   return (
     <React.Fragment>
@@ -551,7 +556,7 @@ const SceneContent: React.FC<SceneProps> = ({
   <meshStandardMaterial
     ref={floorMatRef}
     attach="material"
-    color={new THREE.Color(initialFloorColor)}
+    color={initialFloorColorObj}
     roughness={0.55}
     metalness={0.1}
   />

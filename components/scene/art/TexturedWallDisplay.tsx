@@ -5,6 +5,7 @@ import React, { useMemo, useState, useEffect, Suspense, useRef } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ArtworkDimensions, ArtType } from '../../../types';
+import textureCache from '../../../services/textureCache';
 
 interface TexturedWallDisplayProps {
   textureUrl?: string;
@@ -47,9 +48,9 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     let cancelled = false;
       (async () => {
         try {
-          const tex = await (await import('../../../services/textureCache')).default.retainTexture(textureUrl as string);
+          const tex = await textureCache.retainTexture(textureUrl as string);
           if (!mounted || cancelled) {
-            if (tex) (await import('../../../services/textureCache')).default.releaseTexture(textureUrl as string);
+            if (tex) textureCache.releaseTexture(textureUrl as string);
             return;
           }
           if (tex) {
@@ -67,7 +68,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
       mounted = false;
       cancelled = true;
       if (textureUrl) {
-        (async () => { try { (await import('../../../services/textureCache')).default.releaseTexture(textureUrl as string); } catch (e) {} })();
+        (async () => { try { textureCache.releaseTexture(textureUrl as string); } catch (e) {} })();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,6 +80,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     return null;
   }, [mapTexture, imageTexture]);
 
+  const tmpColor = useRef(new THREE.Color());
+
   // Apply material overrides from artworkData when provided
   useEffect(() => {
     const matCfg = (artworkData && (artworkData as any).material) || ({} as any);
@@ -86,29 +89,31 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     if (paintingMaterialRef.current) {
       try {
         const m = paintingMaterialRef.current;
-        const before = { color: m.color ? m.color.getHexString() : null, roughness: m.roughness, metalness: m.metalness, opacity: m.opacity };
-        if (matCfg.color) m.color = new THREE.Color(matCfg.color);
+        if (matCfg.color) m.color.set(matCfg.color);
         if (typeof matCfg.roughness === 'number') m.roughness = matCfg.roughness;
         if (typeof matCfg.metalness === 'number') m.metalness = matCfg.metalness;
-        if (matCfg.emissive) m.emissive = new THREE.Color(matCfg.emissive);
+        if (matCfg.emissive) {
+          if (!m.emissive) m.emissive = new THREE.Color();
+          m.emissive.set(matCfg.emissive);
+        }
         if (typeof matCfg.emissiveIntensity === 'number') m.emissiveIntensity = matCfg.emissiveIntensity;
         if (typeof matCfg.opacity === 'number') { m.opacity = matCfg.opacity; m.transparent = matCfg.opacity < 0.999; }
         if (typeof (m as any).needsUpdate !== 'undefined') (m as any).needsUpdate = true;
-        try { /* painting material updated */ } catch (e) {}
       } catch (e) {}
     }
     if (artworkMaterialRef.current) {
       try {
         const m = artworkMaterialRef.current;
-        const before2 = { color: m.color ? m.color.getHexString() : null, roughness: m.roughness, metalness: m.metalness, opacity: m.opacity };
-        if (matCfg.color) m.color = new THREE.Color(matCfg.color);
+        if (matCfg.color) m.color.set(matCfg.color);
         if (typeof matCfg.roughness === 'number') m.roughness = matCfg.roughness;
         if (typeof matCfg.metalness === 'number') m.metalness = matCfg.metalness;
-        if (matCfg.emissive) m.emissive = new THREE.Color(matCfg.emissive);
+        if (matCfg.emissive) {
+          if (!m.emissive) m.emissive = new THREE.Color();
+          m.emissive.set(matCfg.emissive);
+        }
         if (typeof matCfg.emissiveIntensity === 'number') m.emissiveIntensity = matCfg.emissiveIntensity;
         if (typeof matCfg.opacity === 'number') { m.opacity = matCfg.opacity; m.transparent = matCfg.opacity < 0.999; }
         if (typeof (m as any).needsUpdate !== 'undefined') (m as any).needsUpdate = true;
-        try { /* artwork material updated */ } catch (e) {}
       } catch (e) {}
     }
   }, [artworkData]);
@@ -273,7 +278,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         {isPainting ? (
             <React.Fragment>
                 {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
-                <mesh position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow castShadow>
+                {/* MODIFIED: Remove castShadow from frame to optimize shadow map performance */}
+                <mesh position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow>
                     <boxGeometry attach="geometry" args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
                     <meshStandardMaterial attach="material" color={new THREE.Color(PAINTING_FRAME_COLOR)} roughness={0.8} metalness={0} />
                 </mesh>
@@ -297,7 +303,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 </mesh>
                 {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
                 <group position={new THREE.Vector3(0, artGroupY, effectiveWallBackingDepth + matDepth / 2)}>
-                     <mesh receiveShadow castShadow>
+                     {/* MODIFIED: Remove castShadow from mat to optimize shadow map performance */}
+                     <mesh receiveShadow>
                         <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
                         <meshStandardMaterial attach="material" color={new THREE.Color("#333333")} roughness={0.5} />
                     </mesh>
@@ -334,7 +341,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         {isPainting && (
           <React.Fragment>
             {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
-            <mesh position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow castShadow>
+            {/* MODIFIED: Remove castShadow from frame to optimize shadow map performance */}
+            <mesh position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow>
               <boxGeometry attach="geometry" args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
               <meshStandardMaterial attach="material" color={new THREE.Color(PAINTING_FRAME_COLOR)} roughness={0.8} metalness={0} />
             </mesh>
@@ -361,7 +369,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         {!isPainting && (
           // FIX: Use THREE.Vector3 for position and args prop for geometry
           <group position={new THREE.Vector3(0, artGroupY, effectiveWallBackingDepth + matDepth / 2)}>
-              <mesh receiveShadow castShadow>
+              {/* MODIFIED: Remove castShadow from mat to optimize shadow map performance */}
+              <mesh receiveShadow>
                     <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
 
           {/* Photography hanging lines: two thin vertical lines anchored above the artwork frame and extending upward */}
@@ -408,11 +417,12 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                       const opacity = 1.0 - t * 0.92; // fade to ~0.08 at the tip
                       return (
                         <React.Fragment key={`left-cable-seg-${i}`}>
-                          <mesh position={new THREE.Vector3(leftX, segCenterY, zPos)} castShadow receiveShadow>
+                          {/* MODIFIED: Remove castShadow from cables to optimize shadow map performance and avoid aliasing artifacts */}
+                          <mesh position={new THREE.Vector3(leftX, segCenterY, zPos)} receiveShadow>
                             <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, segH, 12]} />
                             <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} transparent={true} opacity={opacity} />
                           </mesh>
-                          <mesh position={new THREE.Vector3(rightX, segCenterY, zPos)} castShadow receiveShadow>
+                          <mesh position={new THREE.Vector3(rightX, segCenterY, zPos)} receiveShadow>
                             <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, segH, 12]} />
                             <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} transparent={true} opacity={opacity} />
                           </mesh>

@@ -174,7 +174,8 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     return (
       <group>
         {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
-        <mesh ref={wallRef} receiveShadow castShadow position={new THREE.Vector3(0, backingWallMeshCenterY, 0)}>
+        {/* MODIFIED: Remove castShadow from backing wall to optimize shadow map performance */}
+        <mesh ref={wallRef} receiveShadow position={new THREE.Vector3(0, backingWallMeshCenterY, 0)}>
           <boxGeometry attach="geometry" args={[backingWallWidth, backingWallHeight, WALL_DEPTH]} />
           <meshStandardMaterial attach="material" color={new THREE.Color("#1a1a1a")} roughness={0.5} metalness={0} />
         </mesh>

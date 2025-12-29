@@ -1,8 +1,12 @@
 
 
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import * as THREE from 'three'; // NEW: Import THREE
+
+// NEW: Pre-allocate unit geometries for reuse across all Podium instances
+const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+const cylinderGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
 
 const Podium: React.FC<{ 
   height: number; 
@@ -10,20 +14,23 @@ const Podium: React.FC<{
   width?: number; 
 }> = ({ height, shape = 'box', width = 2 }) => {
   const yPos = height / 2;
+  
+  const position = useMemo(() => new THREE.Vector3(0, yPos, 0), [yPos]);
+  const scale = useMemo(() => new THREE.Vector3(width, height, width), [width, height]);
+  const color = useMemo(() => new THREE.Color("#eeeeee"), []);
+
   return (
-    // FIX: Use THREE.Vector3 for position
-    <mesh position={new THREE.Vector3(0, yPos, 0)} receiveShadow={true} castShadow>
+    // FIX: Use memoized position and scale with shared geometries
+    <mesh position={position} scale={scale} receiveShadow={true} castShadow>
       {shape === 'box' ? (
-        // FIX: Use args prop for geometry
-        <boxGeometry attach="geometry" args={[width, height, width]} />
+        <primitive object={boxGeo} attach="geometry" />
       ) : (
-        // FIX: Use args prop for geometry
-        <cylinderGeometry attach="geometry" args={[width / 2, width / 2, height, 32]} />
+        <primitive object={cylinderGeo} attach="geometry" />
       )}
-      {/* FIX: Use THREE.Color for color */}
+      {/* FIX: Use memoized color */}
       <meshStandardMaterial 
         attach="material"
-        color={new THREE.Color("#eeeeee")} 
+        color={color} 
         roughness={0.3}
         metalness={0}
       />
