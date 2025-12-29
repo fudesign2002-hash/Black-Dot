@@ -20,7 +20,6 @@ interface DevToolsPanelProps {
   isEditorMode: boolean;
   activeEditorTab: 'lighting' | 'scene' | 'layout' | 'artworks' | 'admin';
   selectedArtworkTitle: string;
-  fps: number;
   onlineUsers: number;
   setOnlineUsers: (users: number) => void;
   zoneCapacity: number;
@@ -42,7 +41,6 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
   isEditorMode,
   activeEditorTab,
   selectedArtworkTitle,
-  fps,
   onlineUsers,
   setOnlineUsers,
   zoneCapacity,
@@ -136,11 +134,6 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 text-xs font-mono space-y-2">
-          <div className="flex justify-between items-center">
-            <span className={`${uiConfig.subtext}`}>FPS:</span>
-            <span className={`${uiConfig.text} font-bold`}>{fps}</span>
-          </div>
-
           <div className="flex justify-between items-center">
             <span className={`${uiConfig.subtext}`}>Loading:</span>
             <span className={`${uiConfig.text} flex items-center gap-1 ${isLoading ? 'text-amber-500' : 'text-green-500'}`}>

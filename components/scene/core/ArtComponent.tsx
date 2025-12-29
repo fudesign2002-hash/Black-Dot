@@ -163,7 +163,8 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
       sourceArtworkType,
       onArtworkClickedHtml: handleArtworkClickedHtml,
       isSmallScreen,
-      opacity: (isCameraMovingToArtwork && !isFocused) ? 0.15 : 1.0,
+      isCameraMovingToArtwork,
+      materialJson,
     }), [
       isFocused,
       textureUrl,
@@ -171,8 +172,12 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
       isFaultyMotionVideo,
       aspectRatio,
       lightsOn,
-      JSON.stringify(artworkPosition),
-      JSON.stringify(artworkRotation),
+      artworkPosition[0],
+      artworkPosition[1],
+      artworkPosition[2],
+      artworkRotation[0],
+      artworkRotation[1],
+      artworkRotation[2],
       artworkType,
       sourceArtworkType,
       handleArtworkClickedHtml,
@@ -244,6 +249,11 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
     // MODIFIED: Use effectiveVisualDimensions for calculation
     const debugLabelOffset = effectiveVisualDimensions ? Math.max(effectiveVisualDimensions.width, effectiveVisualDimensions.depth || 0) / 2 + 2 : 3;
 
+    const debugLabelPos1 = useMemo(() => new THREE.Vector3(0, debugLabelYPosition, debugLabelOffset), [debugLabelYPosition, debugLabelOffset]);
+    const debugLabelPos2 = useMemo(() => new THREE.Vector3(0, debugLabelYPosition, -debugLabelOffset), [debugLabelYPosition, debugLabelOffset]);
+    const debugLabelPos3 = useMemo(() => new THREE.Vector3(debugLabelOffset, debugLabelYPosition, 0), [debugLabelYPosition, debugLabelOffset]);
+    const debugLabelPos4 = useMemo(() => new THREE.Vector3(-debugLabelOffset, debugLabelYPosition, 0), [debugLabelYPosition, debugLabelOffset]);
+
     return (
         <group>
             <Suspense fallback={null}>
@@ -311,19 +321,19 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
                 {isFocused && isDebugMode && (
                     <group>
                         {/* FIX: Use THREE.Vector3 for position */}
-                        <Html position={new THREE.Vector3(0, debugLabelYPosition, debugLabelOffset)} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
+                        <Html position={debugLabelPos1} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
                             <div className="text-white bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg">1</div>
                         </Html>
                         {/* FIX: Use THREE.Vector3 for position */}
-                        <Html position={new THREE.Vector3(0, debugLabelYPosition, -debugLabelOffset)} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
+                        <Html position={debugLabelPos2} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
                             <div className="text-white bg-red-500 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg">2</div>
                         </Html>
                         {/* FIX: Use THREE.Vector3 for position */}
-                        <Html position={new THREE.Vector3(debugLabelOffset, debugLabelYPosition, 0)} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
+                        <Html position={debugLabelPos3} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
                             <div className="text-white bg-green-500 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg">3</div>
                         </Html>
                         {/* FIX: Use THREE.Vector3 for position */}
-                        <Html position={new THREE.Vector3(-debugLabelOffset, debugLabelYPosition, 0)} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
+                        <Html position={debugLabelPos4} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
                             <div className="text-white bg-yellow-500 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg">4</div>
                         </Html>
                     </group>

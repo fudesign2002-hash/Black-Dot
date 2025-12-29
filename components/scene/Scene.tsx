@@ -20,7 +20,6 @@ export interface SceneProps {
   activeEditorTab: 'lighting' | 'scene' | 'layout' | 'artworks' | 'admin';
   // FIX: Added focusedArtworkInstanceId prop to SceneProps
   focusedArtworkInstanceId: string | null;
-  setFps: (fps: number) => void; // NEW: Add setFps prop
   hasMotionArtwork: boolean;
   // NEW PROPS for ArtworkFocusControls
   uiConfig: any;

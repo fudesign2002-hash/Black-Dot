@@ -40,7 +40,6 @@ const SceneContent: React.FC<SceneProps> = ({
   onFocusChange,
   activeEditorTab,
   focusedArtworkInstanceId,
-  setFps,
   hasMotionArtwork,
   uiConfig,
   setFocusedArtworkInstanceId,
@@ -157,11 +156,6 @@ const SceneContent: React.FC<SceneProps> = ({
     };
   }, [focusedArtworkInstanceId, artworks]);
 
-  // FIX: Initialize useRef with their default initial values
-  const frameTimes = useRef<number[]>([]);
-  const lastFpsUpdate = useRef(0);
-  const FPS_UPDATE_INTERVAL = 1000;
-
   const lightBgColor = useMemo(() => new THREE.Color("#e4e4e4"), []);
   const darkBgColor = useMemo(() => new THREE.Color("#000000"), []);
   // overlay mesh will be used instead of changing scene.background to black
@@ -174,6 +168,7 @@ const SceneContent: React.FC<SceneProps> = ({
   // Reusable temporary colors and fog to avoid per-frame allocations
   const tmpTargetBgColor = useRef(new THREE.Color());
   const tmpTargetFloorColor = useRef(new THREE.Color());
+  const tmpLerpColor = useRef(new THREE.Color()); // NEW: For lerping
   const reusableFog = useRef<THREE.Fog | null>(null);
 
   // Respect a `useCustomColors` boolean in lightingConfig; only consider it enabled
@@ -431,10 +426,21 @@ const SceneContent: React.FC<SceneProps> = ({
             if (!reusableFog.current) reusableFog.current = new THREE.Fog(targetBgColor, 20, 90);
             scene.fog = reusableFog.current;
           }
-          if (reusableFog.current) reusableFog.current.color.copy(targetBgColor);
+          if (reusableFog.current) {
+            if (reusableFog.current.color.getHex() !== targetBgColor.getHex()) {
+              reusableFog.current.color.copy(targetBgColor);
+            }
+          }
           
-          tmpTargetFloorColor.current.copy(effectiveFloorColor ? new THREE.Color(effectiveFloorColor) : (lightsOn ? lightFloorColor : darkFloorColor));
-          if (floorMatRef.current) floorMatRef.current.color.copy(tmpTargetFloorColor.current);
+          if (effectiveFloorColor) {
+            tmpTargetFloorColor.current.set(effectiveFloorColor);
+          } else {
+            tmpTargetFloorColor.current.copy(lightsOn ? lightFloorColor : darkFloorColor);
+          }
+          
+          if (floorMatRef.current && !floorMatRef.current.color.equals(tmpTargetFloorColor.current)) {
+            floorMatRef.current.color.copy(tmpTargetFloorColor.current);
+          }
         }
       }
     } else {
@@ -448,19 +454,22 @@ const SceneContent: React.FC<SceneProps> = ({
       }
       targetBgColor = tmpTargetBgColor.current;
 
-      let targetFloorColorSolid: THREE.Color;
       if (!lightsOn) {
         if (effectiveFloorColor) {
           if (explicitUseCustom) {
-            targetFloorColorSolid = new THREE.Color(effectiveFloorColor);
+            tmpTargetFloorColor.current.set(effectiveFloorColor);
           } else {
-            targetFloorColorSolid = new THREE.Color(effectiveFloorColor).lerp(new THREE.Color(0x000000), 0.35);
+            tmpTargetFloorColor.current.set(effectiveFloorColor).lerp(tmpLerpColor.current.set(0x000000), 0.35);
           }
         } else {
-          targetFloorColorSolid = darkFloorColor;
+          tmpTargetFloorColor.current.copy(darkFloorColor);
         }
       } else {
-        targetFloorColorSolid = effectiveFloorColor ? new THREE.Color(effectiveFloorColor) : lightFloorColor;
+        if (effectiveFloorColor) {
+          tmpTargetFloorColor.current.set(effectiveFloorColor);
+        } else {
+          tmpTargetFloorColor.current.copy(lightFloorColor);
+        }
       }
 
       // Apply solid background color only if it changed
@@ -476,26 +485,9 @@ const SceneContent: React.FC<SceneProps> = ({
       }
 
       // Apply floor color
-      tmpTargetFloorColor.current.copy(targetFloorColorSolid);
       if (floorMatRef.current && !floorMatRef.current.color.equals(tmpTargetFloorColor.current)) {
         floorMatRef.current.color.copy(tmpTargetFloorColor.current);
       }
-    }
-
-    if (isDebugMode) {
-      const now = performance.now();
-      frameTimes.current.push(now);
-      while (frameTimes.current.length > 0 && frameTimes.current[0] < now - 1000) {
-        frameTimes.current.shift();
-      }
-      if (now - lastFpsUpdate.current > FPS_UPDATE_INTERVAL) {
-        setFps(frameTimes.current.length);
-        lastFpsUpdate.current = now;
-      }
-    } else if (frameTimes.current.length > 0) {
-      frameTimes.current = [];
-      lastFpsUpdate.current = 0;
-      setFps(0);
     }
   });
 
@@ -512,12 +504,19 @@ const SceneContent: React.FC<SceneProps> = ({
 
   const shadowMapSize = useMemo(() => getShadowMapSize(isSmallScreen), [isSmallScreen]); // NEW: Calculate shadow map size dynamically
 
+  const keyLightPos = useMemo(() => new THREE.Vector3(...(lightingConfig.keyLightPosition || [-2, 6, 9])), [lightingConfig.keyLightPosition]);
+  const fillLightPos = useMemo(() => new THREE.Vector3(...(lightingConfig.fillLightPosition || [5, 0, 5])), [lightingConfig.fillLightPosition]);
+  const floorGroupPos = useMemo(() => new THREE.Vector3(0, -151.99/100, 0), []);
+  const floorMeshPos = useMemo(() => new THREE.Vector3(0, 0, 0), []);
+  const floorMeshRot = useMemo(() => new THREE.Euler(-Math.PI / 2, 0, 0), []);
+  const fillLightColor = useMemo(() => new THREE.Color("#dbeafe"), []);
+
   return (
     <React.Fragment>
         {/* FIX: Use THREE.Vector3 for position */}
         <directionalLight
             ref={dirLight1Ref}
-            position={new THREE.Vector3(...(lightingConfig.keyLightPosition || [-2, 6, 9]))}
+            position={keyLightPos}
             intensity={lightsOn ? 3.5 : 0}
             color={directionalLightColor}
             castShadow
@@ -533,17 +532,17 @@ const SceneContent: React.FC<SceneProps> = ({
         {/* FIX: Use THREE.Vector3 for position and THREE.Color for color */}
         <directionalLight
             ref={dirLight2Ref}
-            position={new THREE.Vector3(...(lightingConfig.fillLightPosition || [5, 0, 5]))}
+            position={fillLightPos}
             intensity={lightsOn ? 2.0 : 0}
-            color={new THREE.Color("#dbeafe")}
+            color={fillLightColor}
         />
 
         {/* FIX: Use THREE.Vector3 for position */}
-        <group position={new THREE.Vector3(0, -151.99/100, 0)}>
+        <group position={floorGroupPos}>
             {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
             <mesh
-  rotation={new THREE.Euler(-Math.PI / 2, 0, 0)}
-  position={new THREE.Vector3(0, 0, 0)}
+  rotation={floorMeshRot}
+  position={floorMeshPos}
   receiveShadow={true}
 >
   {/* 將 planeGeometry 替換為 circleGeometry */}

@@ -83,6 +83,25 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // REMOVED: activeEffectName, // NEW: Destructure activeEffectName
   // REMOVED: onEffectToggle, // NEW: Destructure onEffectToggle
 }) => {
+  const artworkControlsRef = React.useRef<HTMLDivElement>(null);
+  const mainNavRef = React.useRef<HTMLDivElement>(null);
+
+  // NEW: Blur focused element when controls become inert to avoid aria-hidden warnings
+  useEffect(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return;
+
+    const isFocusedInArtworkControls = artworkControlsRef.current?.contains(active);
+    const isFocusedInMainNav = mainNavRef.current?.contains(active);
+
+    const artworkControlsInert = !(isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode);
+    const mainNavInert = isArtworkFocusedForControls;
+
+    if ((isFocusedInArtworkControls && artworkControlsInert) || (isFocusedInMainNav && mainNavInert)) {
+      active.blur();
+    }
+  }, [isArtworkFocusedForControls, isEditorMode, isRankingMode, isZeroGravityMode]);
+
   // Debug logging removed
   
   // NEW: Determine if next/prev buttons should be hidden for small screens when artwork is focused
@@ -123,8 +142,10 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
     <div className={`absolute z-40 flex flex-col items-center gap-1 transition-all duration-500 ${isInfoOpen ? 'translate-y-24 opacity-0' : 'translate-y-0 opacity-100'} bottom-10 left-1/2 -translate-x-1/2`}>
         
         
-        <div className={`flex flex-col items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'}`} // MODIFIED: Hide if in zero gravity mode
-             aria-hidden={!(isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode)}>
+        <div ref={artworkControlsRef}
+             className={`flex flex-col items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'}`} // MODIFIED: Hide if in zero gravity mode
+             aria-hidden={!(isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode)}
+             inert={!(isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode)}>
             {focusedArtworkTitle && (
                 <p className={`text-base font-serif font-medium uppercase px-4 py-2 rounded-full backdrop-blur-xl shadow-lg 
         ${uiConfig.text} ${uiConfig.border} whitespace-nowrap`}>
@@ -173,8 +194,10 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
             </div>
         </div>
 
-        <div className={`backdrop-blur-xl p-1.5 rounded-full flex gap-2 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${!isArtworkFocusedForControls ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'} ${isEditorMode || isZeroGravityMode ? 'bg-cyan-500/10' : ''}`} // MODIFIED: Add isZeroGravityMode to background color condition
-             aria-hidden={!!isArtworkFocusedForControls}>
+        <div ref={mainNavRef}
+             className={`backdrop-blur-xl p-1.5 rounded-full flex gap-2 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${!isArtworkFocusedForControls ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'} ${isEditorMode || isZeroGravityMode ? 'bg-cyan-500/10' : ''}`} // MODIFIED: Add isZeroGravityMode to background color condition
+             aria-hidden={!!isArtworkFocusedForControls}
+             inert={isArtworkFocusedForControls}>
             {hasLightsToggle && (
                 <button onClick={() => {
                   setHeartEmitterArtworkId(null);

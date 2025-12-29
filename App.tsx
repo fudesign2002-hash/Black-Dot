@@ -87,8 +87,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   const [confirmationArtworkId, setConfirmationArtworkId] = useState<string | null>(null);
   const [confirmationArtworkTitle, setConfirmationArtworkTitle] = useState<string | null>(null);
 
-  const [fps, setFps] = useState(0);
-
   const lightingUpdateTimeoutRef = useRef<number | null>(null);
 
   const [onlineUsersPerZone, setOnlineUsersPerZone] = useState<Record<string, number>>({});
@@ -1451,7 +1449,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
           onFocusChange={setFocusedIndex}
           activeEditorTab={activeEditorTab}
           focusedArtworkInstanceId={focusedArtworkInstanceId}
-          setFps={setFps}
           hasMotionArtwork={hasMotionArtwork}
           uiConfig={uiConfig}
           setFocusedArtworkInstanceId={setFocusedArtworkInstanceId}
@@ -1658,7 +1655,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
         isEditorMode={isEditorMode}
         activeEditorTab={activeEditorTab}
         selectedArtworkTitle={selectedArtworkTitle}
-        fps={fps}
         onlineUsers={currentActiveZoneOnlineUsers}
         setOnlineUsers={handleSetOnlineUsersForActiveZone}
         isDebugMode={isDebugMode}

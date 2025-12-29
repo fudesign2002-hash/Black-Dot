@@ -90,7 +90,6 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         onFocusChange={() => {}}
         activeEditorTab={'lighting'}
         focusedArtworkInstanceId={focusedArtworkInstanceId}
-        setFps={() => {}}
         hasMotionArtwork={!!currentLayout?.some((a) => a.isMotionVideo)}
         uiConfig={uiConfig}
         setFocusedArtworkInstanceId={setFocusedArtworkInstanceId}
