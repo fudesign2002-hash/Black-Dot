@@ -673,17 +673,14 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     return React.lazy(() => import('./components/editor/FloorPlanEditor'));
   }, [embedMode, isSignedIn]);
 
-  // Conditionally lazy-load ZeroGravityLegend based on embed feature flags and sign-in
+  // Conditionally lazy-load ZeroGravityLegend based on embed feature flags
   const ZeroGravityLegendLazy = useMemo<React.LazyExoticComponent<React.ComponentType<any>> | null>(() => {
     const featureEnabled = !!(embedFeatures && embedFeatures.includes('zeroGravity'));
-    if (embedMode) {
-      if (!featureEnabled) return null;
-    } else {
-      // On main site: avoid loading for guests unless explicitly enabled via embedFeatures
-      if (!isSignedIn && !featureEnabled) return null;
-    }
+    if (embedMode && !featureEnabled) return null;
+    
+    // Always allow loading on main site or if feature is enabled in embed
     return React.lazy(() => import('./components/ui/ZeroGravityLegend'));
-  }, [embedMode, isSignedIn, embedFeatures]);
+  }, [embedMode, embedFeatures]);
 
   // Preload important lazy modules at startup to reduce first-render lag.
   // This warms the module cache for React.lazy imports used elsewhere (ArtComponent, CanvasExhibit, SculptureExhibit, editor, UI bits).
