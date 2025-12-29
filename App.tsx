@@ -118,7 +118,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   const [focusedArtworkFirebaseId, setFocusedArtworkFirebaseId] = useState<string | null>(null);
 
   const [isSnapshotEnabledGlobally, setIsSnapshotEnabledGlobally] = useState(true); // NEW: State for Firebase onSnapshot toggle
-  const [useExhibitionBackground, setUseExhibitionBackground] = useState(false); // NEW: State for exhibition background
 
   // NEW: State for dynamically loaded EffectRegistry
   const [effectRegistry, setEffectRegistry] = useState<EffectRegistryType | null>(null);
@@ -574,11 +573,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     }
   }, [activeZone.id]);
 
-  // NEW: Update useExhibitionBackground state from lightingConfig
-  useEffect(() => {
-    setUseExhibitionBackground(lightingConfig.useExhibitionBackground || false);
-  }, [lightingConfig.useExhibitionBackground]);
-
   // Log editor open/close state with colored console output
   useEffect(() => {
     // editor open/close state changed (no console output in production)
@@ -759,7 +753,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
 
       setTimeout(() => {
-        const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState, useExhibitionBackground: useExhibitionBackground };
+        const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState };
         setLightingOverride(activeZone.id, newConfig);
         setIsTransitioning(false);
         setTransitionMessage('Loading Gallery...'); // Reset to default message
@@ -770,10 +764,10 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       setHeartEmitterArtworkId(null);
       setisRankingMode(false); // NEW: Deactivate ranking mode on light toggle
       setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
-      const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState, useExhibitionBackground: useExhibitionBackground };
+      const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState };
       setLightingOverride(activeZone.id, newConfig);
     }
-  }, [lightsOn, isFirstLightToggleOff, lightingConfig, setLightingOverride, activeZone.id, useExhibitionBackground, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
+  }, [lightsOn, isFirstLightToggleOff, lightingConfig, setLightingOverride, activeZone.id, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
 
   // NEW: Handle update for lighting config including useExhibitionBackground
   const LOG_APP_LIGHTING = false;
@@ -782,7 +776,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     if (embedMode) {
       try {
         setLightingOverride(activeZone.id, newConfig);
-        setUseExhibitionBackground(newConfig.useExhibitionBackground || false);
       } catch (e) {}
       console.warn('[embed] blocked handleLightingUpdate write');
       return;
@@ -805,7 +798,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     }
 
     setLightingOverride(activeZone.id, newConfig);
-    setUseExhibitionBackground(newConfig.useExhibitionBackground || false); // Update local state for consistency
 
     if (lightingUpdateTimeoutRef.current) {
         clearTimeout(lightingUpdateTimeoutRef.current);
@@ -1495,7 +1487,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
             handleLightingUpdate(newConfig);
           }}
           isCameraMovingToArtwork={isCameraMovingToArtwork} // NEW: Pass camera moving state
-          useExhibitionBackground={useExhibitionBackground} // NEW: Pass useExhibitionBackground
+          useExhibitionBackground={lightingConfig.useExhibitionBackground || false} // NEW: Pass useExhibitionBackground
           activeEffectName={activeEffectName} // NEW: Pass active effect name
           effectRegistry={effectRegistry} // NEW: Pass dynamically loaded effect registry
           isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass effect registry loading state
@@ -1513,7 +1505,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
         onlineUsers={currentActiveZoneOnlineUsers}
         zoneCapacity={zoneCapacity}
         isEmbed={!!embedMode}
-        useExhibitionBackground={useExhibitionBackground}
+        useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
         activeExhibition={activeExhibition}
       />
 
@@ -1525,7 +1517,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
         isSmallScreen={isSmallScreen}
         isCurrentExhibitionInfoHidden={isCurrentExhibitionInfoHidden}
         onInfoOpen={handleOpenInfo}
-        useExhibitionBackground={useExhibitionBackground}
+        useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
       />
 
       {!embedMode && (
@@ -1613,7 +1605,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
             onOpenConfirmationDialog={openConfirmationDialog}
             onAddArtworkToLayout={onAddArtworkToLayout}
             onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
-            useExhibitionBackground={useExhibitionBackground} // NEW: Pass useExhibitionBackground
+            useExhibitionBackground={lightingConfig.useExhibitionBackground || false} // NEW: Pass useExhibitionBackground
             activeZoneTheme={activeEffectName} // NEW: Pass activeZone.zone_theme as activeZoneTheme
             onUpdateZoneTheme={handleUpdateZoneTheme} // NEW: Pass handler for updating zone theme
             activeExhibitionBackgroundUrl={activeExhibition.exhibit_background} // NEW: Pass activeExhibition.exhibit_background
