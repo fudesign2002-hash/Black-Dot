@@ -139,6 +139,11 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     // Debug logging removed
   }, [isEditorMode, isOpen, activeTab]);
 
+  const handleOverlayClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     return () => {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);

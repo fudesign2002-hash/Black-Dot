@@ -1680,6 +1680,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
             maxViews={zeroGravityViews.maxViews}
             extraTicks={zeroGravityViews.extraTicks}
             visible={isZeroGravityMode && !isLoading}
+            isSmallScreen={isSmallScreen}
           />
         </React.Suspense>
       )}

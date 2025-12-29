@@ -8,14 +8,25 @@ interface ZeroGravityLegendProps {
   extraTicks?: number[];
   visible?: boolean; // when parent indicates visible (legend will honor a delay)
   delayMs?: number; // delay before showing (ms)
+  isSmallScreen?: boolean; // NEW: handle mobile layout
 }
 
-const ZeroGravityLegend: React.FC<ZeroGravityLegendProps> = ({ className = '', minViews = 0, maxViews = 100, extraTicks = [], visible = false, delayMs = 1000 }) => {
+const ZeroGravityLegend: React.FC<ZeroGravityLegendProps> = ({ 
+  className = '', 
+  minViews = 0, 
+  maxViews = 100, 
+  extraTicks = [], 
+  visible = false, 
+  delayMs = 1000,
+  isSmallScreen = false
+}) => {
   // Color stops roughly match the provided attachment (yellow -> green -> teal -> blue -> purple)
-  const gradient = 'linear-gradient(to bottom, #ffd400 0%, #9ad34a 18%, #3fc7a6 37%, #2aa6b3 58%, #3f6aa8 80%, #5b2d7a 100%)';
+  const gradient = isSmallScreen 
+    ? 'linear-gradient(to right, #ffd400 0%, #9ad34a 18%, #3fc7a6 37%, #2aa6b3 58%, #3f6aa8 80%, #5b2d7a 100%)'
+    : 'linear-gradient(to bottom, #ffd400 0%, #9ad34a 18%, #3fc7a6 37%, #2aa6b3 58%, #3f6aa8 80%, #5b2d7a 100%)';
 
-  const containerHeight = 200; // smaller size as requested
-  const barWidth = 14;
+  const barLength = isSmallScreen ? 160 : 200; 
+  const barThickness = 12;
 
   // Compute ticks: we show 6 ticks by default (matching attachment), then overlay min/max and any extra ticks
   const defaultTickProps = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
@@ -35,9 +46,11 @@ const ZeroGravityLegend: React.FC<ZeroGravityLegendProps> = ({ className = '', m
     return () => { if (t) clearTimeout(t); };
   }, [visible, delayMs]);
 
-  // When not shown, translate far to the right and hide opacity
+  // When not shown, translate far to the right (desktop) or bottom (mobile) and hide opacity
   const outerStyle: React.CSSProperties = {
-    transform: show ? 'translateY(-50%) translateX(0)' : 'translateY(-50%) translateX(120%)',
+    transform: isSmallScreen
+      ? (show ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(150%)')
+      : (show ? 'translateY(-50%) translateX(0)' : 'translateY(-50%) translateX(120%)'),
     transition: 'transform 600ms cubic-bezier(.2,.9,.2,1), opacity 400ms ease',
     opacity: show ? 1 : 0,
     willChange: 'transform, opacity'
@@ -58,16 +71,62 @@ const ZeroGravityLegend: React.FC<ZeroGravityLegendProps> = ({ className = '', m
   const renderEntries = Array.from(valToFirstP.entries()).map(([val, p]) => ({ p, val }))
     .sort((a, b) => a.p - b.p);
 
+  if (isSmallScreen) {
+    return (
+      <div 
+        style={outerStyle} 
+        className={`fixed left-1/2 bottom-28 z-50 pointer-events-none ${className}`}
+      >
+        <div className="flex flex-col items-center gap-1 bg-white/10 dark:bg-black/40 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 shadow-xl">
+          <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-700 dark:text-neutral-300 opacity-70">
+            Views
+          </div>
+          <div className="relative" style={{ width: barLength, height: 24 }}>
+            {/* The Gradient Bar */}
+            <div 
+              style={{ 
+                width: barLength, 
+                height: 8, 
+                borderRadius: 4, 
+                background: gradient,
+                position: 'absolute',
+                top: 0
+              }} 
+            />
+            {/* Ticks */}
+            {renderEntries.map((e) => {
+              const left = e.p * barLength;
+              return (
+                <div 
+                  key={e.val} 
+                  style={{ 
+                    position: 'absolute', 
+                    left: `${left}px`, 
+                    top: 12,
+                    transform: 'translateX(-50%)' 
+                  }} 
+                  className="text-[9px] font-medium text-neutral-700 dark:text-neutral-200 whitespace-nowrap"
+                >
+                  {e.val}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={outerStyle} className={`fixed right-5 top-1/2 z-50 pointer-events-auto ${className}`}>
+    <div style={outerStyle} className={`fixed right-5 top-1/2 z-50 pointer-events-none ${className}`}>
       <div className="flex flex-col items-center gap-2">
         <div className="text-xs font-semibold text-neutral-700 dark:text-neutral-200" style={{ marginBottom: 6, transform: 'translateX(-12px)' }}>views</div>
         <div className="flex items-center gap-2">
-          <div style={{ height: containerHeight, width: barWidth, borderRadius: 6, background: gradient, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }} />
-          <div style={{ height: containerHeight, width: 64 }} className="relative">
+          <div style={{ height: barLength, width: barThickness, borderRadius: 6, background: gradient, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }} />
+          <div style={{ height: barLength, width: 64 }} className="relative">
             {renderEntries.map((e, i) => {
               const padding = 6;
-              const effectiveHeight = containerHeight - padding * 2;
+              const effectiveHeight = barLength - padding * 2;
               const top = padding + e.p * effectiveHeight;
               return (
                 <div key={e.val} style={{ position: 'absolute', top: `${top}px`, transform: 'translateY(-50%)' }} className="text-xs text-neutral-700 dark:text-neutral-200 whitespace-nowrap">
