@@ -279,7 +279,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
              <div className="flex gap-3">
                <button
                   onClick={onOpenExhibitionInfoFromArtwork}
-                  className={`flex-1 py-5 flex flex-col items-center justify-center gap-2 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`}
+                  className={`flex-1 py-4 flex items-center justify-center gap-3 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`}
                   title="More About Exhibition"
                >
                   <Info className="w-4 h-4 opacity-70" />
@@ -290,13 +290,13 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                    href={activeExhibition.admissionLink} 
                    target="_blank" 
                    rel="noopener noreferrer"
-                   className={`flex-1 py-5 flex flex-col items-center justify-center gap-2 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`}
+                   className={`flex-1 py-4 flex items-center justify-center gap-3 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`}
                  >
                     <Ticket className="w-4 h-4 opacity-70" />
                     <span className="text-xs">Tickets</span>
                  </a>
                ) : (
-                  <button className={`flex-1 py-5 flex flex-col items-center justify-center gap-2 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm opacity-50 cursor-not-allowed ${lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-900'}`} disabled>
+                  <button className={`flex-1 py-4 flex items-center justify-center gap-3 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm opacity-50 cursor-not-allowed ${lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-900'}`} disabled>
                       <Ticket className="w-4 h-4 opacity-70" />
                       <span className="text-xs">N/A</span>
                   </button>
@@ -304,7 +304,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
              </div>
            ) : (
                activeExhibition.status === 'future' ? (
-                   <button className={`w-full py-5 flex flex-col items-center justify-center gap-2 font-bold tracking-[0.2em] uppercase transition-all duration-500 bg-green-600 text-white hover:bg-green-700 rounded-sm`}>
+                   <button className={`w-full py-4 flex items-center justify-center gap-3 font-bold tracking-[0.2em] uppercase transition-all duration-500 bg-green-600 text-white hover:bg-green-700 rounded-sm`}>
                       <Ticket className="w-4 h-4 opacity-70" />
                       <span className="text-xs">Contact Curator</span>
                    </button>
@@ -313,13 +313,13 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                      href={activeExhibition.admissionLink} 
                      target="_blank" 
                      rel="noopener noreferrer"
-                     className={`w-full py-5 flex flex-col items-center justify-center gap-2 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`}
+                     className={`w-full py-4 flex items-center justify-center gap-3 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-200'}`}
                    >
                       <Ticket className="w-4 h-4 opacity-70" />
                       <span className="text-xs">{activeExhibition.status === 'past' ? 'View Archive' : 'Tickets'}</span>
                    </a>
                ) : (
-                  <button className={`w-full py-5 flex flex-col items-center justify-center gap-2 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm opacity-50 cursor-not-allowed ${lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-900'}`} disabled>
+                  <button className={`w-full py-4 flex items-center justify-center gap-3 font-bold tracking-[0.2em] uppercase transition-all duration-500 rounded-sm opacity-50 cursor-not-allowed ${lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-900'}`} disabled>
                       <Ticket className="w-4 h-4 opacity-70" />
                       <span className="text-xs">{activeExhibition.status === 'past' ? 'View Archive' : 'N/A'}</span>
                   </button>
