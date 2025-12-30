@@ -56,6 +56,7 @@ export interface SceneProps {
   effectRegistry: EffectRegistryType | null; // NEW: Add effectRegistry
   zoneGravity: number | undefined; // NEW: Add zoneGravity prop
   isEffectRegistryLoading: boolean; // NEW: Add isEffectRegistryLoading prop
+  onLoadingStatusChange?: (isLoading: boolean) => void; // NEW: Add onLoadingStatusChange prop
 }
 
 const Scene: React.FC<SceneProps> = (props) => {

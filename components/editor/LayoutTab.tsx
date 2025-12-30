@@ -28,6 +28,7 @@ interface LayoutTabProps {
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>; // NEW: Add onUpdateArtworkData
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>; // NEW: Add onRemoveArtworkFromLayout
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void; // NEW: Add onOpenConfirmationDialog
+  isSignedIn?: boolean; // NEW: Add isSignedIn prop
 }
 
 const PADDING_PERCENT = 3;
@@ -110,6 +111,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   onUpdateArtworkData, // NEW: Destructure onUpdateArtworkData
   onRemoveArtworkFromLayout, // NEW: Destructure onRemoveArtworkFromLayout
   onOpenConfirmationDialog, // NEW: Destructure onOpenConfirmationDialog
+  isSignedIn = false, // NEW: Destructure isSignedIn
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
@@ -500,15 +502,17 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                 })()}
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    onOpenConfirmationDialog('artwork_removal', selectedArt.artworkId, selectedArtworkTitle);
-                  }}
-                  className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors ${text}`}
-                  title="Remove Artwork from Layout"
-                >
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </button>
+                {isSignedIn && (
+                  <button
+                    onClick={() => {
+                      onOpenConfirmationDialog('artwork_removal', selectedArt.artworkId, selectedArtworkTitle);
+                    }}
+                    className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors ${text}`}
+                    title="Remove Artwork from Layout"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
+                )}
                 <button
                   onClick={() => setIsEditingArtwork(!isEditingArtwork)}
                   className={`p-1.5 rounded-full transition-colors ${isEditingArtwork ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'} ${text}`}

@@ -66,6 +66,7 @@ const SceneContent: React.FC<SceneProps> = ({
   effectRegistry, // NEW: Destructure effectRegistry
   zoneGravity, // NEW: Destructure zoneGravity
   isEffectRegistryLoading, // NEW: Destructure isEffectRegistryLoading
+  onLoadingStatusChange, // NEW: Destructure onLoadingStatusChange
 }) => {
   const LOG_COLORS = false; // Toggle debug logs for color updates
   const { lightsOn } = lightingConfig;
@@ -74,6 +75,25 @@ const SceneContent: React.FC<SceneProps> = ({
   const dirLight2Ref = useRef<THREE.DirectionalLight>(null);
   const floorMatRef = useRef<THREE.MeshStandardMaterial>(null);
   const { scene, camera } = useThree();
+
+  const [isTexturesLoading, setIsTexturesLoading] = useState(true);
+  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
+
+  // NEW: Track overall loading status (background + textures)
+  useEffect(() => {
+    const isOverallLoading = isBackgroundLoading || isTexturesLoading;
+    if (onLoadingStatusChange) {
+      onLoadingStatusChange(isOverallLoading);
+    }
+  }, [isBackgroundLoading, isTexturesLoading, onLoadingStatusChange]);
+
+  // NEW: Subscribe to texture cache loading status
+  useEffect(() => {
+    textureCache.setLoadingStatusCallback((loading) => {
+      setIsTexturesLoading(loading);
+    });
+    return () => textureCache.setLoadingStatusCallback(() => {});
+  }, []);
 
   // Cache/pin behaviour: keep simple, fixed defaults
   const CACHE_PIN_THRESHOLD = 13; // if number of artworks <= this, keep all pinned
@@ -193,7 +213,6 @@ const SceneContent: React.FC<SceneProps> = ({
   }, [explicitUseCustom, lightingConfig.backgroundColor]);
 
   const [currentBackgroundTexture, setCurrentBackgroundTexture] = useState<THREE.CubeTexture | null>(null); // MODIFIED: Store as single Texture
-  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false); // NEW: State for background loading
   const prevBackgroundTextureRef = useRef<THREE.CubeTexture | null>(null); // NEW: Ref to store previous background texture for disposal
 
   // NEW: State and Ref for managing dynamic effects
@@ -204,6 +223,10 @@ const SceneContent: React.FC<SceneProps> = ({
   const [showGroundMarkers, setShowGroundMarkers] = useState(false); // Delayed visibility for ground markers
   const overlayRef = useRef<THREE.Mesh | null>(null);
   const overlayTmpDir = useMemo(() => new THREE.Vector3(), []);
+
+  // NEW: Track environment and light intensities for smooth transitions
+  const envIntensityRef = useRef(lightsOn ? 1.0 : 0.05);
+  const mainLightIntensityRef = useRef(lightsOn ? 3.5 : 0);
 
 
   // NEW: Load background texture when exhibit_background changes and useExhibitionBackground is true
@@ -478,7 +501,11 @@ const SceneContent: React.FC<SceneProps> = ({
 
       // Apply solid background color only if it changed
       if (!(scene.background instanceof THREE.Color) || !scene.background.equals(targetBgColor)) {
-        scene.background = targetBgColor.clone();
+        if (scene.background instanceof THREE.Color) {
+          scene.background.copy(targetBgColor);
+        } else {
+          scene.background = targetBgColor.clone();
+        }
       }
 
       // Enable or reuse fog
@@ -492,6 +519,33 @@ const SceneContent: React.FC<SceneProps> = ({
       if (floorMatRef.current && !floorMatRef.current.color.equals(tmpTargetFloorColor.current)) {
         floorMatRef.current.color.copy(tmpTargetFloorColor.current);
       }
+    }
+
+    // NEW: Smoothly adjust intensities to avoid flickering and shader re-compilation
+    // This now runs regardless of whether a custom background or solid color is used.
+    const targetEnvIntensity = lightsOn ? 1.0 : 0.05;
+    const targetMainLightIntensity = lightsOn ? 3.5 : 0;
+    const targetBgIntensity = lightsOn ? 1.0 : 0.15; // Keep background slightly visible but dark
+
+    envIntensityRef.current = THREE.MathUtils.lerp(envIntensityRef.current, targetEnvIntensity, 0.1);
+    mainLightIntensityRef.current = THREE.MathUtils.lerp(mainLightIntensityRef.current, targetMainLightIntensity, 0.1);
+
+    if (scene.environmentIntensity !== undefined) {
+      scene.environmentIntensity = envIntensityRef.current;
+    }
+
+    // Also dim the background itself if it's a texture (Three.js r163+)
+    if ((scene as any).backgroundIntensity !== undefined) {
+      (scene as any).backgroundIntensity = THREE.MathUtils.lerp((scene as any).backgroundIntensity || 1, targetBgIntensity, 0.1);
+    }
+
+    if (dirLight1Ref.current) {
+      dirLight1Ref.current.intensity = mainLightIntensityRef.current;
+      // Only disable shadows when intensity is very low to avoid sudden shadow disappearance
+      dirLight1Ref.current.castShadow = mainLightIntensityRef.current > 0.1;
+    }
+    if (dirLight2Ref.current) {
+      dirLight2Ref.current.intensity = THREE.MathUtils.lerp(dirLight2Ref.current.intensity, lightsOn ? 2.0 : 0, 0.1);
     }
   });
 
@@ -522,9 +576,9 @@ const SceneContent: React.FC<SceneProps> = ({
         <directionalLight
             ref={dirLight1Ref}
             position={keyLightPos}
-            intensity={lightsOn ? 3.5 : 0}
+            intensity={mainLightIntensityRef.current}
             color={directionalLightColor}
-            castShadow
+            castShadow={lightsOn}
             shadow-mapSize={[shadowMapSize, shadowMapSize]} // MODIFIED: Use dynamic shadowMapSize
             shadow-camera-left={-15}
             shadow-camera-right={15}
@@ -550,8 +604,8 @@ const SceneContent: React.FC<SceneProps> = ({
   position={floorMeshPos}
   receiveShadow={true}
 >
-  {/* 將 planeGeometry 替換為 circleGeometry */}
-  <circleGeometry attach="geometry" args={[200, 320]} /> 
+  {/* 將 planeGeometry 替換為 circleGeometry，並降低細分程度以優化效能 */}
+  <circleGeometry attach="geometry" args={[200, 128]} /> 
 
   <meshStandardMaterial
     ref={floorMatRef}
@@ -717,8 +771,12 @@ const SceneContent: React.FC<SceneProps> = ({
 
         {/* NEW: Conditionally render Environment based on useExhibitionBackground */}
         {/* CRITICAL CHANGE: Environment is now rendered based on useExhibitionBackground, independent of active effects */}
+        {/* MODIFIED: Use a fixed preset to avoid shader re-compilation lag during light toggle */}
         {(!useExhibitionBackground || !currentBackgroundTexture) && ( 
-          <Environment preset={lightsOn ? "city" : "night"} background={false} />
+          <Environment 
+            preset="city" 
+            background={false} 
+          />
         )}
     </React.Fragment>
   );

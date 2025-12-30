@@ -19,6 +19,20 @@ function now() { return Date.now(); }
 // Track in-progress loads to dedupe concurrent requests for same URL
 const inProgress = new Map<string, Promise<THREE.Texture>>();
 
+// NEW: Callback for tracking loading progress
+let onLoadingStatusChange: ((isLoading: boolean) => void) | null = null;
+
+export function setLoadingStatusCallback(cb: (isLoading: boolean) => void) {
+  onLoadingStatusChange = cb;
+  cb(inProgress.size > 0);
+}
+
+function updateLoadingStatus() {
+  if (onLoadingStatusChange) {
+    onLoadingStatusChange(inProgress.size > 0);
+  }
+}
+
 async function loadTexture(url: string): Promise<THREE.Texture> {
   if (!url) throw new Error('No url');
   const existing = cache.get(url);
@@ -37,10 +51,16 @@ async function loadTexture(url: string): Promise<THREE.Texture> {
   }).then((tex) => {
     // after successful load, remove from inProgress and proceed
     inProgress.delete(url);
+    updateLoadingStatus();
     return tex;
-  }).catch((err) => { inProgress.delete(url); throw err; });
+  }).catch((err) => { 
+    inProgress.delete(url); 
+    updateLoadingStatus();
+    throw err; 
+  });
 
   inProgress.set(url, promise);
+  updateLoadingStatus();
   const tex = await promise;
 
   try {
@@ -143,4 +163,5 @@ export default {
   setMaxCacheSize,
   clearCache,
   loadTexture,
+  setLoadingStatusCallback,
 };

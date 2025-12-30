@@ -25,6 +25,7 @@ interface ArtworkTabProps {
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void;
   onSelectArtwork: (id: string | null) => void;
   onAddArtworkToLayout: (artwork: FirebaseArtwork) => Promise<boolean>;
+  isSignedIn?: boolean; // NEW: Add isSignedIn prop
 }
 
 const MATERIAL_PRESETS: MaterialPreset[] = [
@@ -76,7 +77,18 @@ const normalizeDegrees = (degrees: number): number => {
   return normalized;
 };
 
-const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseArtworks, currentLayout, onUpdateArtworkFile, onUpdateArtworkData, onFocusArtwork, onOpenConfirmationDialog, onSelectArtwork, onAddArtworkToLayout }) => {
+const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ 
+  uiConfig, 
+  firebaseArtworks, 
+  currentLayout, 
+  onUpdateArtworkFile, 
+  onUpdateArtworkData, 
+  onFocusArtwork, 
+  onOpenConfirmationDialog, 
+  onSelectArtwork, 
+  onAddArtworkToLayout,
+  isSignedIn = false, // NEW: Destructure isSignedIn
+}) => {
   const [editingUrlArtworkId, setEditingUrlArtworkId] = useState<string | null>(null);
   const [currentEditValue, setCurrentEditValue] = useState<string>('');
   const [originalArtworkFile, setOriginalArtworkFile] = useState<string>('');
@@ -553,7 +565,8 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
     <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
       <div className="space-y-4">
         {/* Add Artwork to Layout Section */}
-        <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
+        {isSignedIn && (
+          <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
           <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsAddArtworkSectionOpen(prev => !prev)}>
             <h4 className="font-bold text-sm">Add Artwork to Layout</h4>
             {isAddArtworkSectionOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
@@ -607,6 +620,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
             </div>
           )}
         </div>
+        )}
 
         {relevantArtworks.map(artwork => (
           <div key={artwork.id} className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
@@ -624,13 +638,15 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({ uiConfig, firebaseAr
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleRemoveClick(artwork.id, artwork.title)}
-                  className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors ${text}`}
-                  title="Remove Artwork from Layout"
-                >
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </button>
+                {isSignedIn && (
+                  <button
+                    onClick={() => handleRemoveClick(artwork.id, artwork.title)}
+                    className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors ${text}`}
+                    title="Remove Artwork from Layout"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
+                )}
                 <button
                   onClick={() => handleToggleEdit(artwork)}
                   className={`p-1.5 rounded-full transition-colors ${editingUrlArtworkId === artwork.id ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'} ${text}`}

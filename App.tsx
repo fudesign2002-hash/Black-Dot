@@ -37,7 +37,7 @@ const REMOTE_EFFECT_BUNDLE_URL = "https://firebasestorage.googleapis.com/v0/b/bl
 
 function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMode?: boolean; initialExhibitionId?: string | null; embedFeatures?: string[] } = {}) {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isEditorMode, setIsEditorMode] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -56,6 +56,9 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
 
   // NEW: State for Zero Gravity mode
   const [isZeroGravityMode, setIsZeroGravityMode] = useState(false);
+
+  const [isSceneLoading, setIsSceneLoading] = useState(true); // NEW: Track 3D scene loading status
+  const isTransitionPendingRef = useRef(true); // NEW: Track if we are waiting for a scene to load after transition
 
   const [user, setUser] = useState<firebase.User | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
@@ -122,9 +125,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   const [isEffectRegistryLoading, setIsEffectRegistryLoading] = useState(true);
   const [effectRegistryError, setEffectRegistryError] = useState<string | null>(null);
 
-  // NEW: State for tracking if it's the first time lights are toggled off
-  const [isFirstLightToggleOff, setIsFirstLightToggleOff] = useState(true);
-  const [transitionMessage, setTransitionMessage] = useState('Loading Gallery...'); // NEW: State for transition message
+  const [transitionMessage, setTransitionMessage] = useState('Entering Gallery...'); // NEW: State for transition message
 
   // NEW: Callback to update camera position status
   const handleCameraPositionChange = useCallback((isAtDefault: boolean) => {
@@ -566,8 +567,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       setHeartEmitterArtworkId(null);
       setisRankingMode(false);
       setIsZeroGravityMode(false); // NEW: Deactivate zero gravity when zone changes
-      // NEW: When zone changes, reset first light toggle state
-      setIsFirstLightToggleOff(true); 
     }
   }, [activeZone.id]);
 
@@ -735,34 +734,13 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   }, [isEditorMode, currentLayout, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId]);
 
   const handleLightToggle = useCallback(() => {
-    
     const newLightsOnState = !lightsOn;
-
-    // Only trigger transition if it's the first time turning lights OFF
-    if (isFirstLightToggleOff && lightsOn) {
-      setTransitionMessage('Adjusting lights...');
-      setIsTransitioning(true);
-      setHeartEmitterArtworkId(null);
-      
-      setisRankingMode(false); // NEW: Deactivate ranking mode on light toggle
-      setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
-
-      setTimeout(() => {
-        const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState };
-        setLightingOverride(activeZone.id, newConfig);
-        setIsTransitioning(false);
-        setTransitionMessage('Loading Gallery...'); // Reset to default message
-        setIsFirstLightToggleOff(false); // Mark that the first light off has occurred
-      }, 500); // 500ms delay for the transition
-    } else {
-      // Normal toggle, no special transition
-      setHeartEmitterArtworkId(null);
-      setisRankingMode(false); // NEW: Deactivate ranking mode on light toggle
-      setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
-      const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState };
-      setLightingOverride(activeZone.id, newConfig);
-    }
-  }, [lightsOn, isFirstLightToggleOff, lightingConfig, setLightingOverride, activeZone.id, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
+    setHeartEmitterArtworkId(null);
+    setisRankingMode(false); // NEW: Deactivate ranking mode on light toggle
+    setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
+    const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState };
+    setLightingOverride(activeZone.id, newConfig);
+  }, [lightsOn, lightingConfig, setLightingOverride, activeZone.id, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
 
   // NEW: Handle update for lighting config including useExhibitionBackground
   const LOG_APP_LIGHTING = false;
@@ -830,6 +808,8 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   const loadExhibition = useCallback((index: number) => {
     setTransitionMessage('Loading Gallery...'); // Reset to default message
     setIsTransitioning(true);
+    setIsSceneLoading(true);
+    isTransitionPendingRef.current = true; // Mark that we are waiting for the new scene
     setIsSearchOpen(false);
     setisRankingMode(false);
     setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on exhibition load
@@ -837,9 +817,22 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
 
     setTimeout(() => {
       handleNavigate(index);
-      setTimeout(() => setIsTransitioning(false), 150);
-    }, 150);
+      // We no longer set isTransitioning(false) here. 
+      // It will be cleared by the useEffect watching isSceneLoading.
+    }, 400); // Stay black a bit longer for a smoother transition
   }, [handleNavigate, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
+
+  // NEW: Effect to clear transition overlay when scene is ready
+  useEffect(() => {
+    if (isTransitionPendingRef.current && !isSceneLoading && !isLoading && !isEffectRegistryLoading) {
+      // Add a small extra delay after everything is "ready" for final smoothness
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+        isTransitionPendingRef.current = false;
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isSceneLoading, isLoading, isEffectRegistryLoading]);
 
   const handleExhibitionChange = useCallback((direction: 'next' | 'prev') => {
     const totalItems = exhibitions.length;
@@ -994,6 +987,12 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     }
   
     try {
+      // NEW: Show loading overlay when adding artwork to layout
+      setTransitionMessage('Adding Artwork...');
+      setIsTransitioning(true);
+      setIsSceneLoading(true);
+      isTransitionPendingRef.current = true;
+
       // console.log("onAddArtworkToLayout: Attempting to add artwork", artworkToAdd.id, "to exhibition", activeExhibition.id, "and zone", activeZone.id);
       // 1. Update exhibition's exhibit_artworks
       const exhibitionDocRef = db.collection('exhibitions').doc(activeExhibition.id);
@@ -1031,9 +1030,11 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       editorLayoutReloadRequested.current = true;
       return true; // Indicate success
     } catch (error) {
+      setIsTransitioning(false);
+      isTransitionPendingRef.current = false;
       throw error; // Re-throw to be caught by caller for status update
     }
-  }, [activeExhibition.id, activeZone.id]);
+  }, [activeExhibition.id, activeZone.id, refreshNow]);
 
   // FIX: Updated `openConfirmationDialog` signature to match `FloorPlanEditorProps`
   const openConfirmationDialog = useCallback((itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => {
@@ -1078,8 +1079,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     setisRankingMode(false);
     setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on camera reset
     setHeartEmitterArtworkId(null);
-    // NEW: Reset first light toggle state when camera is manually reset
-    setIsFirstLightToggleOff(true);
     // Disable reset button after user pressed it
     setIsResetCameraEnable(false);
   }, [cameraControlRef, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setisRankingMode, setIsZeroGravityMode, setHeartEmitterArtworkId, lightingConfig.customCameraPosition]);
@@ -1486,6 +1485,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
           effectRegistry={effectRegistry} // NEW: Pass dynamically loaded effect registry
           isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass effect registry loading state
           zoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
+          onLoadingStatusChange={setIsSceneLoading} // NEW: Pass loading status callback
         />
       </React.Fragment>
 
