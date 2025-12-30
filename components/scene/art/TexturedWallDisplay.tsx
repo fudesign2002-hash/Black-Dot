@@ -7,6 +7,12 @@ import * as THREE from 'three';
 import { ArtworkDimensions, ArtType } from '../../../types';
 import textureCache from '../../../services/textureCache';
 
+// NEW: Pre-allocate unit geometries for reuse across all instances to reduce memory pressure
+const unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+const unitPlaneGeo = new THREE.PlaneGeometry(1, 1);
+const unitSphereGeo = new THREE.SphereGeometry(1, 8, 8);
+const unitCylinderGeo = new THREE.CylinderGeometry(1, 1, 1, 12);
+
 interface TexturedWallDisplayProps {
   textureUrl?: string;
   mapTexture: THREE.Texture | THREE.VideoTexture | null;
@@ -39,7 +45,10 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
       setImageTexture(null);
     }
 
-    if (mapTexture || !textureUrl) {
+    // NEW: Skip loading if it's a video URL (Vimeo/YouTube) to avoid CORS errors
+    const isVideoUrl = textureUrl?.includes('vimeo.com') || textureUrl?.includes('youtube.com') || textureUrl?.includes('youtu.be');
+
+    if (mapTexture || !textureUrl || isVideoUrl) {
       setIsInternalLoadingError(false);
       return () => { mounted = false; };
     }
@@ -277,43 +286,43 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
       <group>
         {isPainting ? (
             <React.Fragment>
-                {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+                {/* FIX: Use array for position and hex for color, and args prop for geometry */}
                 {/* MODIFIED: Remove castShadow from frame to optimize shadow map performance */}
-                <mesh position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow>
+                <mesh position={[0, wallHeight / 2, wallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05]} receiveShadow>
                     <boxGeometry attach="geometry" args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
-                    <meshStandardMaterial attach="material" color={new THREE.Color(PAINTING_FRAME_COLOR)} roughness={0.8} metalness={0} />
+                    <meshStandardMaterial attach="material" color={PAINTING_FRAME_COLOR} roughness={0.8} metalness={0} />
                 </mesh>
-                {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+                {/* FIX: Use array for position and hex for color, and args prop for geometry */}
                 <mesh 
-                  position={new THREE.Vector3(0, wallHeight / 2, wallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05)} 
+                  position={[0, wallHeight / 2, wallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05]} 
                   receiveShadow
                 >
                     <boxGeometry attach="geometry" args={[redPlaneWidth, redPlaneHeight, 0.02]} />
-                    <meshStandardMaterial attach="material" color={new THREE.Color("#cccccc")} roughness={1} metalness={0} />
+                    <meshStandardMaterial attach="material" color="#cccccc" roughness={1} metalness={0} />
                 </mesh>
             </React.Fragment>
         ) : (
             <React.Fragment>
-                {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+                {/* FIX: Use array for position and hex for color, and args prop for geometry */}
                 <mesh 
-                  receiveShadow position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth / 2)}
+                  receiveShadow position={[0, wallHeight / 2, effectiveWallBackingDepth / 2]}
                 >
                     <boxGeometry attach="geometry" args={[wallWidth, wallHeight, effectiveWallBackingDepth]} />
-                    <meshStandardMaterial attach="material" color={new THREE.Color("#ffffff")} roughness={1.0} metalness={0} />
+                    <meshStandardMaterial attach="material" color="#ffffff" roughness={1.0} metalness={0} />
                 </mesh>
-                {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
-                <group position={new THREE.Vector3(0, artGroupY, effectiveWallBackingDepth + matDepth / 2)}>
+                {/* FIX: Use array for position and args prop for geometry */}
+                <group position={[0, artGroupY, effectiveWallBackingDepth + matDepth / 2]}>
                      {/* MODIFIED: Remove castShadow from mat to optimize shadow map performance */}
                      <mesh receiveShadow>
                         <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
-                        <meshStandardMaterial attach="material" color={new THREE.Color("#333333")} roughness={0.5} />
+                        <meshStandardMaterial attach="material" color="#333333" roughness={0.5} />
                     </mesh>
-                    {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+                    {/* FIX: Use array for position and hex for color, and args prop for geometry */}
                     <mesh 
-                      position={new THREE.Vector3(0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME)}
+                      position={[0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME]}
                     >
                         <planeGeometry attach="geometry" args={[artWidth, artHeight]} />
-                        <meshStandardMaterial attach="material" color={new THREE.Color("#cccccc")} roughness={1} />
+                        <meshStandardMaterial attach="material" color="#cccccc" roughness={1} />
                     </mesh>
                 </group>
             </React.Fragment>
@@ -324,15 +333,16 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
   
   return (
     <group>
-        {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+        {/* FIX: Use scaled unit geometry for better performance */}
         <mesh 
           receiveShadow 
-          position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth / 2)} 
+          position={[0, wallHeight / 2, effectiveWallBackingDepth / 2]} 
+          scale={[wallWidth, wallHeight, effectiveWallBackingDepth]}
         >
-            <boxGeometry attach="geometry" args={[wallWidth, wallHeight, effectiveWallBackingDepth]} />
+            <primitive object={unitBoxGeo} attach="geometry" />
             <meshStandardMaterial 
               attach="material"
-              color={new THREE.Color("#ffffff")} 
+              color="#ffffff" 
               roughness={1.0} 
               metalness={0} 
             />
@@ -340,19 +350,24 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
 
         {isPainting && (
           <React.Fragment>
-            {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
+            {/* FIX: Use scaled unit geometry */}
             {/* MODIFIED: Remove castShadow from frame to optimize shadow map performance */}
-            <mesh position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05)} receiveShadow>
-              <boxGeometry attach="geometry" args={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]} />
-              <meshStandardMaterial attach="material" color={new THREE.Color(PAINTING_FRAME_COLOR)} roughness={0.8} metalness={0} />
-            </mesh>
-
-            {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
-            <mesh
-              position={new THREE.Vector3(0, wallHeight / 2, effectiveWallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05)}
+            <mesh 
+              position={[0, wallHeight / 2, effectiveWallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05]} 
+              scale={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]}
               receiveShadow
             >
-              <boxGeometry attach="geometry" args={[redPlaneWidth, redPlaneHeight, 0.02]} />
+              <primitive object={unitBoxGeo} attach="geometry" />
+              <meshStandardMaterial attach="material" color={PAINTING_FRAME_COLOR} roughness={0.8} metalness={0} />
+            </mesh>
+
+            {/* FIX: Use scaled unit geometry */}
+            <mesh
+              position={[0, wallHeight / 2, effectiveWallBackingDepth + PAINTING_FRAME_THICKNESS + 0.05]}
+              scale={[redPlaneWidth, redPlaneHeight, 0.02]}
+              receiveShadow
+            >
+              <primitive object={unitBoxGeo} attach="geometry" />
               <meshStandardMaterial
                 ref={paintingMaterialRef as any}
                 attach="material"
@@ -367,20 +382,21 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         )}
 
         {!isPainting && (
-          // FIX: Use THREE.Vector3 for position and args prop for geometry
-          <group position={new THREE.Vector3(0, artGroupY, effectiveWallBackingDepth + matDepth / 2)}>
+          // FIX: Use scaled unit geometry
+          <group position={[0, artGroupY, effectiveWallBackingDepth + matDepth / 2]}>
               {/* MODIFIED: Remove castShadow from mat to optimize shadow map performance */}
-              <mesh receiveShadow>
-                    <boxGeometry attach="geometry" args={[matWidth, matHeight, matDepth]} />
+              <mesh receiveShadow scale={[matWidth, matHeight, matDepth]}>
+                    <primitive object={unitBoxGeo} attach="geometry" />
 
           {/* Photography hanging lines: two thin vertical lines anchored above the artwork frame and extending upward */}
-                    <meshStandardMaterial attach="material" color={new THREE.Color("#1a1a1a")} roughness={0.5} />
+                    <meshStandardMaterial attach="material" color="#1a1a1a" roughness={0.5} />
               </mesh>
-              {/* FIX: Use THREE.Vector3 for position and args prop for geometry */}
+              {/* FIX: Use scaled unit geometry */}
               <mesh
-                position={new THREE.Vector3(0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME)}
+                position={[0, 0, matDepth / 2 - ARTWORK_RECESS_INTO_FRAME]}
+                scale={[artWidth, artHeight, 1]}
               >
-                <planeGeometry attach="geometry" args={[artWidth, artHeight]} />
+                <primitive object={unitPlaneGeo} attach="geometry" />
                 <meshStandardMaterial ref={artworkMaterialRef as any} attach="material" map={finalMapTexture} roughness={1} metalness={0} transparent={true} opacity={opacityRef.current} />
               </mesh>
           </group>
@@ -418,26 +434,26 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                       return (
                         <React.Fragment key={`left-cable-seg-${i}`}>
                           {/* MODIFIED: Remove castShadow from cables to optimize shadow map performance and avoid aliasing artifacts */}
-                          <mesh position={new THREE.Vector3(leftX, segCenterY, zPos)} receiveShadow>
-                            <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, segH, 12]} />
-                            <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} transparent={true} opacity={opacity} />
+                          <mesh position={[leftX, segCenterY, zPos]} scale={[HANG_LINE_THICKNESS, segH, HANG_LINE_THICKNESS]} receiveShadow>
+                            <primitive object={unitCylinderGeo} attach="geometry" />
+                            <meshStandardMaterial attach="material" color={HANG_LINE_COLOR} metalness={0.2} roughness={0.6} transparent={true} opacity={opacity} />
                           </mesh>
-                          <mesh position={new THREE.Vector3(rightX, segCenterY, zPos)} receiveShadow>
-                            <cylinderGeometry attach="geometry" args={[HANG_LINE_THICKNESS, HANG_LINE_THICKNESS, segH, 12]} />
-                            <meshStandardMaterial attach="material" color={new THREE.Color(HANG_LINE_COLOR)} metalness={0.2} roughness={0.6} transparent={true} opacity={opacity} />
+                          <mesh position={[rightX, segCenterY, zPos]} scale={[HANG_LINE_THICKNESS, segH, HANG_LINE_THICKNESS]} receiveShadow>
+                            <primitive object={unitCylinderGeo} attach="geometry" />
+                            <meshStandardMaterial attach="material" color={HANG_LINE_COLOR} metalness={0.2} roughness={0.6} transparent={true} opacity={opacity} />
                           </mesh>
                         </React.Fragment>
                       );
                     })}
                     {/* Small dark anchors */}
                     {/* Small dark anchors at the top of the cables (slightly above the visible fade) */}
-                    <mesh position={new THREE.Vector3(leftX, topY + HANG_LINE_HEIGHT * 0.98, zPos)}>
-                      <sphereGeometry attach="geometry" args={[HANG_LINE_THICKNESS * 0.9, 8, 8]} />
-                      <meshStandardMaterial attach="material" color={new THREE.Color('#111827')} metalness={0.1} roughness={0.8} />
+                    <mesh position={[leftX, topY + HANG_LINE_HEIGHT * 0.98, zPos]} scale={[HANG_LINE_THICKNESS * 0.9, HANG_LINE_THICKNESS * 0.9, HANG_LINE_THICKNESS * 0.9]}>
+                      <primitive object={unitSphereGeo} attach="geometry" />
+                      <meshStandardMaterial attach="material" color="#111827" metalness={0.1} roughness={0.8} />
                     </mesh>
-                    <mesh position={new THREE.Vector3(rightX, topY + HANG_LINE_HEIGHT * 0.98, zPos)}>
-                      <sphereGeometry attach="geometry" args={[HANG_LINE_THICKNESS * 0.9, 8, 8]} />
-                      <meshStandardMaterial attach="material" color={new THREE.Color('#111827')} metalness={0.1} roughness={0.8} />
+                    <mesh position={[rightX, topY + HANG_LINE_HEIGHT * 0.98, zPos]} scale={[HANG_LINE_THICKNESS * 0.9, HANG_LINE_THICKNESS * 0.9, HANG_LINE_THICKNESS * 0.9]}>
+                      <primitive object={unitSphereGeo} attach="geometry" />
+                      <meshStandardMaterial attach="material" color="#111827" metalness={0.1} roughness={0.8} />
                     </mesh>
                   </group>
                 );

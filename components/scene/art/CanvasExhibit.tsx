@@ -195,7 +195,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               frameBorder="0"
               allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-share"
               allowFullScreen
-              sandbox="allow-scripts allow-same-origin allow-popups"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
               style={{ display: 'block', position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
               title="Embedded video player"
               aria-label="Embedded video player"

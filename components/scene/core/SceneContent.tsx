@@ -119,7 +119,10 @@ const SceneContent: React.FC<SceneProps> = ({
 
   // Pin all textures when gallery is small to avoid any reloads; otherwise unpin
   useEffect(() => {
-    const urls = artworks.map(a => a.textureUrl).filter(Boolean) as string[];
+    const urls = artworks
+      .filter(a => !a.isMotionVideo) // NEW: Filter out motion videos as they use iframes, not textures
+      .map(a => a.textureUrl)
+      .filter(Boolean) as string[];
     if (urls.length <= CACHE_PIN_THRESHOLD) {
       urls.forEach(u => textureCache.pinTexture(u));
     } else {
@@ -139,7 +142,11 @@ const SceneContent: React.FC<SceneProps> = ({
   // changing any higher-level data flow.
   useEffect(() => {
     const PIN_ON_ENTER_COUNT = 6;
-    const urls = artworks.slice(0, PIN_ON_ENTER_COUNT).map(a => a.textureUrl).filter(Boolean) as string[];
+    const urls = artworks
+      .filter(a => !a.isMotionVideo) // NEW: Filter out motion videos
+      .slice(0, PIN_ON_ENTER_COUNT)
+      .map(a => a.textureUrl)
+      .filter(Boolean) as string[];
     if (urls.length === 0) return undefined;
     urls.forEach(u => textureCache.pinTexture(u));
     return () => { urls.forEach(u => textureCache.unpinTexture(u)); };
@@ -162,7 +169,9 @@ const SceneContent: React.FC<SceneProps> = ({
     }
     try {
       neighbors.forEach(i => {
-        const u = artworks[i].textureUrl;
+        const art = artworks[i];
+        if (art.isMotionVideo) return; // NEW: Skip motion videos
+        const u = art.textureUrl;
         if (u) {
           neighborPreloadsRef.current.push(u);
           textureCache.retainTexture(u).catch(() => {});
@@ -527,8 +536,9 @@ const SceneContent: React.FC<SceneProps> = ({
     const targetMainLightIntensity = lightsOn ? 3.5 : 0;
     const targetBgIntensity = lightsOn ? 1.0 : 0.15; // Keep background slightly visible but dark
 
-    envIntensityRef.current = THREE.MathUtils.lerp(envIntensityRef.current, targetEnvIntensity, 0.1);
-    mainLightIntensityRef.current = THREE.MathUtils.lerp(mainLightIntensityRef.current, targetMainLightIntensity, 0.1);
+    const lerpFactor = Math.min(1, delta * 4);
+    envIntensityRef.current = THREE.MathUtils.lerp(envIntensityRef.current, targetEnvIntensity, lerpFactor);
+    mainLightIntensityRef.current = THREE.MathUtils.lerp(mainLightIntensityRef.current, targetMainLightIntensity, lerpFactor);
 
     if (scene.environmentIntensity !== undefined) {
       scene.environmentIntensity = envIntensityRef.current;
@@ -536,7 +546,7 @@ const SceneContent: React.FC<SceneProps> = ({
 
     // Also dim the background itself if it's a texture (Three.js r163+)
     if ((scene as any).backgroundIntensity !== undefined) {
-      (scene as any).backgroundIntensity = THREE.MathUtils.lerp((scene as any).backgroundIntensity || 1, targetBgIntensity, 0.1);
+      (scene as any).backgroundIntensity = THREE.MathUtils.lerp((scene as any).backgroundIntensity || 1, targetBgIntensity, lerpFactor);
     }
 
     if (dirLight1Ref.current) {
@@ -545,7 +555,7 @@ const SceneContent: React.FC<SceneProps> = ({
       dirLight1Ref.current.castShadow = mainLightIntensityRef.current > 0.1;
     }
     if (dirLight2Ref.current) {
-      dirLight2Ref.current.intensity = THREE.MathUtils.lerp(dirLight2Ref.current.intensity, lightsOn ? 2.0 : 0, 0.1);
+      dirLight2Ref.current.intensity = THREE.MathUtils.lerp(dirLight2Ref.current.intensity, lightsOn ? 2.0 : 0, lerpFactor);
     }
   });
 

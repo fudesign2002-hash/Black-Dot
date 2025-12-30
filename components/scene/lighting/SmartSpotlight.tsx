@@ -93,9 +93,9 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
       />
       {shouldShowEffects && <pointLight 
         position={pointLightLocalPosition} 
-        intensity={isActive ? 6.5 : 0} 
-        distance={8} 
-        decay={0.7} 
+        intensity={isActive ? 10.0 : 0} 
+        distance={9} 
+        decay={0.6} 
         color={memoColor} 
         castShadow={castShadow} 
         shadow-mapSize={[512, 512]}

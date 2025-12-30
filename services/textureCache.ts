@@ -35,6 +35,13 @@ function updateLoadingStatus() {
 
 async function loadTexture(url: string): Promise<THREE.Texture> {
   if (!url) throw new Error('No url');
+
+  // NEW: Immediately reject video URLs to prevent them from being stuck in inProgress
+  const isVideoUrl = url.includes('vimeo.com') || url.includes('youtube.com') || url.includes('youtu.be');
+  if (isVideoUrl) {
+    throw new Error('Cannot load video URL as texture');
+  }
+
   const existing = cache.get(url);
   if (existing) {
     existing.lastUsed = now();

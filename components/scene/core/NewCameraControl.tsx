@@ -311,18 +311,22 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const lastEmit = useRef(0);
   const throttleMs = props.userCameraThrottleMs || 150;
 
+  // NEW: Persist interaction state across re-renders to avoid losing start time during prop updates
+  const interactionStartTsRef = useRef<number>(0);
+  const startPosRef = useRef(new THREE.Vector3());
+
   useEffect(() => {
     const controls = controlsRef.current;
     if (!controls) return;
-    let interactionStartTs = 0;
+    
     // Use only a time threshold to decide whether an interaction is a drag
-    const CLICK_TIME_THRESHOLD = 300; // ms: press duration above this is considered a drag
-    const startPosRef = { current: new THREE.Vector3() } as { current: THREE.Vector3 };
+    const CLICK_TIME_THRESHOLD = 200; // ms: lowered from 300ms for better responsiveness
+    const CLICK_DISTANCE_THRESHOLD = 0.1; // world units: lowered from 0.25 to be more sensitive
 
     const onStart = () => {
       isUserDraggingRef.current = true;
       setIsUserDragging(true);
-      interactionStartTs = performance.now();
+      interactionStartTsRef.current = performance.now();
       // Start capturing
       lastUserPos.current.copy(camera.position);
       startPosRef.current.copy(camera.position);
@@ -346,32 +350,36 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       lastUserPos.current.copy(camera.position);
       const posTuple: [number, number, number] = [lastUserPos.current.x, lastUserPos.current.y, lastUserPos.current.z];
       const now = performance.now();
+      
       // If we never received a start timestamp, treat this as a short interaction
-      if (!interactionStartTs) {
+      if (!interactionStartTsRef.current) {
         try {
           (window as any).__LAST_INTERACTION = { duration: 0, distance: 0 };
         } catch (e) {}
         if (props.onUserInteractionEnd) props.onUserInteractionEnd(false);
-        interactionStartTs = 0;
         return;
       }
-      const duration = now - interactionStartTs;
+      
+      const duration = now - interactionStartTsRef.current;
       // Decide drag by duration OR by movement distance (to catch short quick drags)
-      const interactionDistance = startPosRef.current ? camera.position.distanceTo(startPosRef.current) : 0;
-      const CLICK_DISTANCE_THRESHOLD = 0.25; // world units: treat movements above this as a drag
+      const interactionDistance = camera.position.distanceTo(startPosRef.current);
       const wasDrag = duration > CLICK_TIME_THRESHOLD || interactionDistance > CLICK_DISTANCE_THRESHOLD;
+      
       try {
         (window as any).__LAST_INTERACTION = { duration: Math.round(duration), distance: Number(interactionDistance.toFixed(4)) };
       } catch (e) {
         // ignore write errors
       }
+      
       if (props.onUserInteractionEnd) props.onUserInteractionEnd(wasDrag);
+      
       // Only persist custom camera when the editor is open and it was a drag.
       if (wasDrag && props.isEditorOpen) {
         if (props.onSaveCustomCamera) props.onSaveCustomCamera(posTuple);
       }
+      
       // Reset start timestamp so subsequent 'end' events don't compute large durations
-      interactionStartTs = 0;
+      interactionStartTsRef.current = 0;
     };
 
     controls.addEventListener('start', onStart);
@@ -383,7 +391,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       controls.removeEventListener('change', onChange);
       controls.removeEventListener('end', onEnd);
     };
-  }, [camera, props, throttleMs]);
+  }, [camera, props.onUserInteractionStart, props.onUserInteractionEnd, props.isEditorOpen, props.onSaveCustomCamera, throttleMs]);
 
   // Animation frame handling
   useFrame(() => {

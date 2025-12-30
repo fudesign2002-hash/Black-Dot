@@ -824,15 +824,37 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
 
   // NEW: Effect to clear transition overlay when scene is ready
   useEffect(() => {
+    let safetyTimer: NodeJS.Timeout | null = null;
+
+    // If we are transitioning, set a safety timeout to force clear the overlay
+    // after 3 seconds, in case some assets fail to report "loaded" status.
+    if (isTransitioning && isTransitionPendingRef.current) {
+      safetyTimer = setTimeout(() => {
+        if (isTransitionPendingRef.current) {
+          console.warn('[App] Transition safety timeout reached. Forcing overlay clear.');
+          setIsTransitioning(false);
+          isTransitionPendingRef.current = false;
+        }
+      }, 3000);
+    }
+
     if (isTransitionPendingRef.current && !isSceneLoading && !isLoading && !isEffectRegistryLoading) {
       // Add a small extra delay after everything is "ready" for final smoothness
       const timer = setTimeout(() => {
         setIsTransitioning(false);
         isTransitionPendingRef.current = false;
       }, 300);
-      return () => clearTimeout(timer);
+      
+      return () => {
+        clearTimeout(timer);
+        if (safetyTimer) clearTimeout(safetyTimer);
+      };
     }
-  }, [isSceneLoading, isLoading, isEffectRegistryLoading]);
+
+    return () => {
+      if (safetyTimer) clearTimeout(safetyTimer);
+    };
+  }, [isSceneLoading, isLoading, isEffectRegistryLoading, isTransitioning]);
 
   const handleExhibitionChange = useCallback((direction: 'next' | 'prev') => {
     const totalItems = exhibitions.length;
@@ -1461,10 +1483,19 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
           isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
           isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
           onCameraPositionChange={handleCameraPositionChange} // NEW: Pass the callback
-          onUserCameraInteractionStart={() => setIsResetCameraEnable(true)}
+          onUserCameraInteractionStart={() => {
+            // We no longer set isResetCameraEnable(true) here to avoid showing the button on tiny movements or clicks.
+            // The button will be enabled in onUserCameraInteractionEnd if a significant drag occurred.
+          }}
           onUserCameraInteractionEnd={(wasDrag: boolean) => {
             // Remember whether the last interaction was a drag. Clearing shortly after.
             lastUserInteractionWasDragRef.current = wasDrag;
+            
+            // NEW: Only enable the reset button if the interaction was actually a drag (moved beyond threshold)
+            if (wasDrag) {
+              setIsResetCameraEnable(true);
+            }
+
             if (wasDrag) {
               // Keep the flag for a short window to let the subsequent click handler consult it
               window.setTimeout(() => { lastUserInteractionWasDragRef.current = false; }, 300);
