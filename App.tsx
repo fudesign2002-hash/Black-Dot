@@ -755,19 +755,21 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     }
 
     // Detailed red console output for every lighting update (helps trace unexpected writes)
-    try {
-      console.groupCollapsed('%c[App] handleLightingUpdate', 'color: #fff; background: #b91c1c; padding:2px 6px; border-radius:3px');
-      console.error('Timestamp:', new Date().toISOString());
-      console.error('caller stack:');
-      console.trace();
-      console.error('activeZone.id:', activeZone?.id);
-      console.error('isEditorMode:', isEditorMode);
-      console.error('isEditorOpen:', isEditorOpen);
-      console.error('newConfig:', newConfig);
-      console.error('willWriteToDB:', ((newConfig as any).useCustomColors === false) ? 'writing cleaned (useCustomColors=false)' : 'writing full config');
-      console.groupEnd();
-    } catch (e) {
-      // ignore logging errors
+    if (LOG_APP_LIGHTING) {
+      try {
+        console.groupCollapsed('%c[App] handleLightingUpdate', 'color: #fff; background: #b91c1c; padding:2px 6px; border-radius:3px');
+        console.error('Timestamp:', new Date().toISOString());
+        console.error('caller stack:');
+        console.trace();
+        console.error('activeZone.id:', activeZone?.id);
+        console.error('isEditorMode:', isEditorMode);
+        console.error('isEditorOpen:', isEditorOpen);
+        console.error('newConfig:', newConfig);
+        console.error('willWriteToDB:', ((newConfig as any).useCustomColors === false) ? 'writing cleaned (useCustomColors=false)' : 'writing full config');
+        console.groupEnd();
+      } catch (e) {
+        // ignore logging errors
+      }
     }
 
     setLightingOverride(activeZone.id, newConfig);

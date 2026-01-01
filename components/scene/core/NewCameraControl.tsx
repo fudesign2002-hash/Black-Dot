@@ -89,11 +89,23 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const RANKING_CAMERA_TARGET: [number, number, number] = [0, 1, 0];
 
   // Minimal implementations for now — will be filled in step-by-step
-  const moveCameraToInitial = useCallback((customCameraPosition?: [number, number, number]) => {
+  const moveCameraToInitial = useCallback((customCameraPosition?: [number, number, number], duration?: number) => {
     if (!controlsRef.current) return;
     // Debug: emit stack trace to help identify who invoked this
     // debug trace removed
     const final = customCameraPosition || INITIAL_CAMERA_POSITION;
+
+    const animDuration = duration !== undefined ? duration : 300;
+
+    if (animDuration === 0) {
+      camera.position.set(final[0], final[1], final[2]);
+      controlsRef.current.update();
+      previousCameraPosition.current.copy(camera.position);
+      props.onCameraPositionChange?.(true);
+      setMoveToConfig(null);
+      return;
+    }
+
     // Preserve existing look-at target; only set camera position (customCameraPosition is position-only)
     startPosition.current.copy(camera.position);
     startLookAt.current.copy(controlsRef.current.target);
@@ -111,8 +123,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       props.onCameraAnimationStateChange?.(true);
       props.onCameraPositionChange?.(false);
       // shorter duration for reset to feel quick but smooth
-      const RESET_CAMERA_DURATION = 300;
-      setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: toPos, toTarget: toTgt, duration: RESET_CAMERA_DURATION, key: 'reset' });
+      setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: toPos, toTarget: toTgt, duration: animDuration, key: 'reset' });
       previousCameraPosition.current.copy(new THREE.Vector3(...toPos));
       previousCameraTarget.current.copy(new THREE.Vector3(...toTgt));
     } catch (e) {
@@ -448,8 +459,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       return;
     }
     // snapping to customCameraPosition
-    moveCameraToInitial(custom);
-  }, [props.lightingConfig?.customCameraPosition, props.isCameraMovingToArtwork, moveCameraToInitial]);
+    // If editor is open, snap immediately (duration 0) for better sync during dragging
+    moveCameraToInitial(custom, props.isEditorOpen ? 0 : 300);
+  }, [props.lightingConfig?.customCameraPosition, props.isCameraMovingToArtwork, props.isEditorOpen, moveCameraToInitial]);
 
   // NEW: State to track if Space key is pressed
   const [isSpacePressed, setIsSpacePressed] = useState(false);
