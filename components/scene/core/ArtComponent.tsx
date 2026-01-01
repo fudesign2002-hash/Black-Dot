@@ -96,12 +96,10 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
 
         // Provide a reasonable fallback for canvas types if dimensions haven't been calculated yet
         if (isPaintingArtwork || isMotionVideo || isFaultyMotionVideo) {
-            let width = 6.0; // Default for square
-            let height = 4.0;
-            let centerOffsetY = 3.0; // Default for square (height / 2)
-
-
-
+            const isLargeCanvas = sourceArtworkType === 'painting' || sourceArtworkType === 'photography';
+            let width = isLargeCanvas ? 12.0 : 6.0; 
+            let height = isLargeCanvas ? 8.0 : 4.0;
+            let centerOffsetY = isLargeCanvas ? 6.0 : 3.0; 
 
             return {
                 width,
@@ -184,6 +182,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
       isSmallScreen,
       isCameraMovingToArtwork,
       materialJson,
+      artworkData,
     ]);
 
     const componentMap: { [key: string]: React.ReactNode } = {

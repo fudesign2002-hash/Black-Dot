@@ -572,7 +572,7 @@ const SceneContent: React.FC<SceneProps> = ({
 
   const shadowMapSize = useMemo(() => getShadowMapSize(isSmallScreen), [isSmallScreen]); // NEW: Calculate shadow map size dynamically
 
-  const keyLightPos = useMemo(() => new THREE.Vector3(...(lightingConfig.keyLightPosition || [-2, 6, 9])), [lightingConfig.keyLightPosition]);
+  const keyLightPos = useMemo(() => new THREE.Vector3(...(lightingConfig.keyLightPosition || [-2, 8, 9])), [lightingConfig.keyLightPosition]);
   const fillLightPos = useMemo(() => new THREE.Vector3(...(lightingConfig.fillLightPosition || [5, 0, 5])), [lightingConfig.fillLightPosition]);
   const floorGroupPos = useMemo(() => new THREE.Vector3(0, -151.99/100, 0), []);
   const floorMeshPos = useMemo(() => new THREE.Vector3(0, 0, 0), []);
@@ -596,7 +596,6 @@ const SceneContent: React.FC<SceneProps> = ({
             shadow-camera-bottom={-15}
             shadow-bias={-0.0001}
             shadow-normalBias={0.05}
-            
         />
         {/* FIX: Use THREE.Vector3 for position and THREE.Color for color */}
         <directionalLight
@@ -665,14 +664,31 @@ const SceneContent: React.FC<SceneProps> = ({
 
               const isSmartSpotlightActive = isExplicitlyFocused || isProximityFocusedInDark;
 
+              // NEW: Apply a global Y offset for photography artworks to lower them in the scene
+              const PHOTOGRAPHY_Y_OFFSET = -1.5;
+              const isPhotography = art.source_artwork_type === 'photography';
+              const yOffset = isPhotography ? PHOTOGRAPHY_Y_OFFSET : 0;
+
+              const adjustedOriginalPosition: [number, number, number] = [
+                (art.originalPosition || art.position)[0],
+                (art.originalPosition || art.position)[1] + yOffset,
+                (art.originalPosition || art.position)[2]
+              ];
+
+              const adjustedTargetPosition: [number, number, number] = [
+                art.position[0],
+                art.position[1] + yOffset,
+                art.position[2]
+              ];
+
               return (
                 <ArtworkWrapper
                   key={art.id}
                   id={art.id}
                   artworkType={art.type}
-                  originalPosition={art.originalPosition || art.position}
+                  originalPosition={adjustedOriginalPosition}
                   originalRotation={art.originalRotation || art.rotation}
-                  targetPosition={art.position}
+                  targetPosition={adjustedTargetPosition}
                   targetRotation={art.rotation}
                   isRankingMode={isRankingMode}
                   isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
@@ -683,7 +699,7 @@ const SceneContent: React.FC<SceneProps> = ({
                     e.stopPropagation();
                     if (!art.isMotionVideo) {
                       // REMOVED: onSelectArtwork(art.id);
-                      onArtworkClicked(e, art.id, art.originalPosition || art.position, art.originalRotation || art.rotation, art.type, !!art.isMotionVideo);
+                      onArtworkClicked(e, art.id, adjustedOriginalPosition, art.originalRotation || art.rotation, art.type, !!art.isMotionVideo);
                     } else {
                       // skipping click for motion video
                     }

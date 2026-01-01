@@ -45,11 +45,9 @@ const SMALL_SCREEN_MOTION_Y_OFFSET = 0;
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
   artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0, artworkData // NEW: accept artworkData
 }) => {
-  let maxDimension = 3.0; 
+  let maxDimension = (sourceArtworkType === 'painting' || sourceArtworkType === 'photography') ? 6.0 : 3.0; 
   
-  if (orientation === 'square') {
-    maxDimension = 6.0; 
-  } else if (orientation === 'landscape') {
+  if (orientation === 'landscape') {
     maxDimension = 16.0; 
   }
 
@@ -174,8 +172,8 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     return (
       <group>
         {/* FIX: Use THREE.Vector3 for position and THREE.Color for color, and args prop for geometry */}
-        {/* MODIFIED: Remove castShadow from backing wall to optimize shadow map performance */}
-        <mesh ref={wallRef} receiveShadow position={new THREE.Vector3(0, backingWallMeshCenterY, 0)}>
+        {/* MODIFIED: Re-enabled castShadow for the backing wall to provide floor shadows for motion artworks */}
+        <mesh ref={wallRef} castShadow receiveShadow position={new THREE.Vector3(0, backingWallMeshCenterY, 0)}>
           <boxGeometry attach="geometry" args={[backingWallWidth, backingWallHeight, WALL_DEPTH]} />
           <meshStandardMaterial attach="material" color={new THREE.Color("#1a1a1a")} roughness={0.5} metalness={0} />
         </mesh>

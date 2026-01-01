@@ -351,10 +351,11 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         {isPainting && (
           <React.Fragment>
             {/* FIX: Use scaled unit geometry */}
-            {/* MODIFIED: Remove castShadow from frame to optimize shadow map performance */}
+            {/* MODIFIED: Re-enabled castShadow for the frame to provide floor shadows while keeping cables optimized */}
             <mesh 
               position={[0, wallHeight / 2, effectiveWallBackingDepth + (PAINTING_FRAME_THICKNESS / 2) + 0.05]} 
               scale={[frameWidth, frameHeight, PAINTING_FRAME_THICKNESS]}
+              castShadow
               receiveShadow
             >
               <primitive object={unitBoxGeo} attach="geometry" />
@@ -384,8 +385,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
         {!isPainting && (
           // FIX: Use scaled unit geometry
           <group position={[0, artGroupY, effectiveWallBackingDepth + matDepth / 2]}>
-              {/* MODIFIED: Remove castShadow from mat to optimize shadow map performance */}
-              <mesh receiveShadow scale={[matWidth, matHeight, matDepth]}>
+              {/* MODIFIED: Re-enabled castShadow for the mat to provide floor shadows while keeping cables optimized */}
+              <mesh castShadow receiveShadow scale={[matWidth, matHeight, matDepth]}>
                     <primitive object={unitBoxGeo} attach="geometry" />
 
           {/* Photography hanging lines: two thin vertical lines anchored above the artwork frame and extending upward */}

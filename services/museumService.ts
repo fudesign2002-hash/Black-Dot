@@ -130,7 +130,7 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
                 } else {
                     textureUrl = fileUrl;
                 }
-                aspectRatio = isMotionVideo ? (16 / 9) : 1;
+                aspectRatio = isMotionVideo ? (16 / 9) : undefined;
                 break;
             case 'sculpture':
                 itemType = 'sculpture_base';
@@ -234,7 +234,7 @@ export const createFirebaseLayout = (artworkIds: string[], allFirebaseArtworks: 
                 } else {
                     textureUrl = fileUrl;
                 }
-                aspectRatio = isMotionVideo ? (16 / 9) : 1;
+                aspectRatio = isMotionVideo ? (16 / 9) : undefined;
                 break;
             case 'sculpture':
                 itemType = 'sculpture_base';
