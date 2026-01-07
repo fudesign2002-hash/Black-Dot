@@ -51,6 +51,7 @@ interface FloorPlanEditorProps {
   isEffectRegistryLoading: boolean; // NEW: Add isEffectRegistryLoading
   activeZoneGravity: number | undefined; // NEW: Add activeZoneGravity
   onUpdateZoneGravity: (gravity: number | undefined) => Promise<void>; // NEW: Add onUpdateZoneGravity
+  isSignedIn: boolean; // NEW: Add isSignedIn prop
 }
 
 const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
@@ -86,6 +87,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   isEffectRegistryLoading, // NEW: Destructure isEffectRegistryLoading
   activeZoneGravity, // NEW: Destructure activeZoneGravity
   onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity
+  isSignedIn, // NEW: Destructure isSignedIn
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevIsOpenRef = useRef<boolean>(isOpen);
@@ -267,6 +269,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             }}
             onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
             onOpenConfirmationDialog={onOpenConfirmationDialog} // NEW: Pass onOpenConfirmationDialog
+            isSignedIn={isSignedIn} // NEW: Pass isSignedIn
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab
@@ -291,6 +294,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
               }
               return success;
             }}
+            isSignedIn={isSignedIn}
           />
         ) : (
             <AdminTab

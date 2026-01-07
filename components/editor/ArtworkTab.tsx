@@ -624,7 +624,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
 
         {relevantArtworks.map(artwork => (
           <div key={artwork.id} className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
-            <div className="flex items-center justify-between mb-3">
+            <div className={`flex items-center justify-between ${editingUrlArtworkId === artwork.id ? 'mb-3' : ''}`}>
               <div className="flex items-center gap-2">
                 <h4 className="font-bold text-sm cursor-pointer" onDoubleClick={() => handleArtworkDoubleClick(artwork)}>{artwork.title}</h4>
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${

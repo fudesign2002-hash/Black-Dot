@@ -31,7 +31,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
     handleNavigate,
     firebaseArtworks,
     currentIndex,
-  } = useMuseumState(true);
+  } = useMuseumState(true, null, true);
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [focusedArtworkInstanceId, setFocusedArtworkInstanceId] = useState<string | null>(null);

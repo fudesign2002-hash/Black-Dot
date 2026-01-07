@@ -54,7 +54,7 @@ const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
   zone_gravity: undefined, // NEW: Default zone_gravity
 };
 
-export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | null) => { // NEW: Accept enableSnapshots and optional ownerUid
+export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | null, authResolved: boolean = true) => { // NEW: Accept enableSnapshots, optional ownerUid, and authResolved
   const [rawExhibitionDocs, setRawExhibitionDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [rawArtworkDocs, setRawArtworkDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [zones, setZones] = useState<ExhibitionZone[]>([]);
@@ -66,6 +66,13 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
   const [firebaseArtworks, setFirebaseArtworks] = useState<FirebaseArtwork[]>([]);
 
   useEffect(() => {
+    // CRITICAL: Ensure we have a stable identity before subscribing to avoid "Guest flash"
+    // and redundant re-subscriptions during sign-in.
+    if (!authResolved) {
+      setIsLoading(true);
+      return;
+    }
+
     setIsLoading(true);
     let loadedFlags = { exhibitions: false, zones: false, artworks: false };
     const checkAllLoaded = () => {
@@ -76,18 +83,21 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
 
     const unsubscribes: (() => void)[] = []; // NEW: Array to hold unsubscribe functions
 
+    console.groupCollapsed('%c[useMuseumState] subscribe', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+    console.log('enableSnapshots:', enableSnapshots, 'ownerUid:', ownerUid || null, 'authResolved:', authResolved);
     if (enableSnapshots) { // NEW: Conditionally subscribe to snapshots
       // For owner views we show exhibitions that belong to the owner and are public
       const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
       const zonesColRef = db.collection('zones');
       const artworksColRef = db.collection('artworks');
 
-          const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
+            const unsubscribeExhibitions = exhibitionsColRef.onSnapshot((snapshot) => {
               // Debug: print ownerUid + incoming exhibition doc ids (dev-only)
                   try {
                 // DEV-only instrumentation removed to reduce console noise
               } catch (e) {}
               setRawExhibitionDocs(snapshot.docs);
+              console.log('exhibitions snapshot docs:', snapshot.size);
               loadedFlags.exhibitions = true;
               checkAllLoaded();
           }, (error) => {
@@ -99,6 +109,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
         const unsubscribeZones = zonesColRef.onSnapshot((snapshot) => {
           // [log removed] zones snapshot
           setZones(processFirebaseZones(snapshot.docs));
+          console.log('zones snapshot docs:', snapshot.size);
           loadedFlags.zones = true;
           checkAllLoaded();
       }, (error) => {
@@ -117,6 +128,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
             // DEV-only log removed to reduce console noise
           } catch (e) {}
           setRawArtworkDocs(snapshot.docs);
+          console.log('artworks snapshot docs:', snapshot.size);
           loadedFlags.artworks = true;
           checkAllLoaded();
       }, (error) => {
@@ -132,12 +144,12 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
         setIsLoading(false);
         loadedFlags = { exhibitions: true, zones: true, artworks: true }; // Mark as loaded even if no data
     }
-    
+    console.groupEnd();
     return () => {
         // Unsubscribe all listeners when component unmounts or `enableSnapshots`/`ownerUid` changes
         unsubscribes.forEach(unsubscribe => unsubscribe());
     };
-  }, [enableSnapshots, ownerUid]); // NEW: Add enableSnapshots and ownerUid to dependency array
+  }, [enableSnapshots, ownerUid, authResolved]); // FIXED: Added authResolved to dependency array
 
   // Manual refresh helper: fetch latest collections once and update state.
   const refreshNow = useCallback(async () => {
@@ -267,7 +279,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     }
     return finalConfig;
   }, [activeZone, lightingOverrides]);
-  
+
   const currentLayout = useMemo((): ExhibitionArtItem[] => {
     const canonicalArtworkIds = new Set(activeExhibition.exhibit_artworks || []);
 
@@ -304,6 +316,9 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       ...config,
       customCameraPosition: config.customCameraPosition ? [...config.customCameraPosition] as [number, number, number] : config.customCameraPosition,
     };
+    console.groupCollapsed('%c[useMuseumState] setLightingOverride', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+    console.log('zoneId:', zoneId, 'customCameraPosition:', cloned.customCameraPosition);
+    console.groupEnd();
     setLightingOverrides(prev => ({
         ...prev,
         [zoneId]: cloned,

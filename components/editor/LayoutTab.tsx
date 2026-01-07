@@ -359,10 +359,10 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
 
   return (
-    <div className={`flex-1 flex flex-col p-4 overflow-hidden bg-neutral-500/5 ${text}`}>
+    <div className={`flex-1 flex flex-col p-4 bg-neutral-500/5 ${text} overflow-hidden`}>
       <div
         ref={containerRef}
-        className={`w-full aspect-square rounded-lg border-2 border-dashed relative overflow-hidden touch-none ${mapBgClass} ${mapBorderClass}`}
+        className={`w-full aspect-square rounded-lg border-2 border-dashed relative overflow-hidden touch-none flex-shrink-0 ${mapBgClass} ${mapBorderClass}`}
       >
         <div className={`absolute inset-2 border border-dashed rounded-md pointer-events-none ${innerBorderClass}`} />
         <div className={`absolute top-1/2 left-0 w-full h-px pointer-events-none ${crosshairClass}`} />
@@ -457,7 +457,8 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
         </div>
       </div>
 
-      <div className={`flex-shrink-0 pt-4 mt-4 border-t ${border}`}>
+      {/* Artwork Info Section with Scrolling */}
+      <div className={`flex-1 overflow-y-auto min-h-0 pt-4 mt-4 border-t ${border}`}>
         <p className={`text-[10px] font-bold tracking-[0.2em] uppercase ${subtext}`}>Artwork Name</p>
         <p className="text-lg font-medium mt-1 min-h-[1.75rem]">{selectedArtworkId ? selectedArtworkTitle : ' '}</p>
         <p className={`text-sm mt-1 min-h-[1.25rem] ${subtext}`}>{selectedArtworkId && selectedArtworkArtist ? `by ${selectedArtworkArtist}` : ' '}</p>
@@ -483,7 +484,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
         {selectedArt && firebaseArtworks.find(fw => fw.id === selectedArt.artworkId) && (
           <div key={selectedArt.id} className={`my-4 p-4 rounded-xl border ${border} ${controlBgClass}`}>
-            <div className="flex items-center justify-between mb-3">
+            <div className={`flex items-center justify-between ${isEditingArtwork ? 'mb-3' : ''}`}>
               <div className="flex items-center gap-2">
                 <h4 className="font-bold text-sm">{selectedArtworkTitle}</h4>
                 {(() => {

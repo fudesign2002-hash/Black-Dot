@@ -20,29 +20,14 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
 
   const isSignedIn = Boolean(user && (user.providerData && user.providerData.length > 0));
 
-  const avatarUrl = user ? (user.photoURL || (user.providerData && user.providerData[0] && (user.providerData[0] as any).photoURL) || null) : null;
   const [cachedAvatar, setCachedAvatar] = useState<string | null>(null);
+  const failedUrlsRef = useRef<Set<string>>(new Set()); // Track failed URLs to avoid retrying
+  const fetchingUrlsRef = useRef<Set<string>>(new Set()); // Track currently fetching URLs
 
   useEffect(() => {
     if (!user) {
       setCachedAvatar(null);
       return;
-    }
-
-    const key = `avatar:${user.uid}`;
-    const TTL = 1000 * 60 * 60 * 24; // 24 hours
-
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.data && parsed.ts && (Date.now() - parsed.ts) < TTL) {
-          setCachedAvatar(parsed.data);
-          return; // fresh cache present
-        }
-      }
-    } catch (e) {
-      // localStorage may be unavailable or parsing failed - continue to fetch
     }
 
     const sourceUrl = user.photoURL || (user.providerData && (user.providerData[0] as any)?.photoURL) || null;
@@ -51,17 +36,70 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
       return;
     }
 
+    const key = `avatar:${user.uid}`;
+    const TTL = 1000 * 60 * 60 * 24 * 7; // 7 days - longer cache time
+
+    // Always try to load from cache first
+    let cachedData: string | null = null;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.data) {
+          cachedData = parsed.data;
+          setCachedAvatar(parsed.data);
+          
+          // If cache is fresh (within TTL), don't fetch again
+          if (parsed.ts && (Date.now() - parsed.ts) < TTL) {
+            return;
+          }
+          // Cache is stale but we'll keep using it while trying to refresh in background
+        }
+      }
+    } catch (e) {
+      // localStorage error - if we have cached data, use it; otherwise continue to fetch
+    }
+
+    // If this URL has failed before, use cached data if available, otherwise skip
+    if (failedUrlsRef.current.has(sourceUrl)) {
+      // Already have cached data set above, so just return
+      return;
+    }
+    
+    // If already fetching, skip
+    if (fetchingUrlsRef.current.has(sourceUrl)) {
+      return;
+    }
+
+    // Mark as fetching to prevent duplicate requests
+    fetchingUrlsRef.current.add(sourceUrl);
+
+    // Attempt to fetch and update cache (in background if we have cached data)
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(sourceUrl);
-        if (!res.ok) return;
+        // Add timeout to fail fast if Google is rate-limiting
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
+        const res = await fetch(sourceUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) {
+          // Mark as failed but keep using cached data if available
+          failedUrlsRef.current.add(sourceUrl);
+          fetchingUrlsRef.current.delete(sourceUrl);
+          // Don't set to null - keep existing cachedAvatar (either from cache or null)
+          return;
+        }
+        
         const blob = await res.blob();
         const reader = new FileReader();
         reader.onloadend = () => {
           if (cancelled) return;
           const dataUrl = reader.result as string;
           setCachedAvatar(dataUrl);
+          fetchingUrlsRef.current.delete(sourceUrl);
           try {
             localStorage.setItem(key, JSON.stringify({ data: dataUrl, ts: Date.now() }));
           } catch (err) {
@@ -70,14 +108,21 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
         };
         reader.readAsDataURL(blob);
       } catch (err) {
-        // swallow fetch errors - leave cachedAvatar null
+        // on fetch error (including timeout), keep using cached data if available
+        failedUrlsRef.current.add(sourceUrl);
+        fetchingUrlsRef.current.delete(sourceUrl);
+        // Don't set to null - keep existing cachedAvatar
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => { 
+      cancelled = true;
+      fetchingUrlsRef.current.delete(sourceUrl);
+    };
   }, [user?.uid, user?.photoURL, user?.providerData]);
 
-  const displayAvatar = cachedAvatar || avatarUrl || null;
+  // Only use cachedAvatar, never fallback to avatarUrl to avoid 429 errors
+  const displayAvatar = cachedAvatar;
 
   useEffect(() => {
     if (!open) return;

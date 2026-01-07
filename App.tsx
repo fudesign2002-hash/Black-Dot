@@ -66,6 +66,13 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   const prevAuthUidRef = useRef<string | null | undefined>(undefined);
   const prevVisibleIdsRef = useRef<string | null>(null);
 
+  // Identity resolution status: resolved once auth is determined, and for signed-in users, once team logic completes.
+  const isIdentityResolved = useMemo(() => {
+    if (!authResolved) return false;
+    if (user && !user.isAnonymous && ownerOverrideUid === null) return false;
+    return true;
+  }, [authResolved, user, ownerOverrideUid]);
+
   const isSignedIn = Boolean(user && !user.isAnonymous && (user.providerData && user.providerData.length > 0));
 
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -120,6 +127,10 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
 
   const [isSnapshotEnabledGlobally, setIsSnapshotEnabledGlobally] = useState(true); // NEW: State for Firebase onSnapshot toggle
 
+  // NEW: Refs for deduplicating console logs
+  const prevModeKeyRef = useRef<string>('');
+  const prevExhibitionsLogKeyRef = useRef<string>('');
+
   // NEW: State for dynamically loaded EffectRegistry
   const [effectRegistry, setEffectRegistry] = useState<EffectRegistryType | null>(null);
   const [isEffectRegistryLoading, setIsEffectRegistryLoading] = useState(true);
@@ -140,7 +151,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   }, []);
 
   const {
-    isLoading,
+    isLoading: isDataLoading,
     exhibitions,
     zones,
     firebaseArtworks,
@@ -153,7 +164,9 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     currentIndex,
     refreshNow,
     updateLocalArtworkData,
-  } = useMuseumState(isSnapshotEnabledGlobally, ownerOverrideUid || user?.uid); // Pass override curator uid if present, else signed-in user's uid
+  } = useMuseumState(isSnapshotEnabledGlobally, ownerOverrideUid || user?.uid, isIdentityResolved); // Pass isIdentityResolved to hook
+
+  const isLoading = isDataLoading || !isIdentityResolved; // Compound loading state for UI logic
 
   // If embed provides an initial exhibition id, navigate to it when data is ready
   useEffect(() => {
@@ -166,23 +179,11 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
 
   // Ref to request editorLayout reload after an external refresh (to avoid overwriting in-progress edits)
   const editorLayoutReloadRequested = useRef(false);
+  const initialCameraApplied = useRef(false); // Track if initial camera has been applied
 
-  // After initial data finishes loading, immediately apply the system initial camera
-  // only when there is NO custom camera position configured. This avoids waiting
-  // while still guaranteeing we don't override an explicit custom camera.
-  useEffect(() => {
-    if (!isLoading && cameraControlRef.current && isCameraAtDefaultPosition && !isCameraMovingToArtwork) {
-      try {
-        const custom = lightingConfig?.customCameraPosition;
-        // If there's no custom camera saved, snap to the system initial position now.
-        if (!custom) {
-          cameraControlRef.current.moveCameraToInitial();
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-  }, [isLoading, lightingConfig?.customCameraPosition, isCameraAtDefaultPosition, isCameraMovingToArtwork]);
+  // MODIFIED: Consolidate camera initialization and zone change logic.
+  // We no longer need a separate [CameraInit] effect because activeZone.id 
+  // changing from 'fallback_zone_id' handles the first-load case as well.
 
   // NEW: activeEffectName now comes directly from activeZone.zone_theme
   const activeEffectName = activeZone?.zone_theme || null;
@@ -238,7 +239,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   // is never null while signed-in.
   useEffect(() => {
     let cancelled = false;
-    if (!user || user.isAnonymous) return;
+    if (!authResolved || !user || user.isAnonymous) return;
     // If there's already an explicit override (TopLeftLogout or other), don't clobber it
     if (ownerOverrideUid !== null) return;
 
@@ -277,6 +278,9 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   // Diagnostics: log auth and museum state for debugging sign-in/loading issues
   useEffect(() => {
     try {
+      // Wait for auth to resolve before logging to avoid "Guest flash" if a user is signing in
+      if (!authResolved) return;
+
       // Prevent duplicate logs in development StrictMode: only log when auth uid changes
       const currentUid = user?.uid ?? null;
       if (prevAuthUidRef.current === currentUid) return;
@@ -308,11 +312,18 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
 
   // Log visible exhibitions for the current session (guest or signed-in)
   useEffect(() => {
+    if (!authResolved) return; // Wait for Firebase Auth to determine user status
+    
     (async () => {
       try {
         const isGuest = !user || user.isAnonymous;
         const headerStyle = isGuest ? 'background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px' : 'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px';
         const header = isGuest ? '%cVisible exhibitions (guest)' : `%cVisible exhibitions (${user?.uid})`;
+
+        // Dedupe to avoid redundant logs during rapid state changes
+        const logKey = `${isGuest ? 'guest' : user?.uid}`;
+        if (prevExhibitionsLogKeyRef.current === logKey) return;
+        prevExhibitionsLogKeyRef.current = logKey;
 
         let queryRef: firebase.firestore.Query<firebase.firestore.DocumentData>;
         if (isGuest) {
@@ -362,6 +373,17 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   // Debug: grouped console logs for obvious mode changes (focus/editor/ranking/zerogravity/lights)
   useEffect(() => {
     try {
+      const modeKey = JSON.stringify({
+        focusedArtworkInstanceId,
+        isArtworkFocusedForControls,
+        isEditorMode,
+        isRankingMode,
+        isZeroGravityMode,
+        lightsOn: !!lightingConfig?.lightsOn
+      });
+      if (prevModeKeyRef.current === modeKey) return;
+      prevModeKeyRef.current = modeKey;
+
       const ts = new Date().toISOString();
       // Build colored header labels for each mode
       const active = (bg: string) => `background:${bg};color:#fff;padding:2px 6px;border-radius:3px`;
@@ -555,18 +577,39 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   }, [isEditorMode]);
 
   // MODIFIED: This useEffect focuses purely on resetting UI state when activeZone.id changes.
-  // It no longer directly triggers camera movement but sets isEditorMode(false),
-  // which then triggers the separate isEditorMode useEffect for camera reset.
+  // It now directly applies the custom camera position and then resets editor mode.
   useEffect(() => {
     if (activeZone.id !== 'fallback_zone_id') {
-      // FIX: Corrected typo 'setisEditorMode' to 'setIsEditorMode'
-      setIsEditorMode(false); // This will trigger the next useEffect with isEditorMode=false
+      console.groupCollapsed('%c[ZoneChange] camera + UI reset', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+      console.log('activeZone.id:', activeZone.id);
+      console.log('lightingConfig.customCameraPosition (pre-move):', lightingConfig.customCameraPosition);
+      
+      // Removed redundant double-timer (50ms and 250ms). 
+      // Single 100ms delay to ensure the scene has finished initial mount/render cycles.
+      const timer = setTimeout(() => {
+        try {
+          if (cameraControlRef.current) {
+            console.log('moving camera after 100ms to:', lightingConfig.customCameraPosition || 'DEFAULT');
+            cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
+            initialCameraApplied.current = true; // Also mark as applied to avoid double init
+          }
+        } catch (e) {
+          console.warn('[ZoneChange] exception while moving camera:', e);
+        }
+      }, 100);
+
+      // Reset transient UI states on zone change only
+      setIsEditorMode(false);
       setIsEditorOpen(false);
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
       setHeartEmitterArtworkId(null);
       setisRankingMode(false);
-      setIsZeroGravityMode(false); // NEW: Deactivate zero gravity when zone changes
+      setIsZeroGravityMode(false);
+      console.log('UI states reset for new zone');
+      console.groupEnd();
+
+      return () => { clearTimeout(timer); };
     }
   }, [activeZone.id]);
 
@@ -1092,11 +1135,12 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   }, []);
 
   const handleResetCamera = useCallback(() => {
-    
+    console.groupCollapsed('%c[ResetCamera] user-triggered', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
     if (cameraControlRef.current) {
+      console.log('moving camera to:', lightingConfig.customCameraPosition || 'DEFAULT');
       cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
     }
-    
+    console.groupEnd();
     setFocusedArtworkInstanceId(null);
     setIsArtworkFocusedForControls(false);
     setFocusedArtworkFirebaseId(null);
@@ -1428,7 +1472,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
     return firebaseArt ? firebaseArt.title.toUpperCase() : null;
   }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
 
-  const showGlobalOverlay = isTransitioning || isEffectRegistryLoading; // NEW: Include effect registry loading status
+  const showGlobalOverlay = isTransitioning && (isEffectRegistryLoading || !authResolved || isLoading); // Only show overlay if BOTH transitioning AND loading
   // MODIFIED: Use transitionMessage state for overlay message
   // const overlayMessage = isEffectRegistryLoading ? 'Loading Effects...' : (isTransitioning ? 'Loading Gallery...' : 'Loading Gallery...'); // NEW: Update overlay message
 
@@ -1640,6 +1684,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
             isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass effect registry loading state
             activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
             onUpdateZoneGravity={handleUpdateZoneGravity} // NEW: Pass handler for updating zone gravity
+            isSignedIn={!!user} // NEW: Pass isSignedIn based on user authentication
           />
         </Suspense>
       )}

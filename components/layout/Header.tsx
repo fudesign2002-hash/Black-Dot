@@ -93,12 +93,6 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
   
   const logoRotationStyle = treatAsCompact && isHeaderExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
 
-  const onlineUsersDisplayClasses = `
-    absolute top-[68px] right-0 z-40 flex flex-col items-end gap-1
-    transition-all duration-500 ease-out transform-gpu
-    ${isSmallScreen ? (isHeaderExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none') : 'opacity-100'}
-  `;
-
   return (
     <React.Fragment>
       <div className={`fixed top-10 right-10 z-40 select-none transition-opacity duration-500 overflow-hidden ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
@@ -117,20 +111,21 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
 
             <BlackDotLogo treatAsCompact={treatAsCompact} logoRotationStyle={logoRotationStyle} onClick={handleLogoClick} ariaLabel="Toggle header details" />
         </div>
+      </div>
         
-        <div className={onlineUsersDisplayClasses} style={headerColorStyle}>
-          <div className="relative flex items-center gap-4 leading-none">
-            <Users className={`w-4 h-4 shrink-0 ${uiConfig.lightsOn ? 'text-current' : uiConfig.subtext}`} aria-hidden="true" />
+      {/* Online Users Display - Fixed to bottom right */}
+      <div className="fixed bottom-10 right-10 z-40 select-none" style={headerColorStyle}>
+        <div className="relative flex items-center gap-4 leading-none">
+          <Users className={`w-4 h-4 shrink-0 ${uiConfig.lightsOn ? 'text-current' : uiConfig.subtext}`} aria-hidden="true" />
 
-            <div className="relative flex items-baseline">
-              <span className={`relative text-base font-serif font-medium -top-[6px] -right-[-6px] ${numeratorClasses}`} style={numeratorStyle}>
-                {onlineUsers}
-              </span>
-                    <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
-              <span className={`relative text-xs font-serif font-normal top-[0px] left-[2px] ${denominatorClasses}`}>
-                {zoneCapacity}
-              </span>
-            </div>
+          <div className="relative flex items-baseline">
+            <span className={`relative text-base font-serif font-medium -top-[6px] -right-[-6px] ${numeratorClasses}`} style={numeratorStyle}>
+              {onlineUsers}
+            </span>
+            <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
+            <span className={`relative text-xs font-serif font-normal top-[0px] left-[2px] ${denominatorClasses}`}>
+              {zoneCapacity}
+            </span>
           </div>
         </div>
       </div>

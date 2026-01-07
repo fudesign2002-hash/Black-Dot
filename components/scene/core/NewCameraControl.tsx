@@ -78,6 +78,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const targetPosition = useRef(new THREE.Vector3());
   const targetLookAt = useRef(new THREE.Vector3());
   const lastArtworkMoveTs = useRef<number>(0);
+  const pendingTargetPositionRef = useRef<THREE.Vector3 | null>(null);
 
   const CAMERA_ANIMATION_DURATION = 500;
   const CAMERA_ARTWORK_DISTANCE = 5;
@@ -96,6 +97,25 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     const final = customCameraPosition || INITIAL_CAMERA_POSITION;
 
     const animDuration = duration !== undefined ? duration : 300;
+
+    const targetVec = new THREE.Vector3(final[0], final[1], final[2]);
+
+    // NEW: Smart skip logic
+    // If it's an animation (duration > 0), skip if we are already there or moving there.
+    // If it's a snap (duration 0), always allow it to ensure editor sync.
+    if (animDuration > 0) {
+      if (pendingTargetPositionRef.current && pendingTargetPositionRef.current.distanceTo(targetVec) < 0.01) {
+        return;
+      }
+      if (camera.position.distanceTo(targetVec) < 0.05) {
+        return;
+      }
+    }
+    
+    // Mark this as the pending target for animated moves
+    if (animDuration > 0) {
+        pendingTargetPositionRef.current = targetVec.clone();
+    }
 
     if (animDuration === 0) {
       camera.position.set(final[0], final[1], final[2]);
@@ -123,7 +143,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       props.onCameraAnimationStateChange?.(true);
       props.onCameraPositionChange?.(false);
       // shorter duration for reset to feel quick but smooth
-      setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: toPos, toTarget: toTgt, duration: animDuration, key: 'reset' });
+      // Use dest coordinates in key to avoid duplicate transitions to identical targets
+      const destKey = `reset-${final[0].toFixed(2)}-${final[1].toFixed(2)}-${final[2].toFixed(2)}`;
+      setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: toPos, toTarget: toTgt, duration: animDuration, key: destKey });
       previousCameraPosition.current.copy(new THREE.Vector3(...toPos));
       previousCameraTarget.current.copy(new THREE.Vector3(...toTgt));
     } catch (e) {
@@ -436,32 +458,16 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     }
   });
 
-  // On mount or when lightingConfig.customCameraPosition changes, snap to it if provided
+  // NEW: React to customCameraPosition changes ONLY when in Editor mode.
+  // This enables real-time 3D sync when dragging the camera icon in the 2D Layout tab.
+  // For normal navigation, we rely on the App.tsx explicit call to avoid redundant animations.
   useEffect(() => {
     const custom = props.lightingConfig?.customCameraPosition;
-    if (!custom) return;
+    if (!custom || !props.isEditorOpen) return;
 
-    // Guarded snapping logic:
-    // - if an animation is in progress, don't interrupt it
-    // - if the app is currently performing an artwork-driven move, ignore the prop snap
-    // - if an artwork move happened very recently, ignore (debounce)
-    if (isAnimating.current) {
-      // skipping snap: camera is animating
-      return;
-    }
-    if (props.isCameraMovingToArtwork) {
-      // skipping snap: artwork move in progress
-      return;
-    }
-    const now = performance.now();
-    if (now - lastArtworkMoveTs.current < 800) {
-      // skipping snap due to recent artwork move
-      return;
-    }
-    // snapping to customCameraPosition
-    // If editor is open, snap immediately (duration 0) for better sync during dragging
-    moveCameraToInitial(custom, props.isEditorOpen ? 0 : 300);
-  }, [props.lightingConfig?.customCameraPosition, props.isCameraMovingToArtwork, props.isEditorOpen, moveCameraToInitial]);
+    // In editor mode, we snap immediately (duration 0) for real-time feedback
+    moveCameraToInitial(custom, 0);
+  }, [props.lightingConfig?.customCameraPosition, props.isEditorOpen, moveCameraToInitial]);
 
   // NEW: State to track if Space key is pressed
   const [isSpacePressed, setIsSpacePressed] = useState(false);
@@ -531,6 +537,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
           duration={moveToConfig.duration}
           onComplete={() => {
             // finished move
+            pendingTargetPositionRef.current = null;
             props.onCameraAnimationStateChange?.(false);
             // Determine whether the camera is now at the default initial position.
             // Treat explicit 'reset' and ranking-exit/zerog-exit as at-initial.
@@ -565,8 +572,15 @@ export const NewCameraMoveTo: React.FC<{
   const vEnd = useRef(new THREE.Vector3(...toPosition));
   const tStart = useRef(new THREE.Vector3(...fromTarget));
   const tEnd = useRef(new THREE.Vector3(...toTarget));
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
+    console.groupCollapsed('%c[NewCameraMoveTo] start', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+    console.log('fromPosition:', fromPosition, 'toPosition:', toPosition, 'duration:', duration);
+    console.groupEnd();
     // initialize camera and controls to from values immediately
     camera.position.copy(vStart.current);
     if (controls) {
@@ -594,6 +608,10 @@ export const NewCameraMoveTo: React.FC<{
 
     if (t === 1) {
       isDone.current = true;
+      console.groupCollapsed('%c[NewCameraMoveTo] complete', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+      console.log('final camera.position:', [camera.position.x, camera.position.y, camera.position.z]);
+      if (controls) console.log('final controls.target:', [controls.target.x, controls.target.y, controls.target.z]);
+      console.groupEnd();
       if (onComplete) onComplete();
     }
   });
