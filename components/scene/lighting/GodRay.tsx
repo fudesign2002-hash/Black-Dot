@@ -23,14 +23,14 @@ const GodRay: React.FC<GodRayProps> = ({ isActive, lightsOn, color = "#ffffff", 
     switch (artworkType) {
       case 'canvas_portrait':
       case 'canvas_square':
-        return { rayRadiusBottom: 7, rayHeight: 25 };
+        return { rayRadiusBottom: 11, rayHeight: 25 }; // Increased base from 7 to 11
       case 'canvas_landscape':
       case 'media':
       case 'motion':
-        return { rayRadiusBottom: 6.5, rayHeight: 30 };
+        return { rayRadiusBottom: 10, rayHeight: 30 }; // Increased base from 6.5 to 10
       case 'sculpture_base':
       default:
-        return { rayRadiusBottom: 1.8, rayHeight: 20 };
+        return { rayRadiusBottom: 4, rayHeight: 20 }; // Increased base from 1.8 to 4
     }
   }, [artworkType]);
 
