@@ -47,6 +47,7 @@ interface NewCameraControlProps {
   isZeroGravityMode?: boolean;
   isRankingMode?: boolean;
   isCameraMovingToArtwork?: boolean;
+  isArtworkFocused?: boolean; // NEW: Track if an artwork is currently zoomed-in
   onCameraPositionChange?: (isAtDefault: boolean) => void;
   lightingConfig?: SimplifiedLightingConfig;
   onCameraAnimationStateChange?: (isAnimating: boolean) => void;
@@ -72,6 +73,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const tmpOffset = useRef(new THREE.Vector3());
 
   const isAnimating = useRef(false);
+  const [isAnimatingState, setIsAnimatingState] = useState(false);
   const animationStartTime = useRef(0);
   const startPosition = useRef(new THREE.Vector3());
   const startLookAt = useRef(new THREE.Vector3());
@@ -79,10 +81,11 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const targetLookAt = useRef(new THREE.Vector3());
   const lastArtworkMoveTs = useRef<number>(0);
   const pendingTargetPositionRef = useRef<THREE.Vector3 | null>(null);
+  const lastInteractionTimeRef = useRef<number>(0); // NEW: track last user interaction time
 
   const CAMERA_ANIMATION_DURATION = 500;
-  const CAMERA_ARTWORK_DISTANCE = 5;
-  const CAMERA_PAINTING_CAMERA_Z_DISTANCE = 1;
+  const CAMERA_ARTWORK_DISTANCE = 10; // Updated to 10 as per user request
+  const CAMERA_PAINTING_CAMERA_Z_DISTANCE = 10; // Updated to 10 as per user request
   const CAMERA_ARTWORK_HEIGHT_OFFSET = 0.5;
   const CAMERA_PAINTING_CAMERA_Y_OFFSET = -18;
 
@@ -118,6 +121,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     }
 
     if (animDuration === 0) {
+      if (controlsRef.current) {
+        controlsRef.current.minDistance = 10;
+      }
       camera.position.set(final[0], final[1], final[2]);
       controlsRef.current.update();
       previousCameraPosition.current.copy(camera.position);
@@ -161,6 +167,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const moveCameraToArtwork = useCallback((artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => {
     if (!controlsRef.current) return;
 
+    // Set minDistance manually to ensure immediate effect during animation
+    controlsRef.current.minDistance = 10;
+
     // Save current camera state before moving
     previousCameraPosition.current.copy(camera.position);
     previousCameraTarget.current.copy(controlsRef.current.target);
@@ -202,6 +211,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
     // Begin animation
     isAnimating.current = true;
+    setIsAnimatingState(true);
     animationStartTime.current = performance.now();
     controlsRef.current.enabled = false;
     if (props.onCameraPositionChange) props.onCameraPositionChange(false);
@@ -233,6 +243,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     targetLookAt.current.set(...target);
 
     isAnimating.current = true;
+    setIsAnimatingState(true);
     animationStartTime.current = performance.now();
     controlsRef.current.enabled = false;
     if (props.onCameraPositionChange) props.onCameraPositionChange(false);
@@ -368,6 +379,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     };
 
     const onChange = () => {
+      lastInteractionTimeRef.current = performance.now(); // Update timestamp
       if (!isUserDraggingRef.current) return;
       // We no longer use distance to decide drag; keep updating live pos and throttle emits
       lastUserPos.current.copy(camera.position);
@@ -378,6 +390,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     };
 
     const onEnd = () => {
+      lastInteractionTimeRef.current = performance.now(); // Update timestamp
       isUserDraggingRef.current = false;
       setIsUserDragging(false);
       lastUserPos.current.copy(camera.position);
@@ -440,6 +453,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
       if (t === 1) {
         isAnimating.current = false;
+        setIsAnimatingState(false);
         controlsRef.current.enabled = !props.isEditorOpen;
         if (props.onCameraAnimationStateChange) props.onCameraAnimationStateChange(false);
         if (props.onCameraPositionChange) {
@@ -455,6 +469,44 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       }
     } else {
       controlsRef.current.update();
+    }
+
+    // NEW: Soft bounce logic for navigation
+    // Improved: Detect absolute idle state (800ms) and trigger a ONE-TIME smooth animation back to 16.
+    // This prevents "shaking" or "fighting" the user during active interaction.
+    if (
+        !isAnimating.current && 
+        !isUserDragging && 
+        !props.isArtworkFocused && 
+        !moveToConfig && 
+        !props.isEditorOpen &&
+        performance.now() - lastInteractionTimeRef.current > 800 && // Significant idle threshold
+        controlsRef.current
+    ) {
+        const controls = controlsRef.current;
+        const dist = camera.position.distanceTo(controls.target);
+        const SOFT_MIN_DIST = 16;
+        
+        if (dist < SOFT_MIN_DIST - 0.1) {
+            // Calculate direction from target to camera
+            const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+            // Target position exactly at SOFT_MIN_DIST
+            const bounceTarget = new THREE.Vector3().copy(controls.target).add(dir.multiplyScalar(SOFT_MIN_DIST));
+            
+            // Trigger a single smooth animation instead of frame-by-frame lerp
+            const fromPos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
+            const fromTgt: [number, number, number] = [controls.target.x, controls.target.y, controls.target.z];
+            const toPos: [number, number, number] = [bounceTarget.x, bounceTarget.y, bounceTarget.z];
+            
+            setMoveToConfig({
+                fromPosition: fromPos,
+                fromTarget: fromTgt,
+                toPosition: toPos,
+                toTarget: fromTgt,
+                duration: 400, // Quick but smooth bounce
+                key: 'soft-bounce'
+            });
+        }
     }
   });
 
@@ -509,11 +561,10 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       enablePan={true}
       screenSpacePanning={true}
       enableZoom={true}
-      minPolarAngle={0}
-      maxPolarAngle={Math.PI / 2}
+      maxPolarAngle={Math.PI / 2.01}
       enableDamping
       dampingFactor={0.05}
-      minDistance={9}
+      minDistance={props.isArtworkFocused || moveToConfig || isAnimatingState ? 10 : 15}
       maxDistance={40}
       // keep target in sync with INITIAL_CAMERA_TARGET until moved
       target={INITIAL_CAMERA_TARGET}
@@ -540,8 +591,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
             pendingTargetPositionRef.current = null;
             props.onCameraAnimationStateChange?.(false);
             // Determine whether the camera is now at the default initial position.
-            // Treat explicit 'reset' and ranking-exit/zerog-exit as at-initial.
-            const atInitial = ['ranking-exit', 'zerog-exit', 'reset'].includes(moveToConfig.key || '');
+            // Treat explicit 'reset' (starts with 'reset'), ranking-exit/zerog-exit as at-initial.
+            const k = moveToConfig.key || '';
+            const atInitial = ['ranking-exit', 'zerog-exit'].includes(k) || k.startsWith('reset');
             props.onCameraPositionChange(atInitial);
             setMoveToConfig(null);
           }}
@@ -577,6 +629,10 @@ export const NewCameraMoveTo: React.FC<{
   useEffect(() => {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
+
+    if (controls) {
+      controls.minDistance = 10;
+    }
 
     console.groupCollapsed('%c[NewCameraMoveTo] start', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
     console.log('fromPosition:', fromPosition, 'toPosition:', toPosition, 'duration:', duration);

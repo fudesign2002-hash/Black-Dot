@@ -40,17 +40,13 @@ const GodRay: React.FC<GodRayProps> = ({ isActive, lightsOn, color = "#ffffff", 
     if (meshRef.current) {
       const material = meshRef.current.material as THREE.MeshBasicMaterial;
 
-      let targetOpacity;
-      if (!lightsOn && isEditorMode) {
-        targetOpacity = isActive ? 0.05 : 0.01;
-      } else {
-        targetOpacity = isActive ? 0.04 : 0.04;
-      }
+      // Uniform opacity regardless of editor mode
+      const targetOpacity = isActive ? 0.04 : 0.01;
 
       material.opacity = THREE.MathUtils.lerp(
         material.opacity,
         targetOpacity,
-        delta * 3
+        delta * 8 // Speed up transition (was 3)
       );
     }
   });

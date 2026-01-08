@@ -97,7 +97,6 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
                 // DEV-only instrumentation removed to reduce console noise
               } catch (e) {}
               setRawExhibitionDocs(snapshot.docs);
-              console.log('exhibitions snapshot docs:', snapshot.size);
               loadedFlags.exhibitions = true;
               checkAllLoaded();
           }, (error) => {
@@ -109,7 +108,6 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
         const unsubscribeZones = zonesColRef.onSnapshot((snapshot) => {
           // [log removed] zones snapshot
           setZones(processFirebaseZones(snapshot.docs));
-          console.log('zones snapshot docs:', snapshot.size);
           loadedFlags.zones = true;
           checkAllLoaded();
       }, (error) => {
@@ -128,7 +126,6 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
             // DEV-only log removed to reduce console noise
           } catch (e) {}
           setRawArtworkDocs(snapshot.docs);
-          console.log('artworks snapshot docs:', snapshot.size);
           loadedFlags.artworks = true;
           checkAllLoaded();
       }, (error) => {

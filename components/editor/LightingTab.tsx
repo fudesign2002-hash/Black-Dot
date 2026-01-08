@@ -19,6 +19,18 @@ interface LightingTabProps {
   // REMOVED: useExhibitionBackground: boolean;
 }
 
+const fixedSpotlightPalette = ['#FFFFFF', '#FFFBEB', '#FFDDDD', '#DDEEFF', '#E0FFEE', '#FFEECC', '#CCEEFF', '#FFCCEE', '#EEEEEE', '#FFEEAA'];
+
+const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode; border: string; controlBgClass: string }> = ({ label, value, children, border, controlBgClass }) => (
+    <div className={`p-4 rounded-xl border flex flex-col items-start gap-3 ${border} ${controlBgClass}`}>
+        <div className="w-full flex justify-between items-center">
+            <p className="text-sm font-medium">{label}</p>
+            {value && <p className="text-[10px] font-mono uppercase opacity-50">{value}</p>}
+        </div>
+        {children}
+    </div>
+);
+
 const LightingTab: React.FC<LightingTabProps> = React.memo(({
   uiConfig,
   lightingConfig,
@@ -74,17 +86,6 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
     const applyPreset = useCallback((preset: SimplifiedLightingPreset) => onUpdateLighting({ ...lightingConfig, lightsOn: true, ambientIntensity: preset.ambientIntensity, colorTemperature: preset.colorTemperature, spotlightMode: 'manual', manualSpotlightColor: preset.manualSpotlightColor }), [onUpdateLighting, lightingConfig]);
 
     const availablePresets = fullZoneLightingDesign.recommendedPresets;
-    const fixedSpotlightPalette = useMemo(() => ['#FFFFFF', '#FFFBEB', '#FFDDDD', '#DDEEFF', '#E0FFEE', '#FFEECC', '#CCEEFF', '#FFCCEE', '#EEEEEE', '#FFEEAA'], []);
-
-    const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode }> = ({ label, value, children }) => (
-        <div className={`p-4 rounded-xl border flex flex-col items-start gap-3 ${border} ${controlBgClass}`}>
-            <div className="w-full flex justify-between items-center">
-                <p className="text-sm font-medium">{label}</p>
-                {value && <p className="text-[10px] font-mono uppercase opacity-50">{value}</p>}
-            </div>
-            {children}
-        </div>
-    );
 
     return (
         <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
@@ -104,14 +105,24 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
                     </div>
                 </div>
 
-                <ControlRow label="Ambient Environment" value={`${lightingConfig.colorTemperature}K`}>
+                <ControlRow label="Ambient Environment" value={`${lightingConfig.colorTemperature}K`} border={border} controlBgClass={controlBgClass}>
                     <div className="w-full flex items-center gap-3">
                         <span className="text-amber-500"><Sun className="w-4 h-4" /></span>
-                        <input type="range" min="2700" max="7500" step="100" value={lightingConfig.colorTemperature} onChange={e => handleLightingValueChange('colorTemperature', Number(e.target.value))} className="w-full h-1 bg-gradient-to-r from-amber-500 to-blue-500 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-::-webkit-slider-thumb]:shadow" />
+                        <input 
+                            type="range" 
+                            min="2700" 
+                            max="7500" 
+                            step="100" 
+                            value={lightingConfig.colorTemperature} 
+                            onChange={e => handleLightingValueChange('colorTemperature', Number(e.target.value))} 
+                            onPointerDown={e => e.stopPropagation()}
+                            onMouseDown={e => e.stopPropagation()}
+                            className="w-full h-1 bg-gradient-to-r from-amber-500 to-blue-500 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-300 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:shadow-lg" 
+                        />
                         <span className="text-blue-500"><Moon className="w-4 h-4" /></span>
                     </div>
                 </ControlRow>
-                <ControlRow label="Master Lights" value={lightingConfig.lightsOn ? 'ON' : 'OFF'}>
+                <ControlRow label="Master Lights" value={lightingConfig.lightsOn ? 'ON' : 'OFF'} border={border} controlBgClass={controlBgClass}>
                     <label htmlFor="lights-on-toggle" className="relative inline-flex items-center cursor-pointer">
                         <input
                             type="checkbox"
@@ -128,7 +139,7 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
                 </ControlRow>
 
                 {!lightingConfig.lightsOn && (
-                  <ControlRow label="Spotlight Palette">
+                  <ControlRow label="Spotlight Palette" border={border} controlBgClass={controlBgClass}>
                     <div className="w-full flex items-center justify-start gap-3 flex-wrap">
                         {fixedSpotlightPalette.map((color: string) => (
                             <button key={color} onClick={() => handleSpotlightColorSelect(color)} className={`w-10 h-10 rounded-full border-2 transition-all duration-200 ${lightingConfig.manualSpotlightColor === color && lightingConfig.spotlightMode === 'manual' ? 'border-cyan-500 scale-110 shadow-lg' : (lightsOn ? 'border-white hover:border-neutral-300' : 'border-neutral-900 hover:border-neutral-600')}`} style={{ backgroundColor: color }} title={`Set spotlight to ${color}`} />

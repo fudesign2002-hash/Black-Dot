@@ -580,16 +580,12 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   // It now directly applies the custom camera position and then resets editor mode.
   useEffect(() => {
     if (activeZone.id !== 'fallback_zone_id') {
-      console.groupCollapsed('%c[ZoneChange] camera + UI reset', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
-      console.log('activeZone.id:', activeZone.id);
-      console.log('lightingConfig.customCameraPosition (pre-move):', lightingConfig.customCameraPosition);
       
       // Removed redundant double-timer (50ms and 250ms). 
       // Single 100ms delay to ensure the scene has finished initial mount/render cycles.
       const timer = setTimeout(() => {
         try {
           if (cameraControlRef.current) {
-            console.log('moving camera after 100ms to:', lightingConfig.customCameraPosition || 'DEFAULT');
             cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition);
             initialCameraApplied.current = true; // Also mark as applied to avoid double init
           }
@@ -606,8 +602,6 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
       setHeartEmitterArtworkId(null);
       setisRankingMode(false);
       setIsZeroGravityMode(false);
-      console.log('UI states reset for new zone');
-      console.groupEnd();
 
       return () => { clearTimeout(timer); };
     }
@@ -1563,6 +1557,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
           isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass effect registry loading state
           zoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
           onLoadingStatusChange={setIsSceneLoading} // NEW: Pass loading status callback
+          isArtworkFocusedForControls={isArtworkFocusedForControls} // ADDED: Pass the focus state
         />
       </React.Fragment>
 

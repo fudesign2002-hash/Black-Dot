@@ -42,6 +42,85 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Music: Music,
 };
 
+const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode; border: string; controlBgClass: string }> = ({ label, value, children, border, controlBgClass }) => (
+    <div className={`p-4 rounded-xl border flex flex-col items-start gap-3 ${border} ${controlBgClass}`}>
+        <div className="w-full flex justify-between items-center">
+            <p className="text-sm font-medium">{label}</p>
+            {value && <p className="text-[10px] font-mono uppercase opacity-50">{value}</p>}
+        </div>
+        {children}
+    </div>
+);
+
+interface ColorFieldProps {
+  label: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  pickerValue: string;
+  hexValue: string;
+  onPickerChange: (value: string) => void;
+  onTextChange: (value: string) => void;
+  onBlur: () => void;
+  error?: string | null;
+  lightsOn: boolean;
+  disabled?: boolean;
+  textClass: string;
+  controlBgClass: string;
+  onFocus: () => void;
+}
+
+const ColorField: React.FC<ColorFieldProps> = ({
+  label,
+  icon: Icon,
+  pickerValue,
+  hexValue,
+  onPickerChange,
+  onTextChange,
+  onBlur,
+  error,
+  lightsOn,
+  disabled = false,
+  textClass,
+  controlBgClass,
+  onFocus,
+}) => (
+  <div className={`w-full rounded-xl border px-3 py-3 ${controlBgClass}`}>
+    <div className="flex items-center gap-2 mb-2">
+      {Icon && <Icon className="w-4 h-4" />}
+      <span className="text-sm font-semibold">{label}</span>
+    </div>
+
+    <div className="flex items-center gap-3">
+      <input
+        type="color"
+        value={pickerValue}
+        onChange={(e) => { if (!disabled) onPickerChange(e.target.value); }}
+        onFocus={onFocus}
+        onMouseDown={(e) => { e.stopPropagation(); }}
+        className={`w-10 h-10 rounded-md border-2 cursor-pointer transition-all duration-150 hover:scale-[1.02] ${lightsOn ? 'border-neutral-300 shadow-sm' : 'border-neutral-700 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={disabled}
+        aria-label={`${label} color`}
+      />
+      <input
+        type="text"
+        value={hexValue}
+        onChange={(e) => { if (!disabled) onTextChange(e.target.value); }}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onMouseDown={(e) => { e.stopPropagation(); }}
+        className={`w-24 text-xs font-mono px-2 py-1 rounded border ${error ? 'border-red-500' : lightsOn ? 'border-neutral-300 bg-white' : 'border-neutral-700 bg-neutral-900'} ${textClass} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={disabled}
+        maxLength={7}
+        placeholder="#FFFFFF"
+        title={`Edit ${label.toLowerCase()} hex code`}
+      />
+    </div>
+
+    {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+    {disabled && label === 'Background' && (
+      <p className="text-xs text-neutral-500 mt-2">Background is disabled when "Use Exhibition Background" is enabled.</p>
+    )}
+  </div>
+);
 
 const SceneTab: React.FC<SceneTabProps> = React.memo(({
   uiConfig,
@@ -247,87 +326,11 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
       isBackgroundEditingRef.current = false;
     }, [onUpdateLighting, lightingConfig, displayedBackgroundColorHex]);
 
-    const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode }> = ({ label, value, children }) => (
-        <div className={`p-4 rounded-xl border flex flex-col items-start gap-3 ${border} ${controlBgClass}`}>
-            <div className="w-full flex justify-between items-center">
-                <p className="text-sm font-medium">{label}</p>
-                {value && <p className="text-[10px] font-mono uppercase opacity-50">{value}</p>}
-            </div>
-            {children}
-        </div>
-    );
-
-    interface ColorFieldProps {
-      label: string;
-      icon?: React.ComponentType<{ className?: string }>;
-      pickerValue: string;
-      hexValue: string;
-      onPickerChange: (value: string) => void;
-      onTextChange: (value: string) => void;
-      onBlur: () => void;
-      error?: string | null;
-      lightsOn: boolean;
-      disabled?: boolean;
-      textClass: string;
-    }
-
-    const ColorField: React.FC<ColorFieldProps> = ({
-      label,
-      icon: Icon,
-      pickerValue,
-      hexValue,
-      onPickerChange,
-      onTextChange,
-      onBlur,
-      error,
-      lightsOn,
-      disabled = false,
-      textClass,
-    }) => (
-      <div className={`w-full rounded-xl border px-3 py-3 ${controlBgClass}`}>
-        <div className="flex items-center gap-2 mb-2">
-          {Icon && <Icon className="w-4 h-4" />}
-          <span className="text-sm font-semibold">{label}</span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <input
-            type="color"
-            value={pickerValue}
-            onChange={(e) => { if (!disabled) onPickerChange(e.target.value); }}
-            onFocus={() => { (label === 'Floor' ? isFloorEditingRef : isBackgroundEditingRef).current = true; }}
-            onMouseDown={(e) => { e.stopPropagation(); }}
-            className={`w-10 h-10 rounded-md border-2 cursor-pointer transition-all duration-150 hover:scale-[1.02] ${lightsOn ? 'border-neutral-300 shadow-sm' : 'border-neutral-700 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-            disabled={disabled}
-            aria-label={`${label} color`}
-          />
-          <input
-            type="text"
-            value={hexValue}
-            onChange={(e) => { if (!disabled) onTextChange(e.target.value); }}
-            onFocus={() => { (label === 'Floor' ? isFloorEditingRef : isBackgroundEditingRef).current = true; }}
-            onBlur={onBlur}
-            onMouseDown={(e) => { e.stopPropagation(); }}
-            className={`w-24 text-xs font-mono px-2 py-1 rounded border ${error ? 'border-red-500' : lightsOn ? 'border-neutral-300 bg-white' : 'border-neutral-700 bg-neutral-900'} ${textClass} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-            disabled={disabled}
-            maxLength={7}
-            placeholder="#FFFFFF"
-            title={`Edit ${label.toLowerCase()} hex code`}
-          />
-        </div>
-
-        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
-        {disabled && label === 'Background' && (
-          <p className="text-xs text-neutral-500 mt-2">Background is disabled when "Use Exhibition Background" is enabled.</p>
-        )}
-      </div>
-    );
-
     return (
         <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
             <div className="space-y-4">
                 {/* NEW: Use Exhibition Background Toggle */}
-                <ControlRow label="Use Exhibition Background" value={useExhibitionBackground ? 'ON' : 'OFF'}>
+                <ControlRow label="Use Exhibition Background" value={useExhibitionBackground ? 'ON' : 'OFF'} border={border} controlBgClass={controlBgClass}>
                   <label htmlFor="exhibition-background-toggle" className="relative inline-flex items-center cursor-pointer">
                       <input
                           type="checkbox"
@@ -350,7 +353,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                 </ControlRow>
 
                 {/* Floor + Background Color selectors (collapsed into a single "Custom Color" button initially) */}
-                <ControlRow label="Colors">
+                <ControlRow label="Colors" border={border} controlBgClass={controlBgClass}>
                   <div className="w-full">
                     {!customExpanded ? (
                       <div className="flex items-center justify-between">
@@ -407,6 +410,8 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                             error={floorColorError}
                             lightsOn={lightsOn}
                             textClass={uiConfig.text}
+                            controlBgClass={controlBgClass}
+                            onFocus={() => { isFloorEditingRef.current = true; }}
                           />
 
                           <ColorField
@@ -421,6 +426,8 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                             error={backgroundColorError}
                             lightsOn={lightsOn}
                             textClass={uiConfig.text}
+                            controlBgClass={controlBgClass}
+                            onFocus={() => { isBackgroundEditingRef.current = true; }}
                           />
                         </div>
                         <div className="mt-2 flex justify-end">

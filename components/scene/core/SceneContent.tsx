@@ -71,6 +71,24 @@ const SceneContent: React.FC<SceneProps> = ({
   const LOG_COLORS = false; // Toggle debug logs for color updates
   const { lightsOn } = lightingConfig;
 
+  // NEW: Find the most central artwork for "Lights Off" fallback in editor mode
+  const centralArtworkId = useMemo(() => {
+    if (!artworks || artworks.length === 0) return null;
+    let minDistanceSq = Infinity;
+    let centralId = artworks[0].id;
+    
+    artworks.forEach(art => {
+      const pos = art.originalPosition || art.position;
+      // Calculate 2D distance on XZ plane to find the center artwork regardless of height
+      const distanceSq = pos[0] * pos[0] + pos[2] * pos[2];
+      if (distanceSq < minDistanceSq) {
+        minDistanceSq = distanceSq;
+        centralId = art.id;
+      }
+    });
+    return centralId;
+  }, [artworks]);
+
   const dirLight1Ref = useRef<THREE.DirectionalLight>(null);
   const dirLight2Ref = useRef<THREE.DirectionalLight>(null);
   const floorMatRef = useRef<THREE.MeshStandardMaterial>(null);
@@ -536,7 +554,7 @@ const SceneContent: React.FC<SceneProps> = ({
     const targetMainLightIntensity = lightsOn ? 3.5 : 0;
     const targetBgIntensity = lightsOn ? 1.0 : 0.15; // Keep background slightly visible but dark
 
-    const lerpFactor = Math.min(1, delta * 4);
+    const lerpFactor = Math.min(1, delta * 8); // Speed up transition (was 4)
     envIntensityRef.current = THREE.MathUtils.lerp(envIntensityRef.current, targetEnvIntensity, lerpFactor);
     mainLightIntensityRef.current = THREE.MathUtils.lerp(mainLightIntensityRef.current, targetMainLightIntensity, lerpFactor);
 
@@ -582,6 +600,10 @@ const SceneContent: React.FC<SceneProps> = ({
 
   return (
     <React.Fragment>
+        <ambientLight 
+          intensity={lightsOn ? (lightingConfig.ambientIntensity ?? 0.8) : 0.05} 
+          color="#ffffff" 
+        />
         {/* FIX: Use THREE.Vector3 for position */}
         <directionalLight
             ref={dirLight1Ref}
@@ -662,7 +684,10 @@ const SceneContent: React.FC<SceneProps> = ({
 
               const isProximityFocusedInDark = !isEditorMode && !lightsOn && !focusedArtworkInstanceId && index === focusedIndex && !isRankingMode && !isZeroGravityMode; // NEW: Add !isZeroGravityMode to condition
 
-              const isSmartSpotlightActive = isExplicitlyFocused || isProximityFocusedInDark;
+              // NEW: In editor mode, if lights are off and nothing is selected, highlight the central artwork
+              const isEditorFallbackInDark = isEditorMode && !lightsOn && !selectedArtworkId && art.id === centralArtworkId;
+
+              const isSmartSpotlightActive = isExplicitlyFocused || isProximityFocusedInDark || isEditorFallbackInDark;
 
               // NEW: Apply a global Y offset for photography artworks to lower them in the scene
               const PHOTOGRAPHY_Y_OFFSET = -1.5;
@@ -773,6 +798,7 @@ const SceneContent: React.FC<SceneProps> = ({
           onUserInteractionStart={onUserCameraInteractionStart}
           onUserInteractionEnd={onUserCameraInteractionEnd}
           lightingConfig={lightingConfig}
+          isArtworkFocused={isArtworkFocusedForControls}
         />
         {!lightsOn && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && (
           <ProximityHandler

@@ -62,7 +62,7 @@ export interface SceneProps {
 const Scene: React.FC<SceneProps> = (props) => {
   return (
     <Canvas
-      shadows
+      shadows="soft"
       gl={{
         // FIX: 更正 'antial.ias' 為 'antialias'
         antialias: true,

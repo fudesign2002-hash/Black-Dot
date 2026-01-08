@@ -53,16 +53,24 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
   
   useFrame((state, delta) => {
     if (lightRef.current) {
-      const targetIntensity = (isActive && (isEditorMode || !lightsOn) ? 1.0 : 0); 
+      let targetIntensity = 0;
+      if (isActive) {
+        // Uniform intensity regardless of editor mode
+        if (!lightsOn) {
+          targetIntensity = 0.2;
+        } else {
+          targetIntensity = 0.2; // Keep it subtly active even when lights are on if focused
+        }
+      }
         
       lightRef.current.intensity = THREE.MathUtils.lerp(
         lightRef.current.intensity,
         targetIntensity,
-        delta * 3
+        delta * 8 // Speed up transition (was 3)
       );
       
-      lightRef.current.angle = THREE.MathUtils.lerp(lightRef.current.angle, spotlightAngle, delta * 3);
-      lightRef.current.distance = THREE.MathUtils.lerp(lightRef.current.distance, spotlightDistance, delta * 3);
+      lightRef.current.angle = THREE.MathUtils.lerp(lightRef.current.angle, spotlightAngle, delta * 8); // Speed up transition (was 3)
+      lightRef.current.distance = THREE.MathUtils.lerp(lightRef.current.distance, spotlightDistance, delta * 8); // Speed up transition (was 3)
 
       // NEW: Soft-start shadows - only enable when intensity is high enough
       // This avoids sudden shadow map allocation lag at the very start of the transition
@@ -82,23 +90,25 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
         ref={lightRef}
         position={spotPosition}
         angle={spotlightAngle}
-        penumbra={0.4} 
+        penumbra={0.8} 
         distance={spotlightDistance}
-        decay={1} 
+        decay={2} 
         castShadow={castShadow} 
         color={memoColor}
         shadow-bias={-0.0001}
         shadow-normalBias={0.03}
-        shadow-mapSize={[512, 512]}
+        shadow-mapSize={[1024, 1024]}
+        shadow-radius={5}
       />
       {shouldShowEffects && <pointLight 
         position={pointLightLocalPosition} 
-        intensity={isActive ? 10.0 : 0} 
-        distance={9} 
-        decay={0.6} 
+        intensity={isActive ? 8.0 : 0} 
+        distance={12} 
+        decay={1.2} 
         color={memoColor} 
-        castShadow={castShadow} 
-        shadow-mapSize={[512, 512]}
+        castShadow={false} 
+        shadow-mapSize={[1024, 1024]}
+        shadow-radius={5}
         shadow-bias={-0.0001}
         shadow-normalBias={0.05}
       />}
