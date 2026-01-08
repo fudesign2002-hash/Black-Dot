@@ -67,6 +67,7 @@ const SceneContent: React.FC<SceneProps> = ({
   zoneGravity, // NEW: Destructure zoneGravity
   isEffectRegistryLoading, // NEW: Destructure isEffectRegistryLoading
   onLoadingStatusChange, // NEW: Destructure onLoadingStatusChange
+  isEmbed, // NEW: Destructure isEmbed
 }) => {
   const LOG_COLORS = false; // Toggle debug logs for color updates
   const { lightsOn } = lightingConfig;
@@ -799,7 +800,7 @@ const SceneContent: React.FC<SceneProps> = ({
           onUserInteractionEnd={onUserCameraInteractionEnd}
           lightingConfig={lightingConfig}
           isArtworkFocused={isArtworkFocusedForControls}
-          isEmbed={props.isEmbed}
+          isEmbed={isEmbed}
         />
         {!lightsOn && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && (
           <ProximityHandler
