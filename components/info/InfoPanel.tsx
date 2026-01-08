@@ -207,61 +207,72 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                  </div>
                ) : (
                 <React.Fragment>
-                   <div className={`grid grid-cols-2 gap-6 mb-12 p-8 bg-neutral-500/5 border ${uiConfig.border}`}>
-                       <div className="flex items-start gap-4">
-                         <Calendar className={`w-4 h-4 mt-0.5 opacity-40 ${uiConfig.text}`} />
-                         <div>
-                           <p className={`text-[10px] font-bold uppercase opacity-40 mb-2 ${uiConfig.text}`}>Dates</p>
-                           {exhibitionDateLines.length === 0 ? (
-                            <p className={`text-sm font-mono tracking-tight ${uiConfig.subtext}`}>N/A</p>
-                           ) : (
-                            exhibitionDateLines.map((line, idx) => (
-                              <p key={`date-line-${idx}`} className={`text-sm font-mono tracking-tight ${uiConfig.text} ${idx === 0 ? '' : 'mt-1'}`}>{line}</p>
-                            ))
-                           )}
-                         </div>
-                       </div>
-                      <div className="flex items-start gap-4">
-                         <Clock className={`w-4 h-4 mt-0.5 opacity-40 ${uiConfig.text}`} />
-                         <div>
-                            <p className={`text-[10px] font-bold uppercase opacity-40 mb-2 ${uiConfig.text}`}>Hours</p>
-                            {exhibitionHoursParts.length === 0 ? (
-                              <p className={`text-sm font-mono tracking-tight ${uiConfig.subtext}`}>N/A</p>
-                            ) : exhibitionHoursParts.length === 1 ? (
-                              <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{exhibitionHoursParts[0]}</p>
-                            ) : (
-                              <>
-                                <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{exhibitionHoursParts[0]}</p>
-                                <p className={`text-sm font-mono tracking-tight ${uiConfig.text} mt-1`}>{exhibitionHoursParts[1]}</p>
-                              </>
-                            )}
-                         </div>
-                      </div>
-                      <div className="flex items-start gap-4 col-span-2 pt-6 border-t border-neutral-500/10">
-                         <MapPin className={`w-4 h-4 mt-0.5 opacity-40 ${uiConfig.text}`} />
-                         <div>
-                            <p className={`text-[10px] font-bold uppercase opacity-40 mb-2 ${uiConfig.text}`}>Venue</p>
-                            <p className={`text-sm ${activeExhibition.venue ? uiConfig.text : uiConfig.subtext}`}>{activeExhibition.venue || 'N/A'}</p>
-                         </div>
-                      </div>
-                      <div className="flex items-start gap-4 col-span-2 pt-6 border-t border-neutral-500/10">
-                         <Ticket className={`w-4 h-4 mt-0.5 opacity-40 ${uiConfig.text}`} />
-                         <div>
-                            <p className={`text-[10px] font-bold uppercase opacity-40 mb-2 ${uiConfig.text}`}>Admission</p>
-                            <p className={`text-sm ${activeExhibition.admission ? uiConfig.text : uiConfig.subtext}`}>{activeExhibition.admission}</p>
-                         </div>
-                      </div>
-                   </div>
+                   {(exhibitionDateLines.length > 0 || 
+                     exhibitionHoursParts.length > 0 || 
+                     (activeExhibition.venue && activeExhibition.venue.trim() !== '') || 
+                     (activeExhibition.admission && activeExhibition.admission.trim() !== '')) && (
+                     <div className={`grid grid-cols-2 gap-6 mb-12 p-8 bg-neutral-500/5 border ${uiConfig.border}`}>
+                         {exhibitionDateLines.length > 0 && (
+                           <div className="flex items-start gap-4">
+                             <Calendar className={`w-4 h-4 mt-0.5 opacity-40 ${uiConfig.text}`} />
+                             <div>
+                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-2 ${uiConfig.text}`}>Dates</p>
+                               {exhibitionDateLines.map((line, idx) => (
+                                 <p key={`date-line-${idx}`} className={`text-sm font-mono tracking-tight ${uiConfig.text} ${idx === 0 ? '' : 'mt-1'}`}>{line}</p>
+                               ))}
+                             </div>
+                           </div>
+                         )}
+                         {exhibitionHoursParts.length > 0 && (
+                           <div className="flex items-start gap-4">
+                             <Clock className={`w-4 h-4 mt-0.5 opacity-40 ${uiConfig.text}`} />
+                             <div>
+                                <p className={`text-[10px] font-bold uppercase opacity-40 mb-2 ${uiConfig.text}`}>Hours</p>
+                                {exhibitionHoursParts.length === 1 ? (
+                                  <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{exhibitionHoursParts[0]}</p>
+                                ) : (
+                                  <>
+                                    <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{exhibitionHoursParts[0]}</p>
+                                    <p className={`text-sm font-mono tracking-tight ${uiConfig.text} mt-1`}>{exhibitionHoursParts[1]}</p>
+                                  </>
+                                )}
+                             </div>
+                           </div>
+                         )}
+                         {activeExhibition.venue && activeExhibition.venue.trim() !== '' && (
+                           <div className={`flex items-start gap-4 ${exhibitionDateLines.length > 0 || exhibitionHoursParts.length > 0 ? 'col-span-2 pt-6 border-t border-neutral-500/10' : 'col-span-2'}`}>
+                              <MapPin className={`w-4 h-4 mt-0.5 opacity-40 ${uiConfig.text}`} />
+                              <div>
+                                 <p className={`text-[10px] font-bold uppercase opacity-40 mb-2 ${uiConfig.text}`}>Venue</p>
+                                 <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.venue}</p>
+                              </div>
+                           </div>
+                         )}
+                         {activeExhibition.admission && activeExhibition.admission.trim() !== '' && (
+                           <div className={`flex items-start gap-4 col-span-2 pt-6 border-t border-neutral-500/10`}>
+                              <Ticket className={`w-4 h-4 mt-0.5 opacity-40 ${uiConfig.text}`} />
+                              <div>
+                                 <p className={`text-[10px] font-bold uppercase opacity-40 mb-2 ${uiConfig.text}`}>Admission</p>
+                                 <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.admission}</p>
+                              </div>
+                           </div>
+                         )}
+                     </div>
+                   )}
 
                    <div className="space-y-8">
-                      <div className={`flex items-center gap-4 border-b pb-4 ${uiConfig.border}`}>
-                         <span className={`text-xs font-bold tracking-[0.2em] uppercase ${uiConfig.text}`}>Overview</span>
-                      </div>
-                      <div className={`space-y-6 ${uiConfig.subtext}`}>
-                        <p className="text-sm leading-8 font-light whitespace-pre-wrap">{activeExhibition.overview}</p>
-                      </div>
+                      {activeExhibition.overview && activeExhibition.overview.trim() !== '' && (
+                        <>
+                          <div className={`flex items-center gap-4 border-b pb-4 ${uiConfig.border}`}>
+                             <span className={`text-xs font-bold tracking-[0.2em] uppercase ${uiConfig.text}`}>Overview</span>
+                          </div>
+                          <div className={`space-y-6 ${uiConfig.subtext}`}>
+                            <p className="text-sm leading-8 font-light whitespace-pre-wrap">{activeExhibition.overview}</p>
+                          </div>
+                        </>
+                      )}
                       
-                      {activeExhibition.supportedBy && ( 
+                      {activeExhibition.supportedBy && activeExhibition.supportedBy.trim() !== '' && ( 
                         <div className={`pt-8 border-t ${uiConfig.border} flex flex-col gap-4 opacity-50`}>
                             <p className={`text-[10px] font-bold uppercase ${uiConfig.text}`}>Supported By</p>
                             <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.supportedBy}</p>

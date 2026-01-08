@@ -93,25 +93,34 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const RANKING_CAMERA_TARGET: [number, number, number] = [0, 1, 0];
 
   // Minimal implementations for now — will be filled in step-by-step
-  const moveCameraToInitial = useCallback((customCameraPosition?: [number, number, number], duration?: number) => {
+  const moveCameraToInitial = useCallback((customPosition?: [number, number, number], duration?: number) => {
     if (!controlsRef.current) return;
-    // Debug: emit stack trace to help identify who invoked this
-    // debug trace removed
-    const final = customCameraPosition || INITIAL_CAMERA_POSITION;
+    
+    // Stop any active frame-based animations
+    isAnimating.current = false;
+    setIsAnimatingState(false);
+    controlsRef.current.enabled = !props.isEditorOpen;
 
-    const animDuration = duration !== undefined ? duration : 300;
+    // Use current camera and controls as start points for the moveToConfig animation
+    const fromPos = [camera.position.x, camera.position.y, camera.position.z] as [number, number, number];
+    const fromTgt = [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] as [number, number, number];
 
-    const targetVec = new THREE.Vector3(final[0], final[1], final[2]);
+    // Priority: arg customPosition > current prop lightingConfig > absolute system center
+    const toPosition = customPosition || props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
+    const toTgt = INITIAL_CAMERA_TARGET; // always reset target to [0, 1, 0]
 
-    // NEW: Smart skip logic
-    // If it's an animation (duration > 0), skip if we are already there or moving there.
-    // If it's a snap (duration 0), always allow it to ensure editor sync.
+    const animDuration = duration !== undefined ? duration : 1200; // default 1.2s for user reset
+    const targetVec = new THREE.Vector3(...toPosition);
+
+    // Skip logic for performance if already there and it's an animation
     if (animDuration > 0) {
       if (pendingTargetPositionRef.current && pendingTargetPositionRef.current.distanceTo(targetVec) < 0.01) {
         return;
       }
       if (camera.position.distanceTo(targetVec) < 0.05) {
-        return;
+        // Even if position matches, we might need to reset the target, so only skip if BOTH match
+        const targetDist = controlsRef.current.target.distanceTo(new THREE.Vector3(...toTgt));
+        if (targetDist < 0.05) return;
       }
     }
     
@@ -121,48 +130,44 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     }
 
     if (animDuration === 0) {
-      if (controlsRef.current) {
-        controlsRef.current.minDistance = 10;
-      }
-      camera.position.set(final[0], final[1], final[2]);
+      camera.position.set(...toPosition);
+      controlsRef.current.target.set(...toTgt);
       controlsRef.current.update();
       previousCameraPosition.current.copy(camera.position);
+      previousCameraTarget.current.copy(controlsRef.current.target);
       props.onCameraPositionChange?.(true);
       setMoveToConfig(null);
       return;
     }
 
-    // Preserve existing look-at target; only set camera position (customCameraPosition is position-only)
-    startPosition.current.copy(camera.position);
-    startLookAt.current.copy(controlsRef.current.target);
+    // Set internal refs as well for legacy check in frame
+    targetPosition.current.copy(targetVec);
+    targetLookAt.current.set(...toTgt);
 
-    targetPosition.current.set(final[0], final[1], final[2]);
-    targetLookAt.current.copy(controlsRef.current.target);
-
-    // Animate smoothly to the initial position instead of snapping
+    // Trigger animation via moveToConfig
     try {
-      const fromPos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
-      const fromTgt: [number, number, number] = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] : INITIAL_CAMERA_TARGET;
-      const toPos = final as [number, number, number];
-      const toTgt = fromTgt;
-      // trigger animation using the moveToConfig helper
       props.onCameraAnimationStateChange?.(true);
       props.onCameraPositionChange?.(false);
-      // shorter duration for reset to feel quick but smooth
-      // Use dest coordinates in key to avoid duplicate transitions to identical targets
-      const destKey = `reset-${final[0].toFixed(2)}-${final[1].toFixed(2)}-${final[2].toFixed(2)}`;
-      setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: toPos, toTarget: toTgt, duration: animDuration, key: destKey });
-      previousCameraPosition.current.copy(new THREE.Vector3(...toPos));
+      
+      const destKey = `reset-${Date.now()}`;
+      setMoveToConfig({ 
+        fromPosition: fromPos, 
+        fromTarget: fromTgt, 
+        toPosition: toPosition, 
+        toTarget: toTgt, 
+        duration: animDuration, 
+        key: destKey 
+      });
+      
+      previousCameraPosition.current.copy(targetVec);
       previousCameraTarget.current.copy(new THREE.Vector3(...toTgt));
     } catch (e) {
-      // fallback to immediate snap if animation setup fails
-      camera.position.copy(targetPosition.current);
+      camera.position.set(...toPosition);
+      controlsRef.current.target.set(...toTgt);
       controlsRef.current.update();
-      previousCameraPosition.current.copy(targetPosition.current);
-      previousCameraTarget.current.copy(targetLookAt.current);
       props.onCameraPositionChange?.(true);
     }
-  }, [camera, props.onCameraPositionChange, props.onCameraAnimationStateChange]);
+  }, [camera, props.onCameraPositionChange, props.onCameraAnimationStateChange, props.lightingConfig?.customCameraPosition, props.isEditorOpen]);
 
   const moveCameraToArtwork = useCallback((artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => {
     if (!controlsRef.current) return;
@@ -457,8 +462,11 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         controlsRef.current.enabled = !props.isEditorOpen;
         if (props.onCameraAnimationStateChange) props.onCameraAnimationStateChange(false);
         if (props.onCameraPositionChange) {
-          // Determine whether camera is at initial by comparing to INITIAL_CAMERA_POSITION
-            const atInitial = camera.position.distanceTo(tmpInitialCameraPos.current) < 0.1;
+          // Determine whether camera is at initial by comparing position AND target to the active preset/default
+          const defaultPos = props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
+          const posDist = camera.position.distanceTo(new THREE.Vector3(...defaultPos));
+          const tgtDist = controlsRef.current.target.distanceTo(new THREE.Vector3(...INITIAL_CAMERA_TARGET));
+          const atInitial = posDist < 0.2 && tgtDist < 0.2;
           props.onCameraPositionChange(atInitial);
         }
         // After animation completes, log the current camera position and whether it matches user custom or system default
@@ -480,6 +488,8 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         !props.isArtworkFocused && 
         !moveToConfig && 
         !props.isEditorOpen &&
+        !props.isRankingMode && // NEW: Disable bounce in ranking mode
+        !props.isZeroGravityMode && // NEW: Disable bounce in zero gravity mode
         performance.now() - lastInteractionTimeRef.current > 800 && // Significant idle threshold
         controlsRef.current
     ) {
@@ -564,12 +574,28 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       maxPolarAngle={Math.PI / 2.01}
       enableDamping
       dampingFactor={0.05}
-      minDistance={props.isArtworkFocused || moveToConfig || isAnimatingState ? 10 : 15}
+      minDistance={props.isArtworkFocused || props.isRankingMode || props.isZeroGravityMode || moveToConfig || isAnimatingState ? 10 : 15}
       maxDistance={40}
       // keep target in sync with INITIAL_CAMERA_TARGET until moved
       target={INITIAL_CAMERA_TARGET}
       enabled={!props.isEditorOpen}
       enableRotate={true}
+      onStart={() => {
+        setIsUserDragging(true);
+        lastInteractionTimeRef.current = performance.now();
+      }}
+      onEnd={() => {
+        setIsUserDragging(false);
+        lastInteractionTimeRef.current = performance.now();
+        // Check if we are at initial after manual move
+        if (props.onCameraPositionChange) {
+          const defaultPos = props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
+          const posDist = camera.position.distanceTo(new THREE.Vector3(...defaultPos));
+          const tgtDist = controlsRef.current.target.distanceTo(new THREE.Vector3(...INITIAL_CAMERA_TARGET));
+          const atInitial = posDist < 0.2 && tgtDist < 0.2;
+          props.onCameraPositionChange(atInitial);
+        }
+      }}
     />
       {isUserDragging && (
         <NewCameraCurrent onChange={(pos, tgt) => {

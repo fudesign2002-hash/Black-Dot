@@ -322,7 +322,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             artist: data.artist || 'Unknown Artist',
             dates: (data.dateFrom && data.dateTo) ? `${data.dateFrom} – ${data.dateTo}` : (data.dates || 'N/A'),
             overview: data.overview || 'No overview available.',
-            admission: data.admissionPrice || data.admission || 'N/A',
+            admission: data.admission || data.admissionPrice || 'N/A', // MODIFIED: Prioritize admission field
             status: normalizeStatus(data.status),
             tags: Array.isArray(data.tags) ? data.tags : [],
             posterColor: data.posterColor || 'bg-gray-700',

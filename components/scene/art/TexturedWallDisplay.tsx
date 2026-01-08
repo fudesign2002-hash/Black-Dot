@@ -375,6 +375,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 map={finalMapTexture}
                 roughness={1}
                 metalness={0}
+                envMapIntensity={0.2}
                 transparent={true}
                 opacity={opacityRef.current}
               />
@@ -398,7 +399,16 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 scale={[artWidth, artHeight, 1]}
               >
                 <primitive object={unitPlaneGeo} attach="geometry" />
-                <meshStandardMaterial ref={artworkMaterialRef as any} attach="material" map={finalMapTexture} roughness={1} metalness={0} transparent={true} opacity={opacityRef.current} />
+                <meshStandardMaterial 
+                  ref={artworkMaterialRef as any} 
+                  attach="material" 
+                  map={finalMapTexture} 
+                  roughness={1} 
+                  metalness={0} 
+                  envMapIntensity={0.2}
+                  transparent={true} 
+                  opacity={opacityRef.current} 
+                />
               </mesh>
           </group>
         )}

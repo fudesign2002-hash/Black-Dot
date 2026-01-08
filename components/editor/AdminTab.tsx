@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition } from '../../types';
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Image } from 'lucide-react'; // NEW: Import Image icon
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy } from 'lucide-react'; // REMOVED: Image icon
 
 interface AdminTabProps {
   uiConfig: {
@@ -22,7 +22,7 @@ const DEBOUNCE_DELAY = 700;
 // NEW: Explicitly define the keys of Exhibition that are string or string | undefined
 type ExhibitionEditableFieldKeys =
   'title' | 'subtitle' | 'overview' | 'dateFrom' | 'dateTo' |
-  'venue' | 'hours' | 'admissionLink' | 'artist' | 'dates' | 'admission' | 'supportedBy' | 'exhibit_poster'; // NEW: Add exhibit_poster
+  'venue' | 'hours' | 'admissionLink' | 'admission' | 'supportedBy'; // REMOVED: artist, dates, exhibit_poster
 
 // FIX: Refactored InputFieldProps to be generic to prevent 'never' type errors
 interface InputFieldProps<T extends ExhibitionEditableFieldKeys> {
@@ -31,8 +31,8 @@ interface InputFieldProps<T extends ExhibitionEditableFieldKeys> {
   icon: React.ComponentType<{ className?: string }>;
   inputType?: string;
   isTextArea?: boolean;
-  value: string | undefined;
-  onChange: (value: string | undefined, field: T) => void; // onChange uses generic T
+  value: string; // MODIFIED: Use string instead of string | undefined
+  onChange: (value: string, field: T) => void; // onChange uses generic T and string
   statusIcon: React.ReactNode;
   uiConfig: AdminTabProps['uiConfig'];
   className?: string;
@@ -48,7 +48,7 @@ function InputFieldComponent<T extends ExhibitionEditableFieldKeys>({
   const displayValue = value || '';
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const newValue = e.target.value === '' ? undefined : e.target.value;
+    const newValue = e.target.value; // MODIFIED: Allow empty strings instead of converting to undefined
     onChange(newValue, field);
   }, [onChange, field]);
 
@@ -84,21 +84,18 @@ function InputFieldComponent<T extends ExhibitionEditableFieldKeys>({
 const InputField: typeof InputFieldComponent = React.memo(InputFieldComponent) as typeof InputFieldComponent;
 
 const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibition, onUpdateExhibition }) => {
-  // FIX: Type localExhibition with Record<ExhibitionEditableFieldKeys, string | undefined>
-  const [localExhibition, setLocalExhibition] = useState<Record<ExhibitionEditableFieldKeys, string | undefined>>(() => ({
-    title: activeExhibition.title,
-    subtitle: activeExhibition.subtitle,
-    overview: activeExhibition.overview,
-    dateFrom: activeExhibition.dateFrom || undefined,
-    dateTo: activeExhibition.dateTo || undefined,
-    venue: activeExhibition.venue || undefined,
-    hours: activeExhibition.hours || undefined,
-    admissionLink: activeExhibition.admissionLink || undefined,
-    artist: activeExhibition.artist,
-    dates: activeExhibition.dates,
-    admission: activeExhibition.admission,
-    supportedBy: activeExhibition.supportedBy || undefined,
-    exhibit_poster: activeExhibition.exhibit_poster || undefined, // NEW: Initialize exhibit_poster
+  // FIX: Type localExhibition with Record<ExhibitionEditableFieldKeys, string> to consistently use strings
+  const [localExhibition, setLocalExhibition] = useState<Record<ExhibitionEditableFieldKeys, string>>(() => ({
+    title: activeExhibition.title || '',
+    subtitle: activeExhibition.subtitle || '',
+    overview: activeExhibition.overview || '',
+    dateFrom: activeExhibition.dateFrom || '',
+    dateTo: activeExhibition.dateTo || '',
+    venue: activeExhibition.venue || '',
+    hours: activeExhibition.hours || '',
+    admissionLink: activeExhibition.admissionLink || '',
+    admission: activeExhibition.admission || '',
+    supportedBy: activeExhibition.supportedBy || '',
   }));
   // FIX: Type updateStatus with Partial<Record<ExhibitionEditableFieldKeys, ...>> to allow empty object initialization
   const [updateStatus, setUpdateStatus] = useState<Partial<Record<ExhibitionEditableFieldKeys, 'idle' | 'saving' | 'saved' | 'error'>>>({});
@@ -128,21 +125,18 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
   }, []);
 
   useEffect(() => {
-    // FIX: Initialize local state with exhibition fields, handling potential undefined values
-    const initialLocalExhibition: Record<ExhibitionEditableFieldKeys, string | undefined> = {
-      title: activeExhibition.title,
-      subtitle: activeExhibition.subtitle,
-      overview: activeExhibition.overview,
-      dateFrom: activeExhibition.dateFrom || undefined,
-      dateTo: activeExhibition.dateTo || undefined,
-      venue: activeExhibition.venue || undefined,
-      hours: activeExhibition.hours || undefined,
-      admissionLink: activeExhibition.admissionLink || undefined,
-      artist: activeExhibition.artist,
-      dates: activeExhibition.dates,
-      admission: activeExhibition.admission,
-      supportedBy: activeExhibition.supportedBy || undefined,
-      exhibit_poster: activeExhibition.exhibit_poster || undefined, // NEW: Initialize exhibit_poster
+    // FIX: Initialize local state with exhibition fields, handling potential undefined/empty values
+    const initialLocalExhibition: Record<ExhibitionEditableFieldKeys, string> = {
+      title: activeExhibition.title || '',
+      subtitle: activeExhibition.subtitle || '',
+      overview: activeExhibition.overview || '',
+      dateFrom: activeExhibition.dateFrom || '',
+      dateTo: activeExhibition.dateTo || '',
+      venue: activeExhibition.venue || '',
+      hours: activeExhibition.hours || '',
+      admissionLink: activeExhibition.admissionLink || '',
+      admission: activeExhibition.admission || '',
+      supportedBy: activeExhibition.supportedBy || '',
     };
     setLocalExhibition(initialLocalExhibition);
     // FIX: Clear updateStatus by setting an empty object, now compatible with Partial<Record>
@@ -152,13 +146,12 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
     timeoutRefs.current = {};
   }, [activeExhibition]);
 
-  // FIX: Update handleChange signature to match new signature (value, field) and be generic
+  // FIX: Update handleChange signature to accept string and be generic
   const handleChange = useCallback(<T extends ExhibitionEditableFieldKeys>(
-    value: string | undefined,
+    value: string,
     field: T
   ) => {
     // FIX: Refactored state update to use the spread syntax for creating the new state.
-    // This is generally more reliable for TypeScript's inference with dynamic keys.
     setLocalExhibition(prev => ({
       ...prev,
       [field]: value,
@@ -175,6 +168,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
         // FIX: Call the defined handleUpdateStatus
         handleUpdateStatus(field, 'saving');
         try {
+          // MODIFIED: value is now guaranteed to be a string (possibly empty)
           const updatedField: Partial<Exhibition> = { [field]: value };
           if ((import.meta as any).env?.DEV) {
             // eslint-disable-next-line no-console
@@ -267,33 +261,20 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
           </div>
         </div>
 
-        <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
-          <h4 className="font-bold text-sm mb-4">Exhibition Details for "{activeExhibition.title}"</h4>
-          <p className={`text-sm leading-relaxed ${subtext}`}>
-            Edit the core information for this exhibition. Changes will be saved automatically.
-          </p>
-        </div>
-
-        {/* FIX: Update onChange calls to match new signature (value, field) */}
         <InputField label="Title" field="title" icon={FileText} value={localExhibition.title} onChange={handleChange} statusIcon={getStatusIcon('title')} uiConfig={uiConfig} />
         <InputField label="Subtitle" field="subtitle" icon={Layout} value={localExhibition.subtitle} onChange={handleChange} statusIcon={getStatusIcon('subtitle')} uiConfig={uiConfig} />
-        <InputField label="Overview" field="overview" icon={FileText} isTextArea value={localExhibition.overview} onChange={handleChange} statusIcon={getStatusIcon('overview')} uiConfig={uiConfig} />
 
         <div className="flex gap-4">
           <InputField label="Date From" field="dateFrom" icon={Calendar} inputType="date" value={localExhibition.dateFrom} onChange={handleChange} statusIcon={getStatusIcon('dateFrom')} uiConfig={uiConfig} className="flex-1" />
           <InputField label="Date To" field="dateTo" icon={Calendar} inputType="date" value={localExhibition.dateTo} onChange={handleChange} statusIcon={getStatusIcon('dateTo')} uiConfig={uiConfig} className="flex-1" />
         </div>
 
-        <InputField label="Venue" field="venue" icon={MapPin} value={localExhibition.venue} onChange={handleChange} statusIcon={getStatusIcon('venue')} uiConfig={uiConfig} />
         <InputField label="Hours" field="hours" icon={Clock} value={localExhibition.hours} onChange={handleChange} statusIcon={getStatusIcon('hours')} uiConfig={uiConfig} />
-        <InputField label="Purchase Ticket Link" field="admissionLink" icon={Ticket} value={localExhibition.admissionLink} onChange={handleChange} statusIcon={getStatusIcon('admissionLink')} uiConfig={uiConfig} />
-
-        {/* Add more fields here from ExhibitionEditableFieldKeys if needed, following the pattern */}
-        <InputField label="Artist" field="artist" icon={FileText} value={localExhibition.artist} onChange={handleChange} statusIcon={getStatusIcon('artist')} uiConfig={uiConfig} />
-        <InputField label="Dates (Display)" field="dates" icon={Calendar} value={localExhibition.dates} onChange={handleChange} statusIcon={getStatusIcon('dates')} uiConfig={uiConfig} />
-        <InputField label="Admission (Display)" field="admission" icon={Ticket} value={localExhibition.admission} onChange={handleChange} statusIcon={getStatusIcon('admission')} uiConfig={uiConfig} />
+        <InputField label="Venue" field="venue" icon={MapPin} value={localExhibition.venue} onChange={handleChange} statusIcon={getStatusIcon('venue')} uiConfig={uiConfig} />
+        <InputField label="Admission" field="admission" icon={Ticket} value={localExhibition.admission} onChange={handleChange} statusIcon={getStatusIcon('admission')} uiConfig={uiConfig} />
+        <InputField label="Overview" field="overview" icon={FileText} isTextArea value={localExhibition.overview} onChange={handleChange} statusIcon={getStatusIcon('overview')} uiConfig={uiConfig} />
         <InputField label="Supported By" field="supportedBy" icon={FileText} value={localExhibition.supportedBy} onChange={handleChange} statusIcon={getStatusIcon('supportedBy')} uiConfig={uiConfig} />
-        <InputField label="Exhibition Poster URL" field="exhibit_poster" icon={Image} value={localExhibition.exhibit_poster} onChange={handleChange} statusIcon={getStatusIcon('exhibit_poster')} uiConfig={uiConfig} />
+        <InputField label="Purchase Ticket Link" field="admissionLink" icon={Ticket} value={localExhibition.admissionLink} onChange={handleChange} statusIcon={getStatusIcon('admissionLink')} uiConfig={uiConfig} />
 
 
         {/* Embed panel moved to top */}
