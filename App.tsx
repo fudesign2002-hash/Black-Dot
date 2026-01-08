@@ -1637,7 +1637,31 @@ function MuseumApp({
         onEditorModeToggle={() => {
           setIsEditorMode(prev => !prev);
         }}
-        onEditorOpen={() => setIsEditorOpen(true)}
+        onEditorOpen={() => {
+          if (isEditorOpen) {
+            setIsEditorOpen(false);
+            setIsEditorMode(false);
+          } else {
+            // 1. Manually reset all special modes to clear potential animation conflicts
+            setisRankingMode(false);
+            setIsZeroGravityMode(false);
+            setFocusedArtworkInstanceId(null);
+            setIsArtworkFocusedForControls(false);
+            setHeartEmitterArtworkId(null);
+            setIsResetCameraEnable(false);
+
+            // 2. Set editor mode
+            setIsEditorMode(true);
+            setIsEditorOpen(true);
+
+            // 3. Trigger smooth camera move with a slight delay to ensure other state-driven animations are bypassed
+            setTimeout(() => {
+              if (cameraControlRef.current) {
+                cameraControlRef.current.moveCameraToInitial(lightingConfig.customCameraPosition, 600);
+              }
+            }, 100);
+          }
+        }}
         setIsSearchOpen={setIsSearchOpen}
         onResetCamera={handleResetCamera}
         setIsDevToolsOpen={setIsDevToolsOpen}
@@ -1676,7 +1700,10 @@ function MuseumApp({
         <Suspense fallback={null}>
           <FloorPlanEditor
             isOpen={isEditorOpen}
-            onClose={() => setIsEditorOpen(false)}
+            onClose={() => {
+              setIsEditorOpen(false);
+              setIsEditorMode(false);
+            }}
             isEditorMode={isEditorMode}
             lightingConfig={lightingConfig}
             onUpdateLighting={handleLightingUpdate}

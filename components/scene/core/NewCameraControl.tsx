@@ -103,7 +103,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const pendingTargetPositionRef = useRef<THREE.Vector3 | null>(null);
   const lastInteractionTimeRef = useRef<number>(0); // NEW: track last user interaction time
 
-  const CAMERA_ANIMATION_DURATION = 500;
+  const CAMERA_ANIMATION_DURATION = 600;
   const CAMERA_ARTWORK_DISTANCE = 10; // Updated to 10 as per user request
   const CAMERA_PAINTING_CAMERA_Z_DISTANCE = 10; // Updated to 10 as per user request
   const CAMERA_ARTWORK_HEIGHT_OFFSET = 0.5;
@@ -119,7 +119,6 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     // Stop any active frame-based animations
     isAnimating.current = false;
     setIsAnimatingState(false);
-    controlsRef.current.enabled = !props.isEditorOpen;
 
     // Use current camera and controls as start points for the moveToConfig animation
     const fromPos = [camera.position.x, camera.position.y, camera.position.z] as [number, number, number];
@@ -129,7 +128,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     const toPosition = customPosition || props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
     const toTgt = INITIAL_CAMERA_TARGET; // always reset target to [0, 1, 0]
 
-    const animDuration = duration !== undefined ? duration : 1200; // default 1.2s for user reset
+    const animDuration = duration !== undefined ? duration : 600; // default 0.6s for user reset
     const targetVec = new THREE.Vector3(...toPosition);
 
     // Skip logic for performance if already there and it's an animation
@@ -293,8 +292,8 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     // Ensure camera FOV is set from configurable prop or default on mount/prop change
     try {
       const fov = props.cameraFov ?? DEFAULT_CAMERA_FOV;
-      if (camera && typeof fov === 'number') {
-        camera.fov = fov;
+      if (camera && 'fov' in camera && typeof fov === 'number') {
+        (camera as THREE.PerspectiveCamera).fov = fov;
         // update projection matrix so change takes effect
         camera.updateProjectionMatrix();
       }
@@ -329,6 +328,12 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         props.onCameraPositionChange?.(false);
         setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: RANKING_CAMERA_POSITION, toTarget: RANKING_CAMERA_TARGET, duration: CAMERA_ANIMATION_DURATION, key: 'ranking' });
       } else {
+        // MODIFIED: If editor is open, skip the ranking-exit animation to let moveCameraToInitial handle it
+        if (props.isEditorOpen) {
+          prevRankingRef.current = now;
+          return;
+        }
+
         const fromPos = [camera.position.x, camera.position.y, camera.position.z] as [number, number, number];
         const fromTgt = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] as [number, number, number] : INITIAL_CAMERA_TARGET;
         // Restore previously saved camera (if any), otherwise fallback to custom/initial
@@ -363,6 +368,12 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         props.onCameraPositionChange?.(false);
         setMoveToConfig({ fromPosition: fromPos, fromTarget: fromTgt, toPosition: dest, toTarget: fromTgt, duration: CAMERA_ANIMATION_DURATION, key: 'zerog' });
       } else {
+        // MODIFIED: If editor is open, skip the zerog-exit animation to let moveCameraToInitial handle it
+        if (props.isEditorOpen) {
+          prevZeroRef.current = now;
+          return;
+        }
+
         const fromPos = [camera.position.x, camera.position.y, camera.position.z] as [number, number, number];
         const fromTgt = controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] as [number, number, number] : INITIAL_CAMERA_TARGET;
         const dest = props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
@@ -553,11 +564,24 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   // NEW: React to customCameraPosition changes ONLY when in Editor mode.
   // This enables real-time 3D sync when dragging the camera icon in the 2D Layout tab.
   // For normal navigation, we rely on the App.tsx explicit call to avoid redundant animations.
+  const isFirstEditorRenderRef = useRef(true);
   useEffect(() => {
-    const custom = props.lightingConfig?.customCameraPosition;
-    if (!custom || !props.isEditorOpen) return;
+    if (!props.isEditorOpen) {
+      isFirstEditorRenderRef.current = true;
+      return;
+    }
 
-    // In editor mode, we snap immediately (duration 0) for real-time feedback
+    const custom = props.lightingConfig?.customCameraPosition;
+    if (!custom) return;
+
+    // Skip the immediate snap if this is the first time the editor is opening,
+    // as App.tsx handles the smooth entry animation.
+    if (isFirstEditorRenderRef.current) {
+      isFirstEditorRenderRef.current = false;
+      return;
+    }
+
+    // In editor mode, we snap immediately (duration 0) for real-time feedback while dragging
     moveCameraToInitial(custom, 0);
   }, [props.lightingConfig?.customCameraPosition, props.isEditorOpen, moveCameraToInitial]);
 
@@ -608,7 +632,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       maxDistance={40}
       // keep target in sync with INITIAL_CAMERA_TARGET until moved
       target={INITIAL_CAMERA_TARGET}
-      enabled={!props.isEditorOpen}
+      enabled={!props.isEditorOpen || !!moveToConfig}
       enableRotate={true}
       onStart={() => {
         setIsUserDragging(true);

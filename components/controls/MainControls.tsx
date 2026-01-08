@@ -116,29 +116,25 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const nextPrevAnimationClasses = `transition-all duration-500 ease-out ${hideNextPrevOnSmallScreen ? 'opacity-0 translate-x-full pointer-events-none' : 'opacity-100 translate-x-0'}`;
 
   // NEW: Logic for conditional divider rendering
-  // MODIFIED: Hide lights toggle if in zero gravity mode
-  const hasLightsToggle = !isEditorMode && !isRankingMode && !isZeroGravityMode && !hideLightsControl; // MODIFIED: Hide lights toggle if hideLightsControl is true
-  // MODIFIED: Hide editor mode toggle if in zero gravity mode
+  // MODIFIED: In simplified editor flow, we don't hide buttons anymore when isEditorMode is true
+  const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl; 
+  // MODIFIED: Hide editor mode toggle if in zero gravity mode. Now uses MapIcon and opens editor directly.
   const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && !!isSignedIn && !isEmbed;
-  const hasEditorOpenSearch = isEditorMode; // Includes both editor open and search
-  // REMOVED: const hasEffectButtons = !isEditorMode && !isRankingMode && !isArtworkFocusedForControls; // NEW: Effects can be toggled if not in editor or ranking mode, and not focused on artwork
-
+  
   // Determine right-side buttons based on their visibility conditions
   // Temporarily hide DevTools toggle
   const hasDevToolsToggle = false;
-  // MODIFIED: Hide if in ranking mode, focused on artwork, or in zero gravity mode
-  // Show reset iff global flag is enabled AND not in ranking/zero-gravity modes
+  // MODIFIED: In simplified editor flow, keep reset and ranking buttons visible
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
-  const hasRankingToggle = !isEditorMode && !isZeroGravityMode && !hideRankingControl; // MODIFIED: Hide ranking toggle if hideRankingControl is true
-  const hasZeroGravityToggle = !isEditorMode && !isRankingMode && !hideZeroGravityControl; // MODIFIED: Hide zero gravity toggle if hideZeroGravityControl is true
-  // MODIFIED: Add !isRankingMode, !isZeroGravityMode to hide small screen navigation in ranking/zero gravity mode
-  const hasSmallScreenNav = isSmallScreen && !isEditorMode && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && !isEmbed; // Only show if not focused AND not in ranking/zero gravity mode and not embed
+  const hasRankingToggle = !isZeroGravityMode && !hideRankingControl; 
+  const hasZeroGravityToggle = !isRankingMode && !hideZeroGravityControl; 
+  // MODIFIED: Keep small screen navigation visible in editor mode
+  const hasSmallScreenNav = isSmallScreen && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && !isEmbed; 
 
   // Calculate if there are any visible buttons on the left or right side of the divider
-  // MODIFIED: Remove effect buttons from condition
-  const anyLeftButtonsVisible = hasLightsToggle || hasEditorModeToggle || hasEditorOpenSearch; 
-  // MODIFIED: Include hasZeroGravityToggle in right buttons
-  const anyRightButtonsVisible = hasDevToolsToggle || hasResetCamera || hasRankingToggle || hasZeroGravityToggle || hasSmallScreenNav;
+  // MODIFIED: Reordered per user request: [Lights][Ranking][ZeroGravity] | [Editor][Reset][Nav]
+  const anyLeftButtonsVisible = hasLightsToggle || hasRankingToggle || hasZeroGravityToggle; 
+  const anyRightButtonsVisible = hasEditorModeToggle || hasDevToolsToggle || hasResetCamera || hasSmallScreenNav;
 
   const shouldShowDivider = anyLeftButtonsVisible && anyRightButtonsVisible;
 
@@ -212,91 +208,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                     <div className={!lightsOn ? "text-amber-400" : ""}>{lightsOn ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}</div>
                 </button>
             )}
-            {hasEditorModeToggle && (
-                <button onClick={() => {
-                  setHeartEmitterArtworkId(null);
-                  onEditorModeToggle();
-                }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${isEditorMode ? uiConfig.glassActive : uiConfig.glass}`} title="Toggle Editor Mode">
-                    {isEditorMode ? <Unlock className={`w-4 h-4 ${lightsOn ? 'text-cyan-500' : 'text-cyan-400'}`} /> : <Lock className="w-4 h-4" />}
-                </button>
-            )}
 
-            {hasEditorOpenSearch && (
-                <React.Fragment>
-                    <button onClick={() => {
-                      setHeartEmitterArtworkId(null);
-                      onEditorOpen();
-                    }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active-scale-95 ${uiConfig.glass}`} title="Open Zone Editor">
-                        <MapIcon className="w-4 h-4" />
-                    </button>
-                    {/* Temporarily hide Search Exhibitions button */}
-                </React.Fragment>
-            )}
-
-            {/* REMOVED: Effect buttons section */}
-            {/* {hasEffectButtons && ( 
-              <React.Fragment>
-                {shouldShowDivider && (
-                  <div className={`w-px my-3 transition-colors duration-700 ${lightsOn ? 'bg-neutral-300' : 'bg-white/10'}`} />
-                )}
-                {Object.keys(EffectRegistry).map((effectName) => (
-                  <button
-                    key={effectName}
-                    onClick={() => {
-                      setHeartEmitterArtworkId(null);
-                      onEffectToggle(effectName);
-                    }}
-                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${activeEffectName === effectName ? uiConfig.glassActive : uiConfig.glass}`}
-                    title={`Toggle ${effectName} Effect`}
-                    aria-label={`Toggle ${effectName} Effect`}
-                  >
-                    <Sparkles className={`w-4 h-4 ${activeEffectName === effectName && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
-                  </button>
-                ))}
-                {activeEffectName && ( 
-                  <button
-                    onClick={() => {
-                      setHeartEmitterArtworkId(null);
-                      onEffectToggle(activeEffectName); 
-                    }}
-                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`}
-                    title="Deactivate Effect"
-                    aria-label="Deactivate current effect"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </React.Fragment>
-            )} */}
-
-            {shouldShowDivider && (
-              <div className={`w-px my-3 transition-colors duration-700 ${lightsOn ? 'bg-neutral-300' : 'bg-white/10'}`} />
-            )}
-
-            {hasDevToolsToggle && (
-                <button onClick={() => {
-                  setHeartEmitterArtworkId(null);
-                  setIsDevToolsOpen(prev => !prev);
-                }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`} title="Toggle Dev Tools">
-                    <Cpu className="w-4 h-4" />
-                </button>
-            )}
-            {hasResetCamera && (
-              <button
-                onClick={() => {
-                  setHeartEmitterArtworkId(null);
-                  onResetCamera(); 
-                }}
-                className={`
-                  flex items-center justify-center rounded-full transition-all duration-300 ease-out
-                  ${uiConfig.glass} 
-                  w-12 h-12 p-3 opacity-100 scale-100 pointer-events-auto
-                `}
-                title={"Reset View"}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            )}
             {hasRankingToggle && (
               <button
                 onClick={() => {
@@ -327,6 +239,46 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 aria-label={isZeroGravityMode ? 'Exit zero gravity mode' : 'Enter zero gravity mode'}
               >
                 <Orbit className={`w-4 h-4 ${isZeroGravityMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
+              </button>
+            )}
+
+            {/* REMOVED: Effect buttons section */}
+
+            {shouldShowDivider && (
+              <div className={`w-px my-3 transition-colors duration-700 ${lightsOn ? 'bg-neutral-300' : 'bg-white/10'}`} />
+            )}
+
+            {hasEditorModeToggle && (
+                <button onClick={() => {
+                  setHeartEmitterArtworkId(null);
+                  onEditorOpen();
+                }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${isEditorMode ? uiConfig.glassActive : uiConfig.glass}`} title="Open Floor Plan Editor">
+                    <MapIcon className={`w-4 h-4 ${isEditorMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
+                </button>
+            )}
+
+            {hasDevToolsToggle && (
+                <button onClick={() => {
+                  setHeartEmitterArtworkId(null);
+                  setIsDevToolsOpen(prev => !prev);
+                }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`} title="Toggle Dev Tools">
+                    <Cpu className="w-4 h-4" />
+                </button>
+            )}
+            {hasResetCamera && (
+              <button
+                onClick={() => {
+                  setHeartEmitterArtworkId(null);
+                  onResetCamera(); 
+                }}
+                className={`
+                  flex items-center justify-center rounded-full transition-all duration-300 ease-out
+                  ${uiConfig.glass} 
+                  w-12 h-12 p-3 opacity-100 scale-100 pointer-events-auto
+                `}
+                title={"Reset View"}
+              >
+                <RefreshCw className="w-4 h-4" />
               </button>
             )}
 
