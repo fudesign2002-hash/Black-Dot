@@ -11,13 +11,15 @@ interface HeaderProps {
   isHeaderExpanded: boolean;
   setIsHeaderExpanded: (expanded: boolean) => void;
   onlineUsers: number;
+  hideUserCount?: boolean; // NEW: Add hideUserCount prop
+  hideLogo?: boolean; // NEW: Add hideLogo prop
   zoneCapacity: number;
   isEmbed?: boolean;
   useExhibitionBackground?: boolean;
   activeExhibition?: any;
 }
 
-const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, zoneCapacity, isEmbed = false, useExhibitionBackground = false, activeExhibition = null }) => {
+const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, hideUserCount, hideLogo, zoneCapacity, isEmbed = false, useExhibitionBackground = false, activeExhibition = null }) => {
   const treatAsCompact = isSmallScreen || isEmbed;
   const handleLogoClick = () => {
     if (treatAsCompact) {
@@ -95,40 +97,44 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
 
   return (
     <React.Fragment>
-      <div className={`fixed top-10 right-10 z-40 select-none transition-opacity duration-500 overflow-hidden ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
-        <div className={innerFlexContainerClasses} style={headerColorStyle}>
-            <div className={`relative ${treatAsCompact ? (isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-100'}`}>
-              <div className="overflow-hidden h-10">
-                <div className={`flex flex-col justify-center h-10 items-end transform transition-all duration-500 ease-out ${treatAsCompact ? (isHeaderExpanded ? 'translate-x-0' : 'translate-x-full') : 'translate-x-0'}`}>
-                    <h1 className="font-serif text-2xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
-                    <div className="flex items-center gap-1">
-                      <span className={`h-px w-3 ${smallUnderlineClass}`}></span>
-                      <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${subtextClass}`}>museum technology</p>
-                    </div>
+      {!hideLogo && (
+        <div className={`fixed top-10 right-10 z-40 select-none transition-opacity duration-500 overflow-hidden ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
+          <div className={innerFlexContainerClasses} style={headerColorStyle}>
+              <div className={`relative ${treatAsCompact ? (isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-100'}`}>
+                <div className="overflow-hidden h-10">
+                  <div className={`flex flex-col justify-center h-10 items-end transform transition-all duration-500 ease-out ${treatAsCompact ? (isHeaderExpanded ? 'translate-x-0' : 'translate-x-full') : 'translate-x-0'}`}>
+                      <h1 className="font-serif text-2xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
+                      <div className="flex items-center gap-1">
+                        <span className={`h-px w-3 ${smallUnderlineClass}`}></span>
+                        <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${subtextClass}`}>museum technology</p>
+                      </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <BlackDotLogo treatAsCompact={treatAsCompact} logoRotationStyle={logoRotationStyle} onClick={handleLogoClick} ariaLabel="Toggle header details" />
-        </div>
-      </div>
-        
-      {/* Online Users Display - Fixed to bottom right */}
-      <div className="fixed bottom-10 right-10 z-40 select-none" style={headerColorStyle}>
-        <div className="relative flex items-center gap-4 leading-none">
-          <Users className={`w-4 h-4 shrink-0 ${uiConfig.lightsOn ? 'text-current' : uiConfig.subtext}`} aria-hidden="true" />
-
-          <div className="relative flex items-baseline">
-            <span className={`relative text-base font-serif font-medium -top-[6px] -right-[-6px] ${numeratorClasses}`} style={numeratorStyle}>
-              {onlineUsers}
-            </span>
-            <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
-            <span className={`relative text-xs font-serif font-normal top-[0px] left-[2px] ${denominatorClasses}`}>
-              {zoneCapacity}
-            </span>
+              <BlackDotLogo treatAsCompact={treatAsCompact} logoRotationStyle={logoRotationStyle} onClick={handleLogoClick} ariaLabel="Toggle header details" />
           </div>
         </div>
-      </div>
+      )}
+        
+      {/* Online Users Display - Fixed to bottom right */}
+      {!hideUserCount && (
+        <div className="fixed bottom-10 right-10 z-40 select-none" style={headerColorStyle}>
+          <div className="relative flex items-center gap-4 leading-none">
+            <Users className={`w-4 h-4 shrink-0 ${uiConfig.lightsOn ? 'text-current' : uiConfig.subtext}`} aria-hidden="true" />
+
+            <div className="relative flex items-baseline">
+              <span className={`relative text-base font-serif font-medium -top-[6px] -right-[-6px] ${numeratorClasses}`} style={numeratorStyle}>
+                {onlineUsers}
+              </span>
+              <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
+              <span className={`relative text-xs font-serif font-normal top-[0px] left-[2px] ${denominatorClasses}`}>
+                {zoneCapacity}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </React.Fragment>
   );
 });

@@ -286,6 +286,16 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     const now = props.isRankingMode;
     if (prev === undefined) {
       prevRankingRef.current = now;
+      if (now) {
+        setMoveToConfig({ 
+          fromPosition: [camera.position.x, camera.position.y, camera.position.z], 
+          fromTarget: controlsRef.current ? [controlsRef.current.target.x, controlsRef.current.target.y, controlsRef.current.target.z] : INITIAL_CAMERA_TARGET, 
+          toPosition: RANKING_CAMERA_POSITION, 
+          toTarget: RANKING_CAMERA_TARGET, 
+          duration: 1, 
+          key: 'ranking-initial' 
+        });
+      }
       return;
     }
     if (now !== prev) {

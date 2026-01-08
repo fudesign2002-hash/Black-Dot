@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition } from '../../types';
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy } from 'lucide-react'; // REMOVED: Image icon
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box } from 'lucide-react'; // REMOVED: Image icon
 
 interface AdminTabProps {
   uiConfig: {
@@ -102,6 +102,13 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
   // FIX: Type timeoutRefs with Partial<Record<ExhibitionEditableFieldKeys, number | undefined>> to allow empty object initialization
   const timeoutRefs = useRef<Partial<Record<ExhibitionEditableFieldKeys, number | undefined>>>({});
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [embedOptions, setEmbedOptions] = useState({
+      ranking: true,
+      zeroGravity: true,
+      userCount: true,
+      lights: true,
+      logo: true
+  });
 
   const { lightsOn, text, subtext, border, input } = uiConfig;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
@@ -198,8 +205,19 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
   }, [updateStatus]);
 
   const currentOrigin = window.location.origin;
-  const embedUrl = `${currentOrigin}/?embed=true&exhibitionId=${activeExhibition.id}`;
-  const embedCode = `<iframe src="${embedUrl}" width="100%" height="600px" frameborder="0" allowfullscreen></iframe>`;
+  const embedUrl = React.useMemo(() => {
+    let url = `${currentOrigin}/?embed=true&exhibitionId=${activeExhibition.id}`;
+    if (!embedOptions.ranking) url += '&rankingMode=off';
+    if (!embedOptions.zeroGravity) url += '&zeroGravity=off';
+    if (!embedOptions.userCount) url += '&userCount=off';
+    if (!embedOptions.lights) url += '&lights=off';
+    if (!embedOptions.logo) url += '&logo=off';
+    return url;
+  }, [currentOrigin, activeExhibition.id, embedOptions]);
+
+  const embedCode = React.useMemo(() => {
+    return `<iframe src="${embedUrl}" width="100%" height="600px" frameborder="0" allowfullscreen></iframe>`;
+  }, [embedUrl]);
 
   const handleCopy = useCallback(async (textToCopy: string) => {
     try {
@@ -221,6 +239,39 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
           <p className={`text-sm leading-relaxed ${subtext} mb-4`}>
             Use the URL or iframe code below to embed this exhibition into another webpage.
           </p>
+
+          <div className="mb-6 space-y-3">
+              <label className={`block text-xs font-bold uppercase ${subtext}`}>Embed Feature Config</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {[
+                      { id: 'ranking' as const, label: 'Ranking Mode', icon: Trophy },
+                      { id: 'zeroGravity' as const, label: 'Zero Gravity', icon: Orbit },
+                      { id: 'userCount' as const, label: 'Online Users', icon: UsersIcon },
+                      { id: 'lights' as const, label: 'Light Toggle', icon: Sun },
+                      { id: 'logo' as const, label: 'Brand Logo', icon: Box },
+                  ].map((option) => (
+                      <button
+                          key={option.id}
+                          onClick={() => setEmbedOptions(prev => ({ ...prev, [option.id]: !prev[option.id] }))}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                              embedOptions[option.id]
+                                  ? (lightsOn ? 'bg-neutral-900 border-neutral-900 text-white' : 'bg-white border-white text-black')
+                                  : (lightsOn ? 'bg-white border-neutral-200 text-neutral-400' : 'bg-neutral-800 border-neutral-700 text-neutral-500')
+                          }`}
+                      >
+                          <option.icon className={`w-4 h-4 ${embedOptions[option.id] ? (lightsOn ? 'text-orange-400' : 'text-orange-600') : 'text-current opacity-30'}`} />
+                          <span className="text-xs font-bold">{option.label}</span>
+                          <div className={`ml-auto w-4 h-4 rounded border flex items-center justify-center ${
+                              embedOptions[option.id]
+                                  ? (lightsOn ? 'bg-orange-500 border-orange-500' : 'bg-orange-600 border-orange-600')
+                                  : 'border-current opacity-20'
+                          }`}>
+                              {embedOptions[option.id] && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                      </button>
+                  ))}
+              </div>
+          </div>
 
           <div className="mb-4">
               <label className={`block text-xs font-bold uppercase mb-2 ${subtext}`}>Embed URL</label>

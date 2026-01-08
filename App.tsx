@@ -35,7 +35,27 @@ interface SceneRipple {
 // NEW: Define remote URL for effect bundle
 const REMOTE_EFFECT_BUNDLE_URL = "https://firebasestorage.googleapis.com/v0/b/blackdot-1890a.firebasestorage.app/o/effect_bundles%2Feffect_bundle.js?alt=media";
 
-function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMode?: boolean; initialExhibitionId?: string | null; embedFeatures?: string[] } = {}) {
+function MuseumApp({ 
+  embedMode, 
+  initialExhibitionId, 
+  embedFeatures, 
+  initialRankingMode = false,
+  hideRankingControl = false,
+  hideZeroGravityControl = false,
+  hideUserCount = false,
+  hideLightsControl = false,
+  hideLogo = false
+}: { 
+  embedMode?: boolean; 
+  initialExhibitionId?: string | null; 
+  embedFeatures?: string[];
+  initialRankingMode?: boolean;
+  hideRankingControl?: boolean;
+  hideZeroGravityControl?: boolean;
+  hideUserCount?: boolean;
+  hideLightsControl?: boolean;
+  hideLogo?: boolean;
+} = {}) {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -51,7 +71,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
   // Global flag: whether reset button should be enabled/visible. Toggled by user interactions.
   const [isResetCameraEnable, setIsResetCameraEnable] = useState(false);
 
-  const [isRankingMode, setisRankingMode] = useState(false);
+  const [isRankingMode, setisRankingMode] = useState(initialRankingMode);
   const [artworksInRankingOrder, setArtworksInRankingOrder] = useState<ExhibitionArtItem[]>([]);
 
   // NEW: State for Zero Gravity mode
@@ -1569,6 +1589,8 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
         isHeaderExpanded={isHeaderExpanded}
         setIsHeaderExpanded={setIsHeaderExpanded}
         onlineUsers={currentActiveZoneOnlineUsers}
+        hideUserCount={hideUserCount}
+        hideLogo={hideLogo}
         zoneCapacity={zoneCapacity}
         isEmbed={!!embedMode}
         useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
@@ -1607,6 +1629,7 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
         isInfoOpen={isInfoOpen}
         lightsOn={lightsOn}
         onLightToggle={handleLightToggle}
+        hideLightsControl={hideLightsControl}
         isEditorMode={isEditorMode}
         onEditorModeToggle={() => {
           setIsEditorMode(prev => !prev);
@@ -1631,8 +1654,10 @@ function MuseumApp({ embedMode, initialExhibitionId, embedFeatures }: { embedMod
         onLikeTriggered={onLikeTriggered}
         isRankingMode={isRankingMode}
         onRankingToggle={handleRankingToggle}
+        hideRankingControl={hideRankingControl}
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
         onZeroGravityToggle={handleZeroGravityToggle} // NEW: Pass onZeroGravityToggle
+        hideZeroGravityControl={hideZeroGravityControl}
         isSignedIn={isSignedIn}
         isEmbed={!!embedMode}
         isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status
@@ -1768,8 +1793,27 @@ function App() {
   const embedExhibitionId = params.get('exhibitionId');
   const embedFeaturesParam = params.get('embedFeatures') || params.get('embed_features') || '';
   const embedFeatures = embedFeaturesParam ? embedFeaturesParam.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+  
+  const initialRankingMode = params.get('rankingMode') === 'on';
+  const hideRankingControl = params.get('rankingMode') === 'off';
+  const hideZeroGravityControl = params.get('zeroGravity') === 'off';
+  const hideUserCount = params.get('userCount') === 'off';
+  const hideLightsControl = params.get('lights') === 'off';
+  const hideLogo = params.get('logo') === 'off';
 
-  return <MuseumApp embedMode={isEmbedMode} initialExhibitionId={embedExhibitionId} embedFeatures={embedFeatures} />;
+  return (
+    <MuseumApp 
+      embedMode={isEmbedMode} 
+      initialExhibitionId={embedExhibitionId} 
+      embedFeatures={embedFeatures}
+      initialRankingMode={initialRankingMode}
+      hideRankingControl={hideRankingControl}
+      hideZeroGravityControl={hideZeroGravityControl}
+      hideUserCount={hideUserCount}
+      hideLightsControl={hideLightsControl}
+      hideLogo={hideLogo}
+    />
+  );
 }
 
 export default App;

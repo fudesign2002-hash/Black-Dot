@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Scene from './scene/Scene';
 import TransitionOverlay from './ui/TransitionOverlay';
 import SideNavigation from './layout/SideNavigation';
+import Header from './layout/Header';
 import MainControls from './controls/MainControls';
 import InfoPanel from './info/InfoPanel';
 import { useMuseumState } from '../hooks/useMuseumState';
@@ -20,6 +21,12 @@ interface EmbeddedMuseumSceneProps {
 const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const exhibitionIdParam = params.get('exhibitionId');
+  const initialRankingMode = params.get('rankingMode') === 'on';
+  const hideRankingControl = params.get('rankingMode') === 'off';
+  const hideZeroGravityControl = params.get('zeroGravity') === 'off';
+  const hideUserCount = params.get('userCount') === 'off';
+  const hideLightsControl = params.get('lights') === 'off';
+  const hideLogo = params.get('logo') === 'off';
 
   const {
     isLoading,
@@ -34,8 +41,13 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
   } = useMuseumState(true, null, true);
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isRankingMode, setIsRankingMode] = useState(initialRankingMode);
   const [focusedArtworkInstanceId, setFocusedArtworkInstanceId] = useState<string | null>(null);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  useEffect(() => {
+    setIsRankingMode(initialRankingMode);
+  }, [initialRankingMode]);
 
   useEffect(() => {
     const onResize = () => setIsSmallScreen(window.innerWidth < 768);
@@ -79,6 +91,21 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
     <>
       <TransitionOverlay isTransitioning={isLoading} />
 
+      <Header
+        uiConfig={uiConfig}
+        version="EMBED"
+        isInfoOpen={isInfoOpen}
+        isSmallScreen={isSmallScreen}
+        isHeaderExpanded={false}
+        setIsHeaderExpanded={() => {}}
+        onlineUsers={0}
+        hideUserCount={hideUserCount}
+        hideLogo={hideLogo}
+        zoneCapacity={100}
+        isEmbed={true}
+        activeExhibition={activeExhibition as Exhibition}
+      />
+
       <Scene
         lightingConfig={lightingConfig}
         artworks={currentLayout || []}
@@ -101,7 +128,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         triggerHeartEmitter={0}
         heartEmitterArtworkId={null}
         onCanvasClick={() => {}}
-        isRankingMode={false}
+        isRankingMode={isRankingMode}
         isZeroGravityMode={false}
         isSmallScreen={isSmallScreen}
         onCameraPositionChange={() => {}}
@@ -121,6 +148,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         isInfoOpen={isInfoOpen}
         lightsOn={lightsOn}
         onLightToggle={() => {}}
+        hideLightsControl={hideLightsControl}
         isEditorMode={false}
         onEditorModeToggle={() => {}}
         onEditorOpen={() => {}}
@@ -141,10 +169,12 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         onInfoOpen={() => setIsInfoOpen(true)}
         focusedArtworkTitle={null}
         onLikeTriggered={() => {}}
-        isRankingMode={false}
-        onRankingToggle={() => {}}
+        isRankingMode={isRankingMode}
+        onRankingToggle={() => setIsRankingMode(!isRankingMode)}
+        hideRankingControl={hideRankingControl}
         isZeroGravityMode={false}
         onZeroGravityToggle={() => {}}
+        hideZeroGravityControl={hideZeroGravityControl}
         isSignedIn={false}
         isEmbed={true}
         isCameraAtDefaultPosition={true}

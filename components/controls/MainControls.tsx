@@ -9,6 +9,7 @@ interface MainControlsProps {
   isInfoOpen: boolean;
   lightsOn: boolean;
   onLightToggle: () => void;
+  hideLightsControl?: boolean; // NEW: Add hideLightsControl prop
   isEditorMode: boolean;
   onEditorModeToggle: () => void;
   onEditorOpen: () => void;
@@ -31,8 +32,10 @@ interface MainControlsProps {
   onLikeTriggered: (artworkInstanceId: string) => void;
   isRankingMode: boolean;
   onRankingToggle: () => void;
+  hideRankingControl?: boolean; // NEW: Add hideRankingControl prop
   isZeroGravityMode: boolean; // NEW: Add isZeroGravityMode prop
   onZeroGravityToggle: () => void; // NEW: Add onZeroGravityToggle prop
+  hideZeroGravityControl?: boolean; // NEW: Add hideZeroGravityControl prop
   isSignedIn?: boolean; // NEW: whether current user is signed in
   isCameraAtDefaultPosition: boolean; // NEW: Add isCameraAtDefaultPosition prop
   isResetCameraEnable?: boolean; // NEW: Global reset-enable flag
@@ -49,6 +52,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   isInfoOpen,
   lightsOn,
   onLightToggle,
+  hideLightsControl, // NEW: Destructure hideLightsControl
   isEditorMode,
   onEditorModeToggle,
   onEditorOpen,
@@ -71,8 +75,10 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   onLikeTriggered,
   isRankingMode,
   onRankingToggle,
+  hideRankingControl, // NEW: Destructure hideRankingControl
   isZeroGravityMode, // NEW: Destructure isZeroGravityMode
   onZeroGravityToggle, // NEW: Destructure onZeroGravityToggle
+  hideZeroGravityControl, // NEW: Destructure hideZeroGravityControl
   isSignedIn, // NEW: Destructure isSignedIn
   isCameraAtDefaultPosition, // NEW: Destructure isCameraAtDefaultPosition
   isResetCameraEnable, // NEW: Destructure isResetCameraEnable
@@ -111,7 +117,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
 
   // NEW: Logic for conditional divider rendering
   // MODIFIED: Hide lights toggle if in zero gravity mode
-  const hasLightsToggle = !isEditorMode && !isRankingMode && !isZeroGravityMode;
+  const hasLightsToggle = !isEditorMode && !isRankingMode && !isZeroGravityMode && !hideLightsControl; // MODIFIED: Hide lights toggle if hideLightsControl is true
   // MODIFIED: Hide editor mode toggle if in zero gravity mode
   const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && !!isSignedIn && !isEmbed;
   const hasEditorOpenSearch = isEditorMode; // Includes both editor open and search
@@ -123,8 +129,8 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // MODIFIED: Hide if in ranking mode, focused on artwork, or in zero gravity mode
   // Show reset iff global flag is enabled AND not in ranking/zero-gravity modes
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
-  const hasRankingToggle = !isEditorMode && !isZeroGravityMode; // Render ranking toggle; may be disabled when motion artwork present
-  const hasZeroGravityToggle = !isEditorMode && !isRankingMode; // Zero Gravity Toggle (may be disabled when motion artwork present)
+  const hasRankingToggle = !isEditorMode && !isZeroGravityMode && !hideRankingControl; // MODIFIED: Hide ranking toggle if hideRankingControl is true
+  const hasZeroGravityToggle = !isEditorMode && !isRankingMode && !hideZeroGravityControl; // MODIFIED: Hide zero gravity toggle if hideZeroGravityControl is true
   // MODIFIED: Add !isRankingMode, !isZeroGravityMode to hide small screen navigation in ranking/zero gravity mode
   const hasSmallScreenNav = isSmallScreen && !isEditorMode && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && !isEmbed; // Only show if not focused AND not in ranking/zero gravity mode and not embed
 
