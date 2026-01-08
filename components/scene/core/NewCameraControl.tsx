@@ -57,12 +57,32 @@ interface NewCameraControlProps {
   onUserInteractionEnd?: (wasDrag: boolean) => void;
   userCameraThrottleMs?: number;
   cameraFov?: number; // optional override for the camera field of view (degrees)
+  isEmbed?: boolean; // NEW: flag for embed mode zoom behavior
   // Additional props will be added as we migrate logic here
 }
 
 const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraControlProps>((props, ref) => {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const controlsRef = useRef<any>(null);
+  const [isEmbedActive, setIsEmbedActive] = useState(false);
+
+  // NEW: Handle embed mode click-to-activate behavior
+  useEffect(() => {
+    if (!props.isEmbed) return;
+
+    const handleCanvasClick = () => {
+      if (!isEmbedActive) {
+        setIsEmbedActive(true);
+      }
+    };
+
+    gl.domElement.addEventListener('pointerdown', handleCanvasClick);
+
+    return () => {
+      gl.domElement.removeEventListener('pointerdown', handleCanvasClick);
+    };
+  }, [props.isEmbed, isEmbedActive, gl.domElement]);
+
   const previousCameraPosition = useRef(new THREE.Vector3());
   const previousCameraTarget = useRef(new THREE.Vector3());
   // Preallocated temporaries to avoid occasional allocations during frame/end checks
@@ -580,7 +600,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       mouseButtons={mouseButtons}
       enablePan={true}
       screenSpacePanning={true}
-      enableZoom={true}
+      enableZoom={!props.isEmbed || isEmbedActive}
       maxPolarAngle={Math.PI / 2.01}
       enableDamping
       dampingFactor={0.05}

@@ -40,6 +40,7 @@ function MuseumApp({
   initialExhibitionId, 
   embedFeatures, 
   initialRankingMode = false,
+  initialZeroGravityMode = false,
   hideRankingControl = false,
   hideZeroGravityControl = false,
   hideUserCount = false,
@@ -50,6 +51,7 @@ function MuseumApp({
   initialExhibitionId?: string | null; 
   embedFeatures?: string[];
   initialRankingMode?: boolean;
+  initialZeroGravityMode?: boolean;
   hideRankingControl?: boolean;
   hideZeroGravityControl?: boolean;
   hideUserCount?: boolean;
@@ -75,7 +77,7 @@ function MuseumApp({
   const [artworksInRankingOrder, setArtworksInRankingOrder] = useState<ExhibitionArtItem[]>([]);
 
   // NEW: State for Zero Gravity mode
-  const [isZeroGravityMode, setIsZeroGravityMode] = useState(false);
+  const [isZeroGravityMode, setIsZeroGravityMode] = useState(initialZeroGravityMode);
 
   const [isSceneLoading, setIsSceneLoading] = useState(true); // NEW: Track 3D scene loading status
   const isTransitionPendingRef = useRef(true); // NEW: Track if we are waiting for a scene to load after transition
@@ -1578,6 +1580,7 @@ function MuseumApp({
           zoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
           onLoadingStatusChange={setIsSceneLoading} // NEW: Pass loading status callback
           isArtworkFocusedForControls={isArtworkFocusedForControls} // ADDED: Pass the focus state
+          isEmbed={embedMode}
         />
       </React.Fragment>
 
@@ -1796,6 +1799,7 @@ function App() {
   
   const initialRankingMode = params.get('rankingMode') === 'on';
   const hideRankingControl = params.get('rankingMode') === 'off';
+  const initialZeroGravityMode = params.get('zeroGravity') === 'on';
   const hideZeroGravityControl = params.get('zeroGravity') === 'off';
   const hideUserCount = params.get('userCount') === 'off';
   const hideLightsControl = params.get('lights') === 'off';
@@ -1807,6 +1811,7 @@ function App() {
       initialExhibitionId={embedExhibitionId} 
       embedFeatures={embedFeatures}
       initialRankingMode={initialRankingMode}
+      initialZeroGravityMode={initialZeroGravityMode}
       hideRankingControl={hideRankingControl}
       hideZeroGravityControl={hideZeroGravityControl}
       hideUserCount={hideUserCount}

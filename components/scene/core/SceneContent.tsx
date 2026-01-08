@@ -799,6 +799,7 @@ const SceneContent: React.FC<SceneProps> = ({
           onUserInteractionEnd={onUserCameraInteractionEnd}
           lightingConfig={lightingConfig}
           isArtworkFocused={isArtworkFocusedForControls}
+          isEmbed={props.isEmbed}
         />
         {!lightsOn && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && (
           <ProximityHandler

@@ -7,6 +7,7 @@ import SideNavigation from './layout/SideNavigation';
 import Header from './layout/Header';
 import MainControls from './controls/MainControls';
 import InfoPanel from './info/InfoPanel';
+const ZeroGravityLegend = React.lazy(() => import('./ui/ZeroGravityLegend'));
 import { useMuseumState } from '../hooks/useMuseumState';
 import { Exhibition } from '../types';
 
@@ -23,6 +24,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
   const exhibitionIdParam = params.get('exhibitionId');
   const initialRankingMode = params.get('rankingMode') === 'on';
   const hideRankingControl = params.get('rankingMode') === 'off';
+  const initialZeroGravityMode = params.get('zeroGravity') === 'on';
   const hideZeroGravityControl = params.get('zeroGravity') === 'off';
   const hideUserCount = params.get('userCount') === 'off';
   const hideLightsControl = params.get('lights') === 'off';
@@ -42,12 +44,17 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isRankingMode, setIsRankingMode] = useState(initialRankingMode);
+  const [isZeroGravityMode, setIsZeroGravityMode] = useState(initialZeroGravityMode);
   const [focusedArtworkInstanceId, setFocusedArtworkInstanceId] = useState<string | null>(null);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   useEffect(() => {
     setIsRankingMode(initialRankingMode);
   }, [initialRankingMode]);
+
+  useEffect(() => {
+    setIsZeroGravityMode(initialZeroGravityMode);
+  }, [initialZeroGravityMode]);
 
   useEffect(() => {
     const onResize = () => setIsSmallScreen(window.innerWidth < 768);
@@ -86,6 +93,14 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
 
   const nextItem = useMemo(() => (exhibitions.length ? exhibitions[(currentIndex + 1) % exhibitions.length] : null), [exhibitions, currentIndex]);
   const prevItem = useMemo(() => (exhibitions.length ? exhibitions[(currentIndex - 1 + exhibitions.length) % exhibitions.length] : null), [exhibitions, currentIndex]);
+
+  const zeroGravityViews = useMemo(() => {
+    if (!currentLayout || currentLayout.length === 0) return { minViews: 0, maxViews: 0, extraTicks: 0 };
+    const views = currentLayout.map(a => a.view_count || 0);
+    const min = Math.min(...views);
+    const max = Math.max(...views);
+    return { minViews: min, maxViews: max, extraTicks: Math.max(0, max - min) > 0 ? 5 : 0 };
+  }, [currentLayout]);
 
   return (
     <>
@@ -129,7 +144,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         heartEmitterArtworkId={null}
         onCanvasClick={() => {}}
         isRankingMode={isRankingMode}
-        isZeroGravityMode={false}
+        isZeroGravityMode={isZeroGravityMode}
         isSmallScreen={isSmallScreen}
         onCameraPositionChange={() => {}}
         isCameraMovingToArtwork={false}
@@ -139,6 +154,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         effectRegistry={null}
         isEffectRegistryLoading={false}
         zoneGravity={activeZone?.zone_gravity}
+        isEmbed={true}
       />
 
       {/* SideNavigation hidden for embed mode */}
@@ -172,8 +188,8 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         isRankingMode={isRankingMode}
         onRankingToggle={() => setIsRankingMode(!isRankingMode)}
         hideRankingControl={hideRankingControl}
-        isZeroGravityMode={false}
-        onZeroGravityToggle={() => {}}
+        isZeroGravityMode={isZeroGravityMode}
+        onZeroGravityToggle={() => setIsZeroGravityMode(!isZeroGravityMode)}
         hideZeroGravityControl={hideZeroGravityControl}
         isSignedIn={false}
         isEmbed={true}
@@ -193,6 +209,18 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         focusedArtworkFirebaseId={null}
         allFirebaseArtworks={firebaseArtworks}
       />
+
+      {isZeroGravityMode && (
+        <React.Suspense fallback={null}>
+          <ZeroGravityLegend
+            minViews={zeroGravityViews.minViews}
+            maxViews={zeroGravityViews.maxViews}
+            extraTicks={zeroGravityViews.extraTicks}
+            visible={isZeroGravityMode && !isLoading}
+            isSmallScreen={isSmallScreen}
+          />
+        </React.Suspense>
+      )}
     </>
   );
 };
