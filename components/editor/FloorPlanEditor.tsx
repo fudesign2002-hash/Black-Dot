@@ -304,6 +304,8 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                   await onUpdateExhibition(exhibitionId, updatedFields);
                   triggerSaveNotification();
                 }}
+                currentLayout={currentLayout}
+                firebaseArtworks={firebaseArtworks}
             />
         )}
       </div>

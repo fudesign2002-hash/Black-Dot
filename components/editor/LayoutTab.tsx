@@ -32,20 +32,22 @@ interface LayoutTabProps {
 }
 
 const PADDING_PERCENT = 3;
-const SCENE_BOUNDS_X = 24;
-const SCENE_BOUNDS_Z = 24; // MODIFIED: Changed from 12 to 24 to shorten perceived distance and make grid denser.
+const SCENE_BOUNDS_X = 48; // MODIFIED: Changed from 24 to 48 to zoom out the 2D map scale (halving perceived distance)
+const SCENE_BOUNDS_Z = 48; // MODIFIED: Changed from 24 to 48 to zoom out the 2D map scale (halving perceived distance)
 
 const ARTWORK_DIMENSIONS_2D: Record<ArtType, { width: number; depth: number }> = {
-  canvas_portrait: { width: 8.0, depth: 1.0 },
-  canvas_landscape: { width: 17.0, depth: 1.0 },
-  canvas_square: { width: 7.0, depth: 1.0 },
+  canvas_portrait: { width: 12.0, depth: 1.0 },
+  canvas_landscape: { width: 24.0, depth: 1.0 },
+  canvas_square: { width: 10.0, depth: 1.0 },
   sculpture_base: { width: 6.0, depth: 6.0 },
-  media: { width: 17.0, depth: 1.0 },
-  motion: { width: 17.0, depth: 1.0 },
+  media: { width: 24.0, depth: 1.0 },
+  motion: { width: 24.0, depth: 1.0 },
 };
 
 const DIRECTIONAL_LIGHT_Y = 5; 
 const CAMERA_FIXED_Y_POSITION = 4; // NEW: Fixed Y position for the camera on the map
+const CAMERA_MIN_DRAG_DISTANCE = 20; // MODIFIED: Further increased to avoid 3D jumps (3D minDistance is 15)
+const CAMERA_MAX_DRAG_DISTANCE = 38; // NEW: Constraint to avoid 3D jumps (3D maxDistance is 40)
 
 interface CollisionBox {
   minX: number;
@@ -133,13 +135,13 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   const getArtworkMapDisplayDimensions = useCallback((artType: ArtType) => {
     switch (artType) {
         case 'canvas_square':
-            return { widthClass: 'w-4', heightClass: 'h-[6px]' };
+            return { widthClass: 'w-12', heightClass: 'h-[6px]' };
         case 'canvas_portrait':
-            return { widthClass: 'w-6', heightClass: 'h-[6px]' };
+            return { widthClass: 'w-16', heightClass: 'h-[6px]' };
         case 'canvas_landscape':
         case 'media':
         case 'motion':
-            return { widthClass: 'w-24', heightClass: 'h-[6px]' };
+            return { widthClass: 'w-32', heightClass: 'h-[6px]' };
         case 'sculpture_base':
             return { widthClass: 'w-4', heightClass: 'h-4' };
         default:
@@ -207,10 +209,28 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
         onUpdateLighting({ ...lightingConfig, fillLightPosition: newFillLightPosition });
       }
       else if (draggedElementId === 'customCamera') { // NEW: Handle customCamera drag
-        const newCameraPosition: [number, number, number] = [newPosX, CAMERA_FIXED_Y_POSITION, newPosZ];
+        // NEW: Enforce CAMERA_MIN_DRAG_DISTANCE and CAMERA_MAX_DRAG_DISTANCE constraints
+        const currentDist = Math.sqrt(newPosX * newPosX + newPosZ * newPosZ);
+        
+        let clampedX = newPosX;
+        let clampedZ = newPosZ;
+
+        if (currentDist < CAMERA_MIN_DRAG_DISTANCE) {
+          // If too close, project onto the boundary circle
+          const factor = CAMERA_MIN_DRAG_DISTANCE / (currentDist || 0.1); // Avoid division by zero
+          clampedX = newPosX * factor;
+          clampedZ = newPosZ * factor;
+        } else if (currentDist > CAMERA_MAX_DRAG_DISTANCE) {
+          // If too far, project onto the outer boundary circle
+          const factor = CAMERA_MAX_DRAG_DISTANCE / currentDist;
+          clampedX = newPosX * factor;
+          clampedZ = newPosZ * factor;
+        }
+
+        const newCameraPosition: [number, number, number] = [clampedX, CAMERA_FIXED_Y_POSITION, clampedZ];
         onUpdateLighting({ ...lightingConfig, customCameraPosition: newCameraPosition });
         // NEW: Calculate and set rotation for the camera icon
-        const angleRadians = Math.atan2(0 - newPosZ, 0 - newPosX); // Angle from camera to origin
+        const angleRadians = Math.atan2(0 - clampedZ, 0 - clampedX); // Angle from camera to origin
         // FIX: Corrected variable name from `initialAngleRadians` to `angleRadians`
         setCameraIconRotation(angleRadians * (180 / Math.PI));
       }
@@ -357,6 +377,13 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   const customCameraLeft = mapRange(customCameraWorldPos[0], -SCENE_BOUNDS_X, SCENE_BOUNDS_X, PADDING_PERCENT, 100 - PADDING_PERCENT);
   const customCameraTop = mapRange(customCameraWorldPos[2], -SCENE_BOUNDS_Z, SCENE_BOUNDS_Z, PADDING_PERCENT, 100 - PADDING_PERCENT);
 
+  // NEW: Calculate restricted camera zone size
+  const centerPercent = 50;
+  const innerEdgeAtMinDist = mapRange(CAMERA_MIN_DRAG_DISTANCE, -SCENE_BOUNDS_X, SCENE_BOUNDS_X, PADDING_PERCENT, 100 - PADDING_PERCENT);
+  const innerRadiusPercent = innerEdgeAtMinDist - centerPercent;
+
+  const outerEdgeAtMaxDist = mapRange(CAMERA_MAX_DRAG_DISTANCE, -SCENE_BOUNDS_X, SCENE_BOUNDS_X, PADDING_PERCENT, 100 - PADDING_PERCENT);
+  const outerRadiusPercent = outerEdgeAtMaxDist - centerPercent;
 
   return (
     <div className={`flex-1 flex flex-col p-4 bg-neutral-500/5 ${text} overflow-hidden`}>
@@ -367,6 +394,28 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
         <div className={`absolute inset-2 border border-dashed rounded-md pointer-events-none ${innerBorderClass}`} />
         <div className={`absolute top-1/2 left-0 w-full h-px pointer-events-none ${crosshairClass}`} />
         <div className={`absolute left-1/2 top-0 h-full w-px pointer-events-none ${crosshairClass}`} />
+
+        {/* NEW: Visual indicator for Camera Restricted Zones */}
+        {/* Inner Bound */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed pointer-events-none transition-colors border-neutral-500/20"
+          style={{ 
+            width: `${innerRadiusPercent * 2}%`, 
+            height: `${innerRadiusPercent * 2}%`,
+            backgroundColor: lightsOn ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)'
+          }}
+        />
+        {/* Outer Bound */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed pointer-events-none transition-colors border-neutral-500/10"
+          style={{ 
+            width: `${outerRadiusPercent * 2}%`, 
+            height: `${outerRadiusPercent * 2}%`,
+          }}
+        />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+          <p className="text-[8px] font-mono opacity-20 whitespace-nowrap -translate-y-6">CAMERA TRACK LIMITS</p>
+        </div>
 
         {/* FIX: Removed ripple rendering for LayoutTab as per user request (3.4.81) */}
         {/* {ripples.map(ripple => (

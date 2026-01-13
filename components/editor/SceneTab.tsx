@@ -1,7 +1,8 @@
 
 
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { Music,Activity,Waves,Zap,Image, FlameKindling, Palette, Camera, Sparkles, X, Loader2, AlertCircle, Snowflake, Leaf, CloudRain, Wind, MoonStar,Bubbles, Umbrella,PartyPopper } from 'lucide-react'; // Icons for effects and controls
+import * as LucideIcons from 'lucide-react';
+import { Sparkles, X, Loader2, AlertCircle, Image, Palette } from 'lucide-react'; // Icons for effects and controls
 import { SimplifiedLightingConfig, SimplifiedLightingPreset, ZoneLightingDesign, EffectRegistryType } from '../../types';
 
 interface SceneTabProps {
@@ -24,23 +25,6 @@ interface SceneTabProps {
   activeZoneGravity: number | undefined; // NEW: Add activeZoneGravity
   onUpdateZoneGravity: (gravity: number | undefined) => Promise<void>; // NEW: Add onUpdateZoneGravity
 }
-
-// NEW: Mapping for Lucide React icons
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  MoonStar: MoonStar,
-  Snowflake: Snowflake,
-  Leaf: Leaf, // Assuming 'Autumn' theme uses a leaf icon
-  CloudRain: CloudRain,
-  Wind: Wind, 
-  Bubbles: Bubbles,
-  Umbrella: Umbrella,
-  PartyPopper: PartyPopper,
-  FlameKindling: FlameKindling,
-  Zap:Zap,
-  Waves: Waves,
-  Activity: Activity,
-  Music: Music,
-};
 
 const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode; border: string; controlBgClass: string }> = ({ label, value, children, border, controlBgClass }) => (
     <div className={`p-4 rounded-xl border flex flex-col items-start gap-3 ${border} ${controlBgClass}`}>
@@ -463,7 +447,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                             // FIX: Access light property correctly from env object
                             const lightSetting = effectData.env.light; // <-- Get light setting here
 
-                            const IconComponent = ICON_MAP[iconName] || Sparkles; // Fallback to Sparkles
+                            const IconComponent = (LucideIcons as any)[iconName] || Sparkles; // Fallback to Sparkles
 
                             const isSelected = activeZoneTheme === effectName;
                             

@@ -2,8 +2,9 @@
 
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Exhibition } from '../../types';
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box } from 'lucide-react'; // REMOVED: Image icon
+import { Exhibition, ExhibitionArtItem, FirebaseArtwork } from '../../types'; // MODIFIED: Add ExhibitionArtItem and FirebaseArtwork
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2 } from 'lucide-react'; // MODIFIED: Add BarChart2
+import AnalyticsDashboard from '../ui/AnalyticsDashboard'; // NEW: Import AnalyticsDashboard
 
 interface AdminTabProps {
   uiConfig: {
@@ -15,6 +16,8 @@ interface AdminTabProps {
   };
   activeExhibition: Exhibition;
   onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>;
+  currentLayout: ExhibitionArtItem[]; // NEW: Add currentLayout
+  firebaseArtworks: FirebaseArtwork[]; // NEW: Add firebaseArtworks
 }
 
 const DEBOUNCE_DELAY = 700;
@@ -83,7 +86,8 @@ function InputFieldComponent<T extends ExhibitionEditableFieldKeys>({
 // FIX: Correctly type InputField using React.memo with the generic component.
 const InputField: typeof InputFieldComponent = React.memo(InputFieldComponent) as typeof InputFieldComponent;
 
-const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibition, onUpdateExhibition }) => {
+const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibition, onUpdateExhibition, currentLayout, firebaseArtworks }) => {
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false); // NEW: State for analytics dashboard
   // FIX: Type localExhibition with Record<ExhibitionEditableFieldKeys, string> to consistently use strings
   const [localExhibition, setLocalExhibition] = useState<Record<ExhibitionEditableFieldKeys, string>>(() => ({
     title: activeExhibition.title || '',
@@ -312,6 +316,23 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
           </div>
         </div>
 
+        {/* NEW: Analytics Dashboard Button */}
+        <div className={`p-4 rounded-xl border ${border} ${lightsOn ? 'bg-cyan-50' : 'bg-cyan-900/20'} flex items-center justify-between`}>
+          <div>
+            <h4 className={`text-sm font-bold ${text} flex items-center gap-2`}>
+              <BarChart2 className="w-4 h-4 text-cyan-500" />
+              Exhibition Analytics
+            </h4>
+            <p className={`text-[11px] ${subtext}`}>View visitor insights and artwork performance</p>
+          </div>
+          <button
+            onClick={() => setIsAnalyticsOpen(true)}
+            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold rounded-lg transition-all shadow-lg hover:shadow-cyan-500/20 active:scale-95"
+          >
+            Open Dashboard
+          </button>
+        </div>
+
         <InputField label="Title" field="title" icon={FileText} value={localExhibition.title} onChange={handleChange} statusIcon={getStatusIcon('title')} uiConfig={uiConfig} />
         <InputField label="Subtitle" field="subtitle" icon={Layout} value={localExhibition.subtitle} onChange={handleChange} statusIcon={getStatusIcon('subtitle')} uiConfig={uiConfig} />
 
@@ -330,6 +351,19 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
 
         {/* Embed panel moved to top */}
       </div>
+
+      {/* NEW: Analytics Dashboard Modal */}
+      <AnalyticsDashboard 
+        isOpen={isAnalyticsOpen}
+        onClose={() => setIsAnalyticsOpen(false)}
+        uiConfig={{
+          ...uiConfig,
+          panelBg: lightsOn ? 'bg-white' : 'bg-[#1a1a1a]', // Assign dashboard background
+        }}
+        exhibition={activeExhibition}
+        currentLayout={currentLayout}
+        firebaseArtworks={firebaseArtworks}
+      />
     </div>
   );
 });
