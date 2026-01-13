@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/(analytics|embed|exhibition)/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

@@ -15,6 +15,7 @@ import TopLeftLogout from './components/ui/TopLeftLogout';
 import CurrentExhibitionInfo from './components/info/CurrentExhibitionInfo';
 import ConfirmationDialog from './components/ui/ConfirmationDialog';
 import DevToolsPanel from './components/ui/DevToolsPanel';
+import AnalyticsDashboard from './components/ui/AnalyticsDashboard'; // NEW: Standalone Analytics support
 // ZeroGravityLegend is now conditionally imported inside MuseumApp based on feature flags
 import EmbeddedMuseumScene from './components/EmbeddedMuseumScene';
 
@@ -41,6 +42,7 @@ function MuseumApp({
   embedFeatures, 
   initialRankingMode = false,
   initialZeroGravityMode = false,
+  initialAnalyticsOpen = false, // NEW: Support opening analytics on load
   hideRankingControl = false,
   hideZeroGravityControl = false,
   hideUserCount = false,
@@ -52,6 +54,7 @@ function MuseumApp({
   embedFeatures?: string[];
   initialRankingMode?: boolean;
   initialZeroGravityMode?: boolean;
+  initialAnalyticsOpen?: boolean; // NEW: Prop type
   hideRankingControl?: boolean;
   hideZeroGravityControl?: boolean;
   hideUserCount?: boolean;
@@ -64,6 +67,7 @@ function MuseumApp({
   const [isEditorMode, setIsEditorMode] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(initialAnalyticsOpen); // NEW: State for analytics
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
@@ -190,14 +194,14 @@ function MuseumApp({
 
   const isLoading = isDataLoading || !isIdentityResolved; // Compound loading state for UI logic
 
-  // If embed provides an initial exhibition id, navigate to it when data is ready
+  // If embed or path provides an initial exhibition id, navigate to it when data is ready
   useEffect(() => {
-    if (!embedMode || !initialExhibitionId || isLoading || exhibitions.length === 0) return;
+    if (!initialExhibitionId || isLoading || exhibitions.length === 0) return;
     const idx = exhibitions.findIndex(ex => ex.id === initialExhibitionId);
-    if (idx !== -1) {
+    if (idx !== -1 && idx !== currentIndex) {
       handleNavigate(idx);
     }
-  }, [embedMode, initialExhibitionId, isLoading, exhibitions, handleNavigate]);
+  }, [initialExhibitionId, isLoading, exhibitions, handleNavigate, currentIndex]);
 
   // Ref to request editorLayout reload after an external refresh (to avoid overwriting in-progress edits)
   const editorLayoutReloadRequested = useRef(false);
@@ -1758,6 +1762,18 @@ function MuseumApp({
         onOpenExhibitionInfoFromArtwork={handleOpenExhibitionInfoFromArtwork}
       />
 
+      <AnalyticsDashboard 
+        isOpen={isAnalyticsOpen}
+        onClose={() => setIsAnalyticsOpen(false)}
+        uiConfig={{
+          ...uiConfig,
+          panelBg: uiConfig.lightsOn ? 'bg-white' : 'bg-[#1a1a1a]',
+        }}
+        exhibition={activeExhibition}
+        currentLayout={displayLayout}
+        firebaseArtworks={firebaseArtworks}
+      />
+
       <ConfirmationDialog
         isOpen={showConfirmation}
         title="Confirm Removal"
@@ -1819,6 +1835,8 @@ function MuseumApp({
 
 function App() {
   const params = new URLSearchParams(window.location.search);
+  const pathname = window.location.pathname; // NEW: Detect pathname for analytics
+
   const isEmbedMode = params.get('embed') === 'true';
   const embedExhibitionId = params.get('exhibitionId');
   const embedFeaturesParam = params.get('embedFeatures') || params.get('embed_features') || '';
@@ -1832,13 +1850,18 @@ function App() {
   const hideLightsControl = params.get('lights') === 'off';
   const hideLogo = params.get('logo') === 'off';
 
+  // Standalone Analytics Logic
+  const isAnalyticsPath = pathname.startsWith('/analytics/');
+  const analyticsExhibitionId = isAnalyticsPath ? pathname.split('/analytics/')[1] : null;
+
   return (
     <MuseumApp 
       embedMode={isEmbedMode} 
-      initialExhibitionId={embedExhibitionId} 
+      initialExhibitionId={analyticsExhibitionId || embedExhibitionId} 
       embedFeatures={embedFeatures}
       initialRankingMode={initialRankingMode}
       initialZeroGravityMode={initialZeroGravityMode}
+      initialAnalyticsOpen={!!isAnalyticsPath} // NEW: Pass analytics mode
       hideRankingControl={hideRankingControl}
       hideZeroGravityControl={hideZeroGravityControl}
       hideUserCount={hideUserCount}
