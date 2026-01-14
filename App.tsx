@@ -47,7 +47,9 @@ function MuseumApp({
   hideZeroGravityControl = false,
   hideUserCount = false,
   hideLightsControl = false,
-  hideLogo = false
+  hideLogo = false,
+  hideExhibitInfo = false,
+  isAnalyticsStandalone = false
 }: { 
   embedMode?: boolean; 
   initialExhibitionId?: string | null; 
@@ -60,6 +62,8 @@ function MuseumApp({
   hideUserCount?: boolean;
   hideLightsControl?: boolean;
   hideLogo?: boolean;
+  hideExhibitInfo?: boolean;
+  isAnalyticsStandalone?: boolean;
 } = {}) {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(true);
@@ -737,12 +741,14 @@ function MuseumApp({
 
   // Conditionally lazy-load ZeroGravityLegend based on embed feature flags
   const ZeroGravityLegendLazy = useMemo<React.LazyExoticComponent<React.ComponentType<any>> | null>(() => {
-    const featureEnabled = !!(embedFeatures && embedFeatures.includes('zeroGravity'));
+    // MODIFIED: Also load if initialZeroGravityMode is on or if it's not explicitly hidden.
+    // This ensures the legend is available if the user can toggle the mode.
+    const featureEnabled = !!(embedFeatures && embedFeatures.includes('zeroGravity')) || initialZeroGravityMode || !hideZeroGravityControl;
     if (embedMode && !featureEnabled) return null;
     
     // Always allow loading on main site or if feature is enabled in embed
     return React.lazy(() => import('./components/ui/ZeroGravityLegend'));
-  }, [embedMode, embedFeatures]);
+  }, [embedMode, embedFeatures, initialZeroGravityMode, hideZeroGravityControl]);
 
   // Preload important lazy modules at startup to reduce first-render lag.
   // This warms the module cache for React.lazy imports used elsewhere (ArtComponent, CanvasExhibit, SculptureExhibit, editor, UI bits).
@@ -1515,6 +1521,37 @@ function MuseumApp({
   // Define isFirstItem here
   const isFirstItem = currentIndex === 0;
 
+  // NEW: Standalone Analytics Mode
+  if (isAnalyticsStandalone) {
+    return (
+      <div className={`fixed inset-0 h-screen overflow-hidden ${uiConfig.lightsOn ? 'bg-neutral-50' : 'bg-neutral-950'} z-[100]`}>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="flex flex-col items-center gap-4">
+               <div className="w-10 h-10 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+               <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.subtext} font-sans`}>
+                 Loading Insight Dashboard...
+               </p>
+            </div>
+          </div>
+        ) : (
+          <AnalyticsDashboard 
+            isOpen={true}
+            onClose={() => {}}
+            standalone={true}
+            uiConfig={{
+              ...uiConfig,
+              panelBg: uiConfig.lightsOn ? 'bg-white' : 'bg-[#1a1a1a]',
+            }}
+            exhibition={activeExhibition}
+            currentLayout={displayLayout}
+            firebaseArtworks={firebaseArtworks}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <React.Fragment>
       <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
@@ -1604,16 +1641,18 @@ function MuseumApp({
         activeExhibition={activeExhibition}
       />
 
-      <CurrentExhibitionInfo
-        uiConfig={uiConfig}
-        isLoading={isLoading}
-        activeExhibition={activeExhibition}
-        isInfoOpen={isInfoOpen}
-        isSmallScreen={isSmallScreen}
-        isCurrentExhibitionInfoHidden={isCurrentExhibitionInfoHidden}
-        onInfoOpen={handleOpenInfo}
-        useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
-      />
+      {!hideExhibitInfo && (
+        <CurrentExhibitionInfo
+          uiConfig={uiConfig}
+          isLoading={isLoading}
+          activeExhibition={activeExhibition}
+          isInfoOpen={isInfoOpen}
+          isSmallScreen={isSmallScreen}
+          isCurrentExhibitionInfoHidden={isCurrentExhibitionInfoHidden}
+          onInfoOpen={handleOpenInfo}
+          useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
+        />
+      )}
 
       {!embedMode && (
         <SideNavigation
@@ -1849,6 +1888,7 @@ function App() {
   const hideUserCount = params.get('userCount') === 'off';
   const hideLightsControl = params.get('lights') === 'off';
   const hideLogo = params.get('logo') === 'off';
+  const hideExhibitInfo = params.get('exhibitInfo') === 'off';
 
   // Standalone Analytics Logic
   const isAnalyticsPath = pathname.startsWith('/analytics/');
@@ -1867,6 +1907,8 @@ function App() {
       hideUserCount={hideUserCount}
       hideLightsControl={hideLightsControl}
       hideLogo={hideLogo}
+      hideExhibitInfo={hideExhibitInfo}
+      isAnalyticsStandalone={!!isAnalyticsPath}
     />
   );
 }

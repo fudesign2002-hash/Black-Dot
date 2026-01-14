@@ -111,7 +111,8 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
       zeroGravity: true,
       userCount: true,
       lights: true,
-      logo: true
+      logo: true,
+      exhibitInfo: true
   });
 
   const { lightsOn, text, subtext, border, input } = uiConfig;
@@ -216,6 +217,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
     if (!embedOptions.userCount) url += '&userCount=off';
     if (!embedOptions.lights) url += '&lights=off';
     if (!embedOptions.logo) url += '&logo=off';
+    if (!embedOptions.exhibitInfo) url += '&exhibitInfo=off';
     return url;
   }, [currentOrigin, activeExhibition.id, embedOptions]);
 
@@ -253,6 +255,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
                       { id: 'userCount' as const, label: 'Online Users', icon: UsersIcon },
                       { id: 'lights' as const, label: 'Light Toggle', icon: Sun },
                       { id: 'logo' as const, label: 'Brand Logo', icon: Box },
+                      { id: 'exhibitInfo' as const, label: 'Exhibit Info', icon: FileText },
                   ].map((option) => (
                       <button
                           key={option.id}
@@ -263,9 +266,9 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
                                   : (lightsOn ? 'bg-white border-neutral-200 text-neutral-400' : 'bg-neutral-800 border-neutral-700 text-neutral-500')
                           }`}
                       >
-                          <option.icon className={`w-4 h-4 ${embedOptions[option.id] ? (lightsOn ? 'text-orange-400' : 'text-orange-600') : 'text-current opacity-30'}`} />
-                          <span className="text-xs font-bold">{option.label}</span>
-                          <div className={`ml-auto w-4 h-4 rounded border flex items-center justify-center ${
+                          <option.icon className={`w-5 h-5 ${embedOptions[option.id] ? (lightsOn ? 'text-orange-400' : 'text-orange-600') : 'text-current opacity-30'}`} />
+                          <span className="text-[10px] font-bold flex-1 text-left leading-tight">{option.label}</span>
+                          <div className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center ${
                               embedOptions[option.id]
                                   ? (lightsOn ? 'bg-orange-500 border-orange-500' : 'bg-orange-600 border-orange-600')
                                   : 'border-current opacity-20'

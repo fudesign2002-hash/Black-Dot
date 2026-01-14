@@ -107,20 +107,19 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
         ref={panelRef}
         className={`fixed top-0 right-0 h-full w-full md:w-[600px] z-50 backdrop-blur-xl shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden flex flex-col border-l ${uiConfig.border} ${uiConfig.panelBg} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className="p-10 flex justify-between items-start">
-          <div className="space-y-4">
+        <div className="p-8 pb-4 flex justify-between items-start">
+          <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
               <span className={`text-[10px] font-bold tracking-[0.3em] uppercase ${showArtworkData ? 'text-cyan-500' : 'text-cyan-500'}`}>
                 {showArtworkData ? 'Artwork Details' : 'Exhibition Details'}
               </span>
             </div>
             
             <div className="space-y-1">
-              <h3 className={`text-4xl font-serif tracking-tight ${uiConfig.text}`}>
+              <h3 className={`text-5xl font-serif font-medium tracking-tight uppercase ${uiConfig.text}`}>
                 {showArtworkData ? artworkDataForPanel?.title : activeExhibition.title}
               </h3>
-              <p className={`text-sm opacity-50 ${uiConfig.text}`}>
+              <p className={`text-base font-serif opacity-70 ${uiConfig.text}`}>
                 {showArtworkData ? `by ${artworkDataForPanel?.artist || 'Unknown Artist'}` : `Curated by ${activeExhibition.artist}`}
               </p>
             </div>
@@ -138,55 +137,55 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
               </div>
             )}
           </div>
-          <button onClick={onClose} className={`p-3 rounded-full hover:bg-neutral-500/10 transition-all ${uiConfig.text} border ${uiConfig.border}`}>
-            <X className="w-6 h-6" strokeWidth={1} />
+          <button onClick={onClose} className={`p-3 transition-all ${uiConfig.text} opacity-50 hover:opacity-100`}>
+            <X className="w-8 h-8" strokeWidth={1} />
           </button>
         </div>
 
-        <div className={`flex-1 overflow-y-auto px-10 pb-20 scrollbar-hide`}>
+        <div className={`flex-1 overflow-y-auto px-8 pb-10 scrollbar-hide`}>
            {showArtworkData ? (
              <React.Fragment>
                 {isLoading ? (
-                  <div className="text-center py-20">
+                  <div className="text-center py-10">
                     <Loader2 className={`w-8 h-8 animate-spin mx-auto mb-4 opacity-20 ${uiConfig.text}`} />
                     <p className={`text-xs font-bold tracking-widest opacity-40 ${uiConfig.text}`}>Loading Details</p>
                   </div>
                 ) : (
-                  <div className={`grid grid-cols-2 gap-x-12 gap-y-12 mb-16 p-10 bg-neutral-500/5 border ${uiConfig.border} rounded-xl relative overflow-hidden`}>
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3 opacity-40">
-                             <Image size={14} strokeWidth={1.5} className={uiConfig.text} />
-                             <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Focus</span>
+                  <div className={`grid grid-cols-2 gap-6 mb-8 p-6 bg-neutral-500/5 border ${uiConfig.border} rounded-sm`}>
+                    <div className="flex items-start gap-4">
+                        <Image size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                        <div>
+                             <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Focus</p>
+                             <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{formatArtworkType(artworkDataForPanel?.artwork_type)}</p>
                         </div>
-                        <p className={`text-xl font-medium tracking-tight ${uiConfig.text}`}>{formatArtworkType(artworkDataForPanel?.artwork_type)}</p>
                     </div>
                     
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3 opacity-40">
-                             <Brush size={14} strokeWidth={1.5} className={uiConfig.text} />
-                             <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Artist</span>
+                    <div className="flex items-start gap-4">
+                        <Brush size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                        <div>
+                             <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Artist</p>
+                             <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.artist || 'N/A'}</p>
                         </div>
-                        <p className={`text-xl font-medium tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.artist || 'N/A'}</p>
                     </div>
 
-                    <div className="col-span-2 pt-10 border-t border-neutral-500/10 space-y-4">
-                        <div className="flex items-center gap-3 opacity-40">
-                             <Ruler size={14} strokeWidth={1.5} className={uiConfig.text} />
-                             <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Composition</span>
-                        </div>
-                        <div className="space-y-1">
-                            <p className={`text-lg font-medium leading-relaxed ${uiConfig.text}`}>{artworkDataForPanel?.materials || 'Mixed Media'}</p>
-                            <p className={`text-sm opacity-50 ${uiConfig.text}`}>{artworkDataForPanel?.size || 'Variable Dimensions'}</p>
+                    <div className={`col-span-2 pt-4 border-t border-neutral-500/10 flex items-start gap-4`}>
+                        <Ruler size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                        <div>
+                            <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Composition</p>
+                            <div className="space-y-1">
+                                <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.materials || 'Mixed Media'}</p>
+                                <p className={`text-xs opacity-50 ${uiConfig.text}`}>{artworkDataForPanel?.size || 'Variable Dimensions'}</p>
+                            </div>
                         </div>
                     </div>
 
                     {artworkDataForPanel?.fileSizeMB !== undefined && (
-                      <div className="col-span-2 pt-10 border-t border-neutral-500/10 space-y-4">
-                          <div className="flex items-center gap-3 opacity-40">
-                               <Weight size={14} strokeWidth={1.5} className={uiConfig.text} />
-                               <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Digital Footprint</span>
+                      <div className={`col-span-2 pt-4 border-t border-neutral-500/10 flex items-start gap-4`}>
+                          <Weight size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                          <div>
+                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Digital Footprint</p>
+                               <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel.fileSizeMB.toFixed(2)} MB</p>
                           </div>
-                          <p className={`text-xl font-medium tracking-tight ${uiConfig.text}`}>{artworkDataForPanel.fileSizeMB.toFixed(2)} MB</p>
                       </div>
                     )}
                   </div>
@@ -195,7 +194,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
            ) : (
             <React.Fragment>
                {activeExhibition.exhibit_poster && activeExhibition.exhibit_poster.trim() !== '' && !posterLoadError && (
-                 <div className={`w-full aspect-[16/9] mb-16 relative overflow-hidden rounded-xl border ${uiConfig.border} shadow-2xl`}>
+                 <div className={`w-full aspect-[16/9] mb-8 relative overflow-hidden border ${uiConfig.border}`}>
                     <img
                       src={activeExhibition.exhibit_poster}
                       alt={`${activeExhibition.title} poster`}
@@ -206,7 +205,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                )}
 
                {isLoading ? (
-                 <div className="text-center py-20">
+                 <div className="text-center py-10">
                    <Loader2 className={`w-8 h-8 animate-spin mx-auto mb-4 opacity-20 ${uiConfig.text}`} />
                    <p className={`text-xs font-bold tracking-widest opacity-40 ${uiConfig.text}`}>Synchronizing</p>
                  </div>
@@ -214,66 +213,73 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                 <React.Fragment>
                    {(exhibitionDateLines.length > 0 || 
                      exhibitionHoursParts.length > 0 || 
-                     (activeExhibition.venue && activeExhibition.venue.trim() !== '')) && (
-                     <div className={`grid grid-cols-2 gap-x-12 gap-y-12 mb-16 p-10 bg-neutral-500/5 border ${uiConfig.border} rounded-xl relative overflow-hidden`}>
+                     (activeExhibition.venue && activeExhibition.venue.trim() !== '') || 
+                     (activeExhibition.admission && activeExhibition.admission.trim() !== '')) && (
+                     <div className={`grid grid-cols-2 gap-6 mb-8 p-6 bg-neutral-500/5 border ${uiConfig.border} rounded-sm`}>
                          {exhibitionDateLines.length > 0 && (
-                           <div className="space-y-4">
-                             <div className="flex items-center gap-3 opacity-40">
-                               <Calendar size={14} strokeWidth={1.5} className={uiConfig.text} />
-                               <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Dates</span>
-                             </div>
-                             <div className={`text-xl font-medium tracking-tight ${uiConfig.text}`}>
+                           <div className="flex items-start gap-4">
+                             <Calendar size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                             <div>
+                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Dates</p>
                                {exhibitionDateLines.map((line, idx) => (
-                                 <p key={`date-line-${idx}`}>{line}</p>
+                                 <p key={`date-line-${idx}`} className={`text-sm font-mono tracking-tight ${uiConfig.text} ${idx === 0 ? '' : 'mt-1'}`}>{line}</p>
                                ))}
                              </div>
                            </div>
                          )}
                          {exhibitionHoursParts.length > 0 && (
-                           <div className="space-y-4">
-                             <div className="flex items-center gap-3 opacity-40">
-                               <Clock size={14} strokeWidth={1.5} className={uiConfig.text} />
-                               <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Hours</span>
-                             </div>
-                             <div className={`text-xl font-medium tracking-tight ${uiConfig.text}`}>
-                                {exhibitionHoursParts.map((part, i) => (
-                                  <p key={i}>{part}</p>
-                                ))}
+                           <div className="flex items-start gap-4">
+                             <Clock size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                             <div>
+                                <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Hours</p>
+                                {exhibitionHoursParts.length === 1 ? (
+                                  <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{exhibitionHoursParts[0]}</p>
+                                ) : (
+                                  <>
+                                    <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{exhibitionHoursParts[0]}</p>
+                                    <p className={`text-sm font-mono tracking-tight ${uiConfig.text} mt-1`}>{exhibitionHoursParts[1]}</p>
+                                  </>
+                                )}
                              </div>
                            </div>
                          )}
                          {activeExhibition.venue && activeExhibition.venue.trim() !== '' && (
-                           <div className={`col-span-2 pt-10 border-t border-neutral-500/10 space-y-4`}>
-                              <div className="flex items-center gap-3 opacity-40">
-                                 <MapPin size={14} strokeWidth={1.5} className={uiConfig.text} />
-                                 <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Venue</span>
+                           <div className={`flex items-start gap-4 ${exhibitionDateLines.length > 0 || exhibitionHoursParts.length > 0 ? 'col-span-2 pt-4 border-t border-neutral-500/10' : 'col-span-2'}`}>
+                              <MapPin size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                              <div>
+                                 <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Venue</p>
+                                 <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.venue}</p>
                               </div>
-                              <p className={`text-xl font-medium tracking-tight ${uiConfig.text}`}>{activeExhibition.venue}</p>
                            </div>
                          )}
-                         
-                         {/* Action Divider Line */}
-                         <div className="absolute top-1/2 left-0 right-0 h-px bg-neutral-100 dark:bg-neutral-800/20 -translate-y-1/2 hidden md:block opacity-30" />
+                         {activeExhibition.admission && activeExhibition.admission.trim() !== '' && (
+                           <div className={`flex items-start gap-4 col-span-2 pt-4 border-t border-neutral-500/10`}>
+                              <Ticket size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                              <div>
+                                 <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Admission</p>
+                                 <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.admission}</p>
+                              </div>
+                           </div>
+                         )}
                      </div>
                    )}
 
-                   <div className="space-y-12">
+                   <div className="space-y-8">
                       {activeExhibition.overview && activeExhibition.overview.trim() !== '' && (
-                        <div className="space-y-8">
-                          <div className={`space-y-4`}>
-                             <h3 className={`text-[10px] font-bold uppercase tracking-[0.4em] ${uiConfig.text}`}>Overview</h3>
-                             <div className={`h-px w-full bg-neutral-500/10`} />
+                        <div className="space-y-6">
+                          <div className={`flex items-center gap-4 border-b pb-2 ${uiConfig.border}`}>
+                             <h3 className={`text-xs font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Overview</h3>
                           </div>
-                          <p className={`text-lg leading-[1.8] font-medium opacity-70 ${uiConfig.subtext} first-letter:text-4xl first-letter:font-serif first-letter:mr-1`}>
+                          <p className={`text-sm leading-8 font-light ${uiConfig.text} opacity-80 whitespace-pre-line`}>
                             {activeExhibition.overview}
                           </p>
                         </div>
                       )}
                       
                       {activeExhibition.supportedBy && activeExhibition.supportedBy.trim() !== '' && ( 
-                        <div className={`pt-12 border-t ${uiConfig.border} flex flex-col gap-4 opacity-40`}>
-                            <p className={`text-[10px] font-bold uppercase tracking-[0.3em] ${uiConfig.text}`}>Supporters & Patrons</p>
-                            <p className={`text-base font-serif ${uiConfig.text}`}>{activeExhibition.supportedBy}</p>
+                        <div className={`pt-6 border-t ${uiConfig.border} flex flex-col gap-2 opacity-50`}>
+                            <p className={`text-[10px] font-bold uppercase ${uiConfig.text}`}>Supported By</p>
+                            <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.supportedBy}</p>
                         </div>
                       )}
                    </div>
@@ -288,48 +294,48 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
              <div className="flex gap-4">
                <button
                   onClick={onOpenExhibitionInfoFromArtwork}
-                  className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.3em] uppercase transition-all duration-500 rounded-lg border ${uiConfig.border} ${uiConfig.text} hover:bg-neutral-500/5 group`}
+                  className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.3em] uppercase transition-all duration-500 rounded-sm border ${uiConfig.border} ${uiConfig.text} hover:bg-neutral-500/5 group`}
                >
-                  <Info size={16} strokeWidth={1.5} className="group-hover:rotate-12 transition-transform opacity-60" />
-                  <span className="text-[10px]">Exhibition</span>
+                  <Info size={18} strokeWidth={1.5} className="group-hover:rotate-12 transition-transform opacity-60" />
+                  <span className="text-sm">Exhibition</span>
                </button>
                {activeExhibition.admissionLink ? ( 
                  <a 
                    href={activeExhibition.admissionLink} 
                    target="_blank" 
                    rel="noopener noreferrer"
-                   className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.3em] uppercase transition-all duration-500 rounded-lg ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-100'} group shadow-xl shadow-black/5`}
+                   className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-neutral-900 text-white hover:bg-black shadow-xl group`}
                  >
-                    <Ticket size={16} strokeWidth={1.5} className="group-hover:-rotate-12 transition-transform" />
-                    <span className="text-[10px]">Tickets</span>
+                    <Ticket size={20} strokeWidth={1.5} />
+                    <span className="text-sm">Tickets</span>
                  </a>
                ) : (
-                  <button className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.3em] uppercase transition-all duration-500 rounded-lg opacity-50 cursor-not-allowed ${lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-900'}`} disabled>
-                      <Ticket size={16} strokeWidth={1.5} />
-                      <span className="text-[10px]">N/A</span>
+                  <button className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-white/10 text-neutral-400 cursor-not-allowed border ${uiConfig.border}`} disabled>
+                      <Ticket size={20} strokeWidth={1.5} />
+                      <span className="text-sm">N/A</span>
                   </button>
                )}
              </div>
            ) : (
                activeExhibition.status === 'future' ? (
-                   <button className={`w-full h-16 flex items-center justify-center gap-4 font-bold tracking-[0.3em] uppercase transition-all duration-500 bg-cyan-600 text-white hover:bg-cyan-700 rounded-lg shadow-xl shadow-cyan-500/20 group`}>
-                      <Calendar size={16} strokeWidth={1.5} className="group-hover:scale-110 transition-transform" />
-                      <span className="text-[10px]">Remind Me</span>
+                   <button className={`w-full h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 bg-cyan-600 text-white hover:bg-cyan-700 rounded-sm shadow-xl shadow-cyan-500/20 group`}>
+                      <Calendar size={20} strokeWidth={1.5} className="group-hover:scale-110 transition-transform" />
+                      <span className="text-sm">Remind Me</span>
                    </button>
                ) : activeExhibition.admissionLink ? ( 
                    <a 
                      href={activeExhibition.admissionLink} 
                      target="_blank" 
                      rel="noopener noreferrer"
-                     className={`w-full h-16 flex items-center justify-center gap-4 font-bold tracking-[0.3em] uppercase transition-all duration-500 rounded-lg ${lightsOn ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-white text-neutral-900 hover:bg-neutral-100'} shadow-xl shadow-black/10 group`}
+                     className={`w-full h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-neutral-900 text-white hover:bg-black shadow-xl group`}
                    >
-                      <Ticket size={16} strokeWidth={1.5} className="group-hover:-rotate-12 transition-transform" />
-                      <span className="text-[10px]">{activeExhibition.status === 'past' ? 'View Archive' : 'Tickets'}</span>
+                      <Ticket size={20} strokeWidth={1.5} />
+                      <span className="text-sm">{activeExhibition.status === 'past' ? 'View Archive' : 'Tickets'}</span>
                    </a>
                ) : (
-                  <button className={`w-full h-16 flex items-center justify-center gap-4 font-bold tracking-[0.3em] uppercase transition-all duration-500 rounded-lg opacity-50 cursor-not-allowed ${lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-900'}`} disabled>
-                      <Ticket size={16} strokeWidth={1.5} />
-                      <span className="text-[10px]">{activeExhibition.status === 'past' ? 'View Archive' : 'N/A'}</span>
+                  <button className={`w-full h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-white/10 text-neutral-400 cursor-not-allowed border ${uiConfig.border}`} disabled>
+                      <Ticket size={20} strokeWidth={1.5} />
+                      <span className="text-sm">{activeExhibition.status === 'past' ? 'View Archive' : 'N/A'}</span>
                   </button>
                )
            )}
