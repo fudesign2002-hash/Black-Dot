@@ -1888,7 +1888,7 @@ function App() {
   const hideUserCount = params.get('userCount') === 'off';
   const hideLightsControl = params.get('lights') === 'off';
   const hideLogo = params.get('logo') === 'off';
-  const hideExhibitInfo = params.get('exhibitInfo') === 'off';
+  const hideExhibitInfo = params.get('exhibitInfo') === 'off' || params.get('info') === 'off';
 
   // Standalone Analytics Logic
   const isAnalyticsPath = pathname.startsWith('/analytics/');

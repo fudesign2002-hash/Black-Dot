@@ -217,7 +217,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
     if (!embedOptions.userCount) url += '&userCount=off';
     if (!embedOptions.lights) url += '&lights=off';
     if (!embedOptions.logo) url += '&logo=off';
-    if (!embedOptions.exhibitInfo) url += '&exhibitInfo=off';
+    if (!embedOptions.exhibitInfo) url += '&info=off';
     return url;
   }, [currentOrigin, activeExhibition.id, embedOptions]);
 
