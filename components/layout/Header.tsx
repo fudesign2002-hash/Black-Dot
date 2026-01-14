@@ -114,11 +114,29 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
 
               <BlackDotLogo treatAsCompact={treatAsCompact} logoRotationStyle={logoRotationStyle} onClick={handleLogoClick} ariaLabel="Toggle header details" />
           </div>
+
+          {/* NEW: Online User Count moved to under logo for small screens (Always visible) */}
+          {treatAsCompact && !hideUserCount && (
+            <div className="mt-6 flex justify-end transition-opacity duration-500" style={headerColorStyle}>
+              <div className="relative flex items-center gap-2 leading-none">
+                <Users className={`w-3 h-3 shrink-0 ${uiConfig.lightsOn ? 'text-current' : uiConfig.subtext}`} aria-hidden="true" />
+                <div className="relative flex items-baseline">
+                  <span className={`relative text-sm font-serif font-medium -top-[4px] ${numeratorClasses}`} style={numeratorStyle}>
+                    {onlineUsers}
+                  </span>
+                  <div className={`relative w-px h-4 mx-0.5 transform rotate-[30deg] origin-center ${slashBgClass}`} />
+                  <span className={`relative text-[10px] font-serif font-normal top-[1px] ${denominatorClasses}`}>
+                    {zoneCapacity}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
         
-      {/* Online Users Display - Fixed to bottom right */}
-      {!hideUserCount && (
+      {/* Online Users Display - Desktop: bottom right | Mobile: hidden */}
+      {!hideUserCount && !treatAsCompact && (
         <div className="fixed bottom-10 right-10 z-40 select-none" style={headerColorStyle}>
           <div className="relative flex items-center gap-4 leading-none">
             <Users className={`w-4 h-4 shrink-0 ${uiConfig.lightsOn ? 'text-current' : uiConfig.subtext}`} aria-hidden="true" />
@@ -127,7 +145,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
               <span className={`relative text-base font-serif font-medium -top-[6px] -right-[-6px] ${numeratorClasses}`} style={numeratorStyle}>
                 {onlineUsers}
               </span>
-              <div className={`relative w-px h-5 mx-0.5 transform -rotate-[-25deg] origin-center ${slashBgClass}`} />
+              <div className={`relative w-px h-5 mx-0.5 transform rotate-[30deg] origin-center ${slashBgClass}`} />
               <span className={`relative text-xs font-serif font-normal top-[0px] left-[2px] ${denominatorClasses}`}>
                 {zoneCapacity}
               </span>

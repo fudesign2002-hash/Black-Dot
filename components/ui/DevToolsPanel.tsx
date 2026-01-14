@@ -106,7 +106,7 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
 
   if (!isOpen) return null;
 
-  const onlineUserOptions = [20, 50, 100, 150, 200, 250, 500, 1000, 2500, 5000];
+  const onlineUserOptions = [20, 50, 100, 150, 200, 250, 400, 500, 800, 1000, 1600, 2500, 3000, 5000];
 
   return (
     <div 
@@ -197,18 +197,30 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
               </div>
               <div className="flex justify-between items-center">
                 <label htmlFor="online-users-select" className={`${uiConfig.subtext}`}>Set for test:</label>
-                <select
-                  id="online-users-select"
-                  value={onlineUsers}
-                  onChange={(e) => setOnlineUsers(Number(e.target.value))}
-                  className={`px-2 py-1 rounded-md text-xs ${uiConfig.input} max-w-[100px]`}
-                >
-                  {onlineUserOptions.map(option => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
+                <div className="flex gap-1 flex-wrap justify-end max-w-[150px]">
+                  <select
+                    id="online-users-select"
+                    value={onlineUserOptions.includes(onlineUsers) ? onlineUsers : ''}
+                    onChange={(e) => setOnlineUsers(Number(e.target.value))}
+                    className={`px-1 py-0.5 rounded-md text-[10px] ${uiConfig.input} w-full mb-1`}
+                  >
+                    <option value="" disabled>Custom: {onlineUsers}</option>
+                    {onlineUserOptions.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  {[401, 801, 1601, 3001].map(num => (
+                    <button
+                      key={num}
+                      onClick={() => setOnlineUsers(num)}
+                      className={`px-1.5 py-0.5 rounded border ${onlineUsers === num ? 'bg-cyan-500 text-white border-cyan-500' : `${uiConfig.border} ${uiConfig.text} hover:bg-black/5`}`}
+                    >
+                      {num}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
           </div>

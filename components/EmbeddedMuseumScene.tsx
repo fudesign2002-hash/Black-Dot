@@ -198,6 +198,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         setHeartEmitterArtworkId={() => {}}
         hasMotionArtwork={!!currentLayout?.some((a) => a.isMotionVideo)}
         customCameraPosition={lightingConfig?.customCameraPosition}
+        showGlobalOverlay={isLoading}
       />
 
       <InfoPanel

@@ -43,6 +43,7 @@ interface MainControlsProps {
   hasMotionArtwork: boolean; // NEW: Add hasMotionArtwork prop
   customCameraPosition?: [number, number, number]; // NEW: Add customCameraPosition prop
   isEmbed?: boolean; // NEW: hide certain controls when embedded
+  showGlobalOverlay?: boolean; // NEW: Add showGlobalOverlay prop to prevent UI flicker
   // REMOVED: activeEffectName: string | null; // NEW: Add activeEffectName
   // REMOVED: onEffectToggle: (effectName: string) => void; // NEW: Add onEffectToggle
 }
@@ -86,6 +87,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   setHeartEmitterArtworkId,
   hasMotionArtwork, // NEW: Destructure hasMotionArtwork
   customCameraPosition, // NEW: Destructure customCameraPosition
+  showGlobalOverlay = false, // NEW: Destructure showGlobalOverlay
   // REMOVED: activeEffectName, // NEW: Destructure activeEffectName
   // REMOVED: onEffectToggle, // NEW: Destructure onEffectToggle
 }) => {
@@ -123,7 +125,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   
   // Determine right-side buttons based on their visibility conditions
   // Temporarily hide DevTools toggle
-  const hasDevToolsToggle = false;
+  const hasDevToolsToggle = true;
   // MODIFIED: In simplified editor flow, keep reset and ranking buttons visible
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
   const hasRankingToggle = !isZeroGravityMode && !hideRankingControl; 
@@ -138,6 +140,13 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
 
   const shouldShowDivider = anyLeftButtonsVisible && anyRightButtonsVisible;
 
+  // NEW: Determine if artwork controls should be visible
+  const showArtworkControls = isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode && !showGlobalOverlay;
+  // NEW: Determine if main navigation should be visible
+  const showMainNav = !isArtworkFocusedForControls && !showGlobalOverlay;
+
+  // NEW: Completely hide the container if the global overlay is visible to prevent any transition flickers
+  if (showGlobalOverlay) return null;
 
   return (
     <React.Fragment>
@@ -145,9 +154,9 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
         
         
         <div ref={artworkControlsRef}
-             className={`flex flex-col items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'}`} // MODIFIED: Hide if in zero gravity mode
-             aria-hidden={!(isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode)}
-             inert={!(isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode)}>
+             className={`flex flex-col items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${showArtworkControls ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'}`} // MODIFIED: Hide if in zero gravity mode
+             aria-hidden={!showArtworkControls}
+             inert={!showArtworkControls}>
             {focusedArtworkTitle && (
                 <p className={`text-base font-serif font-medium uppercase px-4 py-2 rounded-full backdrop-blur-xl shadow-lg 
         ${uiConfig.text} ${uiConfig.border} whitespace-nowrap`}>
@@ -197,9 +206,9 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
         </div>
 
         <div ref={mainNavRef}
-             className={`backdrop-blur-xl p-1.5 rounded-full flex gap-2 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${!isArtworkFocusedForControls ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'} ${isEditorMode || isZeroGravityMode ? 'bg-cyan-500/10' : ''}`} // MODIFIED: Add isZeroGravityMode to background color condition
-             aria-hidden={!!isArtworkFocusedForControls}
-             inert={isArtworkFocusedForControls}>
+             className={`backdrop-blur-xl p-1.5 rounded-full flex gap-2 shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${showMainNav ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'} ${isEditorMode || isZeroGravityMode ? 'bg-cyan-500/10' : ''}`} // MODIFIED: Add isZeroGravityMode to background color condition
+             aria-hidden={!showMainNav}
+             inert={!showMainNav}>
             {hasLightsToggle && (
                 <button onClick={() => {
                   setHeartEmitterArtworkId(null);

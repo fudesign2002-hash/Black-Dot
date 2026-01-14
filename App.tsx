@@ -884,6 +884,8 @@ function MuseumApp({
     setIsSearchOpen(false);
     setisRankingMode(false);
     setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on exhibition load
+    setIsArtworkFocusedForControls(false); // NEW: Immediately clear focus state to avoid UI flicker
+    setFocusedArtworkInstanceId(null); // NEW: Clear focused ID
     setHeartEmitterArtworkId(null);
 
     setTimeout(() => {
@@ -1498,7 +1500,7 @@ function MuseumApp({
     return firebaseArt ? firebaseArt.title.toUpperCase() : null;
   }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
 
-  const showGlobalOverlay = isTransitioning && (isEffectRegistryLoading || !authResolved || isLoading); // Only show overlay if BOTH transitioning AND loading
+  const showGlobalOverlay = isTransitioning || isEffectRegistryLoading || !authResolved || isLoading; // Show overlay if explicitly transitioning OR still loading critical data
   // MODIFIED: Use transitionMessage state for overlay message
   // const overlayMessage = isEffectRegistryLoading ? 'Loading Effects...' : (isTransitioning ? 'Loading Gallery...' : 'Loading Gallery...'); // NEW: Update overlay message
 
@@ -1737,6 +1739,7 @@ function MuseumApp({
         hasMotionArtwork={hasMotionArtwork} // NEW: Pass hasMotionArtwork
         // NEW: Pass customCameraPosition to MainControls
         customCameraPosition={lightingConfig.customCameraPosition}
+        showGlobalOverlay={showGlobalOverlay}
       />
 
       {isEditorMode && FloorPlanEditor && (
