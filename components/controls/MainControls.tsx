@@ -122,10 +122,9 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl; 
   // MODIFIED: Hide editor mode toggle if in zero gravity mode. Now uses MapIcon and opens editor directly.
   const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && !!isSignedIn && !isEmbed;
-  
   // Determine right-side buttons based on their visibility conditions
-  // Temporarily hide DevTools toggle
-  const hasDevToolsToggle = true;
+  // Show DevTools toggle only for signed-in users
+  const hasDevToolsToggle = !!isSignedIn;
   // MODIFIED: In simplified editor flow, keep reset and ranking buttons visible
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
   const hasRankingToggle = !isZeroGravityMode && !hideRankingControl; 
