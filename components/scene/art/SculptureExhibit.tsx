@@ -10,12 +10,19 @@ import { shallowEqual } from '../../../utils/objectUtils'; // NEW: Import shallo
 
 const getGeometryComponentTypeString = (type: ArtworkGeometry['type'] | string): string => {
   switch (type) {
+    case 'box':
     case 'boxGeometry': return 'boxGeometry';
+    case 'cylinder':
     case 'cylinderGeometry': return 'cylinderGeometry';
+    case 'icosahedron':
     case 'icosahedronGeometry': return 'icosahedronGeometry';
+    case 'torus':
     case 'torusGeometry': return 'torusGeometry';
+    case 'torusKnot':
     case 'torusKnotGeometry': return 'torusKnotGeometry';
+    case 'sphere':
     case 'sphereGeometry': return 'sphereGeometry';
+    case 'cone':
     case 'coneGeometry': return 'coneGeometry';
     default: return 'boxGeometry';
   }
