@@ -166,6 +166,8 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
   }
 
   const wallRef = useRef<THREE.Mesh>(null);
+  const htmlRef = useRef<THREE.Group>(null);
+  const [containerBounds, setContainerBounds] = useState<any>(null);
 
   const embedUrl = useMemo(() => {
     if (!isMotionVideo || isFaultyMotionVideo || !textureUrl) {
@@ -261,18 +263,13 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
 
     const zPosition = WALL_DEPTH / 2 + 0.01;
 
-    // SIMPLIFIED: Make iframe Y position exactly match the backing wall center
-    // This ensures they are always perfectly centered relative to each other
-    let htmlContentCenterY = backingWallMeshCenterY;
+    // SIMPLE: iframe and backing wall share the same center Y position - NO offsets
+    const htmlContentCenterY = backingWallMeshCenterY;
     
-    // CORRECTED: Mobile needs offset ONLY when NOT embedded in another page
-    const isMobile = isMobileDevice();
-    const isEmbedded = isInIframe();
-    
-    if (isMobile && !isEmbedded) {
-      // Mobile browsers need offset, but ONLY when directly accessing (not embedded)
-      htmlContentCenterY += MOBILE_BROWSER_MOTION_Y_OFFSET;
-    }
+    // Compensate for device pixel ratio differences in Html component rendering
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
+    const dprOffset = (dpr - 2) * 0.5; // Adjust based on difference from base dpr=2
+    const htmlPositionY = htmlContentCenterY + dprOffset;
 
 
     const HTML_SCALE_FACTOR = 100;
@@ -288,6 +285,16 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
           htmlContentCenterY
         );
       }
+      
+      // Log actual scale of Html component for debugging
+      if (htmlRef.current) {
+        console.log('Html scale:', {
+          scaleX: htmlRef.current.scale.x,
+          scaleY: htmlRef.current.scale.y,
+          scaleZ: htmlRef.current.scale.z,
+          positionY: htmlRef.current.position.y
+        });
+      }
     }, [onDimensionsCalculated, iframeRenderedWidth, iframeRenderedHeight, zPosition, htmlContentCenterY]);
 
     return (
@@ -300,17 +307,33 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
         </mesh>
         
         <Html
-          position={new THREE.Vector3(0, htmlContentCenterY, zPosition)}
+          ref={htmlRef}
+          position={new THREE.Vector3(0, htmlPositionY, zPosition)}
           wrapperClass="youtube-video-html"
           center
           occlude={[wallRef]}
           transform
           zIndexRange={[0, 10]}
           pointerEvents="auto"
+          scale={1}
         >
           <div 
             ref={containerRef} 
-            style={{ position: 'relative', width: iframeWidthPx, height: iframeHeightPx }}
+            style={{ 
+              position: 'relative', 
+              width: iframeWidthPx, 
+              height: iframeHeightPx,
+              margin: 0,
+              padding: 0,
+              boxSizing: 'border-box'
+            }}
+            onLoad={() => {
+              if (containerRef.current) {
+                const bounds = containerRef.current.getBoundingClientRect();
+                setContainerBounds(bounds);
+                console.log('Container bounds:', bounds);
+              }
+            }}
           >
             <iframe
               ref={iframeRef}
@@ -327,38 +350,32 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               aria-label="Embedded video player"
               referrerPolicy="strict-origin-when-cross-origin"
             />
-            {/* DEBUG: Display all Y-position related values */}
+            {/* DEBUG: Display positioning info in corner */}
             <div
               style={{
-                position: 'absolute',
-                bottom: '-200px',
-                left: 0,
-                color: 'red',
-                fontSize: '11px',
+                position: 'fixed',
+                top: '10px',
+                left: '10px',
+                color: 'lime',
+                fontSize: '9px',
                 fontWeight: 'bold',
                 fontFamily: 'monospace',
-                zIndex: 100,
+                zIndex: 9999,
                 pointerEvents: 'none',
-                lineHeight: '1.4',
-                backgroundColor: 'rgba(0,0,0,0.8)',
-                padding: '8px',
+                lineHeight: '1.2',
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                padding: '6px',
+                borderRadius: '3px',
               }}
             >
-              <div style={{ color: 'orange' }}>📱 Device: {isMobile ? 'MOBILE' : 'DESKTOP'}</div>
-              <div style={{ color: 'orange' }}>🖼️ Embedded: {isEmbedded ? 'YES' : 'NO'}</div>
-              <div style={{ fontSize: '9px', color: '#999' }}>UA: {typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 40) : 'N/A'}...</div>
-              <div>---</div>
-              <div>✓ maxDimension: {maxDimension}</div>
-              <div>✓ videoContentBaseWidth: {videoContentBaseWidth.toFixed(3)}</div>
-              <div>✓ videoContentBaseHeight: {videoContentBaseHeight.toFixed(3)}</div>
-              <div>✓ backingWallHeight: {backingWallHeight.toFixed(3)}</div>
-              <div style={{ fontWeight: 'bold', color: 'yellow' }}>► backingWallMeshCenterY: {backingWallMeshCenterY.toFixed(3)}</div>
-              <div style={{ color: 'cyan' }}>✓ MOBILE_OFFSET: {MOBILE_BROWSER_MOTION_Y_OFFSET}</div>
-              <div style={{ fontWeight: 'bold', color: 'lime' }}>► htmlContentCenterY: {htmlContentCenterY.toFixed(3)}</div>
-              <div style={{ fontWeight: 'bold', color: (isMobile && !isEmbedded) ? 'magenta' : 'cyan' }}>
-                ► Offset applied? {(isMobile && !isEmbedded) ? `YES (MOBILE+NOT_EMBEDDED +${MOBILE_BROWSER_MOTION_Y_OFFSET})` : 'NO'}
-              </div>
-              <div>✓ Html center prop: TRUE</div>
+              <div style={{ color: 'lime' }}>iframe Y: {htmlContentCenterY.toFixed(3)}</div>
+              <div style={{ color: 'lime' }}>pos Y: {htmlPositionY.toFixed(3)}</div>
+              <div style={{ color: 'yellow' }}>wall Y: {backingWallMeshCenterY.toFixed(3)}</div>
+              <div style={{ color: 'cyan' }}>wall h: {backingWallHeight.toFixed(3)}</div>
+              <div style={{ color: 'magenta' }}>ifr h: {iframeRenderedHeight.toFixed(3)}</div>
+              <div style={{ color: 'orange' }}>px: {iframeHeightPx.toFixed(0)}</div>
+              <div style={{ color: 'orange' }}>dpr: {typeof window !== 'undefined' ? window.devicePixelRatio : 'N/A'}</div>
+              <div style={{ color: 'red' }}>offset: {dprOffset.toFixed(3)}</div>
             </div>
           </div>
         </Html>
