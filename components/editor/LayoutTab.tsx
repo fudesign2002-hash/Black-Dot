@@ -46,8 +46,8 @@ const ARTWORK_DIMENSIONS_2D: Record<ArtType, { width: number; depth: number }> =
 
 const DIRECTIONAL_LIGHT_Y = 5; 
 const CAMERA_FIXED_Y_POSITION = 4; // NEW: Fixed Y position for the camera on the map
-const CAMERA_MIN_DRAG_DISTANCE = 20; // MODIFIED: Further increased to avoid 3D jumps (3D minDistance is 15)
-const CAMERA_MAX_DRAG_DISTANCE = 38; // NEW: Constraint to avoid 3D jumps (3D maxDistance is 40)
+const CAMERA_MIN_DRAG_DISTANCE = 15; // MODIFIED: Adjusted to 15 as requested
+const CAMERA_MAX_DRAG_DISTANCE = 35; // MODIFIED: Increased slightly to 35
 
 interface CollisionBox {
   minX: number;
