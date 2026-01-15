@@ -316,21 +316,35 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               aria-label="Embedded video player"
               referrerPolicy="strict-origin-when-cross-origin"
             />
-            {/* DEBUG: Display MOBILE_BROWSER_MOTION_Y_OFFSET value */}
+            {/* DEBUG: Display all Y-position related values */}
             <div
               style={{
                 position: 'absolute',
-                bottom: '-40px',
+                bottom: '-200px',
                 left: 0,
                 color: 'red',
-                fontSize: '16px',
+                fontSize: '12px',
                 fontWeight: 'bold',
                 fontFamily: 'monospace',
                 zIndex: 100,
                 pointerEvents: 'none',
+                lineHeight: '1.5',
               }}
             >
-              MOBILE_BROWSER_MOTION_Y_OFFSET = {MOBILE_BROWSER_MOTION_Y_OFFSET} (isMobile: {isMobile ? 'YES' : 'NO'}, adjustedYOffset = {adjustedYOffset})
+              <div>✓ maxDimension: {maxDimension}</div>
+              <div>✓ videoContentBaseWidth: {videoContentBaseWidth.toFixed(3)}</div>
+              <div>✓ videoContentBaseHeight: {videoContentBaseHeight.toFixed(3)}</div>
+              <div>✓ iframeRenderedWidth: {iframeRenderedWidth.toFixed(3)}</div>
+              <div>✓ iframeRenderedHeight: {iframeRenderedHeight.toFixed(3)}</div>
+              <div>✓ backingWallHeight: {backingWallHeight.toFixed(3)}</div>
+              <div>✓ backingWallMeshCenterY: {backingWallMeshCenterY.toFixed(3)}</div>
+              <div>✓ EMBED_VIDEO_VERTICAL_OFFSET: {EMBED_VIDEO_VERTICAL_OFFSET}</div>
+              <div>✓ isMobile: {isMobile ? 'YES' : 'NO'}</div>
+              <div>✓ MOBILE_BROWSER_MOTION_Y_OFFSET: {MOBILE_BROWSER_MOTION_Y_OFFSET}</div>
+              <div>✓ adjustedYOffset: {adjustedYOffset.toFixed(3)}</div>
+              <div style={{ fontWeight: 'bold', color: 'lime' }}>► htmlContentCenterY: {htmlContentCenterY.toFixed(3)} ◄</div>
+              <div>✓ zPosition: {zPosition.toFixed(3)}</div>
+              <div>✓ HTML center prop: true (裡面還會再除以2)</div>
             </div>
           </div>
         </Html>
