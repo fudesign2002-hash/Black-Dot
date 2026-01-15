@@ -255,13 +255,16 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
 
     const zPosition = WALL_DEPTH / 2 + 0.01;
 
-    // NEW: Apply conditional Y offset only for actual mobile browsers
-    let adjustedYOffset = EMBED_VIDEO_VERTICAL_OFFSET;
+    // SIMPLIFIED: Make iframe Y position exactly match the backing wall center
+    // This ensures they are always perfectly centered relative to each other
+    let htmlContentCenterY = backingWallMeshCenterY;
+    
+    // NEW: Try to detect and compensate for mobile-specific rendering differences
     const isMobile = isMobileDevice();
     if (isMobile) {
-      adjustedYOffset += MOBILE_BROWSER_MOTION_Y_OFFSET;
+      // Mobile browsers might need a small adjustment due to different rendering
+      htmlContentCenterY += MOBILE_BROWSER_MOTION_Y_OFFSET;
     }
-    const htmlContentCenterY = backingWallMeshCenterY + adjustedYOffset;
 
 
     const HTML_SCALE_FACTOR = 100;
@@ -323,28 +326,30 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
                 bottom: '-200px',
                 left: 0,
                 color: 'red',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: 'bold',
                 fontFamily: 'monospace',
                 zIndex: 100,
                 pointerEvents: 'none',
-                lineHeight: '1.5',
+                lineHeight: '1.4',
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                padding: '8px',
               }}
             >
+              <div style={{ color: 'orange' }}>📱 Device: {isMobile ? 'MOBILE' : 'DESKTOP'}</div>
+              <div style={{ fontSize: '9px', color: '#999' }}>UA: {typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 40) : 'N/A'}...</div>
+              <div>---</div>
               <div>✓ maxDimension: {maxDimension}</div>
               <div>✓ videoContentBaseWidth: {videoContentBaseWidth.toFixed(3)}</div>
               <div>✓ videoContentBaseHeight: {videoContentBaseHeight.toFixed(3)}</div>
-              <div>✓ iframeRenderedWidth: {iframeRenderedWidth.toFixed(3)}</div>
-              <div>✓ iframeRenderedHeight: {iframeRenderedHeight.toFixed(3)}</div>
               <div>✓ backingWallHeight: {backingWallHeight.toFixed(3)}</div>
-              <div>✓ backingWallMeshCenterY: {backingWallMeshCenterY.toFixed(3)}</div>
-              <div>✓ EMBED_VIDEO_VERTICAL_OFFSET: {EMBED_VIDEO_VERTICAL_OFFSET}</div>
-              <div>✓ isMobile: {isMobile ? 'YES' : 'NO'}</div>
-              <div>✓ MOBILE_BROWSER_MOTION_Y_OFFSET: {MOBILE_BROWSER_MOTION_Y_OFFSET}</div>
-              <div>✓ adjustedYOffset: {adjustedYOffset.toFixed(3)}</div>
-              <div style={{ fontWeight: 'bold', color: 'lime' }}>► htmlContentCenterY: {htmlContentCenterY.toFixed(3)} ◄</div>
-              <div>✓ zPosition: {zPosition.toFixed(3)}</div>
-              <div>✓ HTML center prop: true (裡面還會再除以2)</div>
+              <div style={{ fontWeight: 'bold', color: 'yellow' }}>► backingWallMeshCenterY: {backingWallMeshCenterY.toFixed(3)}</div>
+              <div style={{ color: 'cyan' }}>✓ MOBILE_BROWSER_MOTION_Y_OFFSET: {MOBILE_BROWSER_MOTION_Y_OFFSET}</div>
+              <div style={{ fontWeight: 'bold', color: 'lime' }}>► htmlContentCenterY: {htmlContentCenterY.toFixed(3)}</div>
+              <div style={{ fontWeight: 'bold', color: isMobile ? 'magenta' : 'cyan' }}>
+                ► Offset applied? {isMobile ? `YES (+${MOBILE_BROWSER_MOTION_Y_OFFSET})` : 'NO'}
+              </div>
+              <div>✓ Html center prop: TRUE</div>
             </div>
           </div>
         </Html>
