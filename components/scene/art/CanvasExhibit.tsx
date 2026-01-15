@@ -41,6 +41,12 @@ const isMobileDevice = () => {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 };
 
+// NEW: Detect if the app is embedded in an iframe
+const isInIframe = () => {
+  if (typeof window === 'undefined') return false;
+  return window.self !== window.top;
+};
+
 const VIDEO_SIZE_MULTIPLIER = 0.3;
 const VIDEO_INNER_CONTENT_MULTIPLIER = 0.85;
 const EMBED_VIDEO_VERTICAL_OFFSET = 0; 
@@ -259,10 +265,12 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     // This ensures they are always perfectly centered relative to each other
     let htmlContentCenterY = backingWallMeshCenterY;
     
-    // NEW: Try to detect and compensate for mobile-specific rendering differences
+    // CORRECTED: Mobile needs offset ONLY when NOT embedded in another page
     const isMobile = isMobileDevice();
-    if (isMobile) {
-      // Mobile browsers might need a small adjustment due to different rendering
+    const isEmbedded = isInIframe();
+    
+    if (isMobile && !isEmbedded) {
+      // Mobile browsers need offset, but ONLY when directly accessing (not embedded)
       htmlContentCenterY += MOBILE_BROWSER_MOTION_Y_OFFSET;
     }
 
@@ -337,6 +345,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               }}
             >
               <div style={{ color: 'orange' }}>📱 Device: {isMobile ? 'MOBILE' : 'DESKTOP'}</div>
+              <div style={{ color: 'orange' }}>🖼️ Embedded: {isEmbedded ? 'YES' : 'NO'}</div>
               <div style={{ fontSize: '9px', color: '#999' }}>UA: {typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 40) : 'N/A'}...</div>
               <div>---</div>
               <div>✓ maxDimension: {maxDimension}</div>
@@ -344,10 +353,10 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               <div>✓ videoContentBaseHeight: {videoContentBaseHeight.toFixed(3)}</div>
               <div>✓ backingWallHeight: {backingWallHeight.toFixed(3)}</div>
               <div style={{ fontWeight: 'bold', color: 'yellow' }}>► backingWallMeshCenterY: {backingWallMeshCenterY.toFixed(3)}</div>
-              <div style={{ color: 'cyan' }}>✓ MOBILE_BROWSER_MOTION_Y_OFFSET: {MOBILE_BROWSER_MOTION_Y_OFFSET}</div>
+              <div style={{ color: 'cyan' }}>✓ MOBILE_OFFSET: {MOBILE_BROWSER_MOTION_Y_OFFSET}</div>
               <div style={{ fontWeight: 'bold', color: 'lime' }}>► htmlContentCenterY: {htmlContentCenterY.toFixed(3)}</div>
-              <div style={{ fontWeight: 'bold', color: isMobile ? 'magenta' : 'cyan' }}>
-                ► Offset applied? {isMobile ? `YES (+${MOBILE_BROWSER_MOTION_Y_OFFSET})` : 'NO'}
+              <div style={{ fontWeight: 'bold', color: (isMobile && !isEmbedded) ? 'magenta' : 'cyan' }}>
+                ► Offset applied? {(isMobile && !isEmbedded) ? `YES (MOBILE+NOT_EMBEDDED +${MOBILE_BROWSER_MOTION_Y_OFFSET})` : 'NO'}
               </div>
               <div>✓ Html center prop: TRUE</div>
             </div>
