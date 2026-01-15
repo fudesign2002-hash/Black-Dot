@@ -636,8 +636,8 @@ const SceneContent: React.FC<SceneProps> = ({
   position={floorMeshPos}
   receiveShadow={true}
 >
-  {/* 將 planeGeometry 替換為 circleGeometry，並降低細分程度以優化效能 */}
-  <circleGeometry attach="geometry" args={[200, 128]} /> 
+  {/* 降低細分程度以優化效能，64 已經足以呈現平整圓形 */}
+  <circleGeometry attach="geometry" args={[200, 64]} /> 
 
   <meshStandardMaterial
     ref={floorMatRef}

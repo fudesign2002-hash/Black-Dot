@@ -510,8 +510,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
           style={{ top: `${customCameraTop}%`, left: `${customCameraLeft}%` }}
           title={hasMotionArt ? "Camera position fixed for motion exhibition" : "Drag to set custom starting camera position"}
         >
-          title="Custom Camera Position"
-        >
           <div className="relative" style={{ transform: `rotate(${cameraIconRotation}deg)` }}> {/* NEW: Apply rotation here */}
             {/* NEW: Lucide React Video icon */}
             <Video className={`w-5 h-5 ${lightsOn ? 'text-neutral-700' : 'text-neutral-300'}`} />

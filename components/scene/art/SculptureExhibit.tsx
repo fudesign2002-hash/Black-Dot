@@ -283,12 +283,11 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
       return { scale: 1, yOffset: 0, horizontalFootprint: 0, height: 0, xCenterOffset: 0, zCenterOffset: 0 };
     }
 
-    const tempScaleObject = new THREE.Group();
-    tempScaleObject.add(cleanedGlbScene.clone());
-    const localBoxUnscaled = new THREE.Box3().setFromObject(tempScaleObject);
+    // Direct calculation without cloning
+    const localBoxUnscaled = new THREE.Box3().setFromObject(cleanedGlbScene);
     const localSizeUnscaled = localBoxUnscaled.getSize(new THREE.Vector3());
 
-    const targetDisplaySize = 3; // Base target size before `scaleOffset` is applied
+    const targetDisplaySize = 3; 
     const currentMaxHorizontalLocal = Math.max(localSizeUnscaled.x, localSizeUnscaled.z);
 
     let scaleFactor = 1;
@@ -303,14 +302,27 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
         scaleFactor = (6 / maxOverallDimensionLocal);
     }
     
-    // Create a temporary object with `scaleFactor` to determine scaled dimensions
-    const tempBoundsObject = new THREE.Group();
-    tempBoundsObject.scale.set(scaleFactor, scaleFactor, scaleFactor); // Apply base scaleFactor only
-    tempBoundsObject.rotation.copy(glbRotationEuler);
+    // Calculate rotated/scaled bounds
+    const box = new THREE.Box3().setFromObject(cleanedGlbScene);
     
-    tempBoundsObject.add(cleanedGlbScene.clone()); 
+    // Apply scale to the box dimensions
+    box.min.multiplyScalar(scaleFactor);
+    box.max.multiplyScalar(scaleFactor);
     
-    const worldBox = new THREE.Box3().setFromObject(tempBoundsObject);
+    // For rotation, we should ideally apply the rotation to the object and then compute the box,
+    // or use a more complex math. But since we want to avoid side effects on the original object:
+    // We'll use a temporary group WITHOUT cloning to get the rotated bounds.
+    const tempGroup = new THREE.Group();
+    tempGroup.scale.setScalar(scaleFactor);
+    tempGroup.rotation.copy(glbRotationEuler);
+    tempGroup.add(cleanedGlbScene);
+    tempGroup.updateMatrixWorld(true);
+    
+    const worldBox = new THREE.Box3().setFromObject(tempGroup);
+    
+    // CRITICAL: Remove from tempGroup to avoid leaving it in a detached state
+    tempGroup.remove(cleanedGlbScene);
+
     const worldSize = worldBox.getSize(new THREE.Vector3());
     const worldCenter = worldBox.getCenter(new THREE.Vector3());
 
@@ -321,8 +333,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     const height = worldSize.y;
     
     const xCenterOffset = worldCenter.x;
-    let zCenterOffset = worldCenter.z;
-
+    const zCenterOffset = worldCenter.z;
 
     return { scale: scaleFactor, yOffset, horizontalFootprint, height, xCenterOffset, zCenterOffset };
   }, [isGLB, cleanedGlbScene, glbRotationEuler]); // Removed scaleOffset from dependencies here
@@ -467,21 +478,19 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
       {isGLB && glbWithAppliedMaterialsRef.current ? (
         <Suspense fallback={null}>
           <group
-            position={new THREE.Vector3( // FIX: Use THREE.Vector3 for position
-              positionOffset[0] - (glbRenderProps.xCenterOffset * scaleOffset), // MODIFIED: Multiply by scaleOffset to correct centering
+            position={[
+              positionOffset[0] - (glbRenderProps.xCenterOffset * scaleOffset), 
               finalGroupYPosition,
-              positionOffset[2] - (glbRenderProps.zCenterOffset * scaleOffset)  // MODIFIED: Multiply by scaleOffset to correct centering
-            )}
-            scale={glbRenderProps.scale * scaleOffset} // MODIFIED: Apply overall scale to GLB group
+              positionOffset[2] - (glbRenderProps.zCenterOffset * scaleOffset)
+            ]}
+            scale={glbRenderProps.scale * scaleOffset} 
             rotation={glbRotationEuler}
           >
             <primitive key={materialKey} object={glbWithAppliedMaterialsRef.current} castShadow receiveShadow />
           </group>
         </Suspense>
       ) : (
-        // FIX: Use THREE.Vector3 for position
-        <group position={new THREE.Vector3(positionOffset[0], finalGroupYPosition, positionOffset[2])}>
-          {/* FIX: Apply scaleOffset to primitive mesh */}
+        <group position={[positionOffset[0], finalGroupYPosition, positionOffset[2]]}>
           <mesh key={materialKey} castShadow receiveShadow scale={scaleOffset}> 
             {geometryComponent.type === 'boxGeometry' && <boxGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?, number?]} />}
             {geometryComponent.type === 'cylinderGeometry' && <cylinderGeometry attach="geometry" args={geometryComponent.args as [number?, number?, number?, number?, number?, boolean?, number?, number?]} />}

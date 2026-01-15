@@ -20,7 +20,6 @@ interface SmartSpotlightProps {
 
 const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, color = "white", artworkType, isEditorMode, artworkRotation }) => {
   const lightRef = useRef<THREE.SpotLight>(null);
-  const [castShadow, setCastShadow] = React.useState(false); // NEW: State for soft-start shadows
   const spotPosition = useMemo(() => new THREE.Vector3(0, 100, 0), []);
   const memoColor = useMemo(() => new THREE.Color(color), [color]);
 
@@ -75,8 +74,8 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
       // NEW: Soft-start shadows - only enable when intensity is high enough
       // This avoids sudden shadow map allocation lag at the very start of the transition
       const shouldCast = lightRef.current.intensity > 0.1;
-      if (castShadow !== shouldCast) {
-        setCastShadow(shouldCast);
+      if (lightRef.current.castShadow !== shouldCast) {
+        lightRef.current.castShadow = shouldCast;
       }
     }
   });
@@ -93,7 +92,6 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
         penumbra={0.8} 
         distance={spotlightDistance}
         decay={2} 
-        castShadow={castShadow} 
         color={memoColor}
         shadow-bias={-0.0001}
         shadow-normalBias={0.03}

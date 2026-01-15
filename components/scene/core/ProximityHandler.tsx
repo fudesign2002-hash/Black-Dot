@@ -15,6 +15,7 @@ interface ProximityHandlerProps {
 
 const THROTTLE_TIME = 2000;
 const CAMERA_MOVE_THRESHOLD = 0.5;
+const DETECTION_INTERVAL = 100; // NEW: Detection frequency limit (ms)
 
 const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocusedIndex, currentFocusedIndex, focusedArtworkInstanceId, cameraControlRef }) => {
   const { camera } = useThree();
@@ -27,6 +28,7 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
   const lastCameraPosition = useRef(new THREE.Vector3());
   const lastCameraQuaternion = useRef(new THREE.Quaternion());
   const lastUpdateTime = useRef(0);
+  const lastDetectionTime = useRef(0); // NEW: Track last detection timestamp
   const lastBestCandidateIndex = useRef(-1);
 
   useFrame((state) => {
@@ -37,6 +39,13 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
       return;
     }
 
+    const now = performance.now();
+    // NEW: Enforce detection interval to save CPU
+    if (now - lastDetectionTime.current < DETECTION_INTERVAL) {
+      return;
+    }
+    lastDetectionTime.current = now;
+
     const cameraMoved =
       lastCameraPosition.current.distanceToSquared(camera.position) > CAMERA_MOVE_THRESHOLD ||
       lastCameraQuaternion.current.angleTo(camera.quaternion) > CAMERA_MOVE_THRESHOLD;
@@ -44,8 +53,7 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
     if (cameraMoved) {
       lastCameraPosition.current.copy(camera.position);
       lastCameraQuaternion.current.copy(camera.quaternion);
-    } else if (performance.now() - lastUpdateTime.current < THROTTLE_TIME && lastBestCandidateIndex.current === currentFocusedIndex) {
-
+    } else if (now - lastUpdateTime.current < THROTTLE_TIME && lastBestCandidateIndex.current === currentFocusedIndex) {
       return;
     }
 
@@ -87,7 +95,6 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
 
     lastBestCandidateIndex.current = bestCandidateIndex;
 
-    const now = performance.now();
     if (bestCandidateIndex !== -1 && bestCandidateIndex !== currentFocusedIndex && (now - lastUpdateTime.current > THROTTLE_TIME)) {
       setFocusedIndex(bestCandidateIndex);
       lastUpdateTime.current = now;

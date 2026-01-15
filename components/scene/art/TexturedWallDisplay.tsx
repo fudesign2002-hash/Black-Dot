@@ -2,7 +2,7 @@
 
 
 import React, { useMemo, useState, useEffect, Suspense, useRef } from 'react';
-import { useLoader, useFrame } from '@react-three/fiber';
+import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ArtworkDimensions, ArtType } from '../../../types';
 import textureCache from '../../../services/textureCache';
@@ -127,37 +127,8 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
     }
   }, [artworkData]);
 
-  // Smooth fade-in for artwork textures to hide loading jumps
-  const opacityRef = useRef<number>(finalMapTexture ? 1 : 0);
-  const targetOpacityRef = useRef<number>(finalMapTexture ? 1 : 0);
   const artworkMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
   const paintingMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
-
-  useEffect(() => {
-    // When texture becomes available, target opacity -> 1, otherwise -> 0
-    if (finalMapTexture) targetOpacityRef.current = 1;
-    else targetOpacityRef.current = 0;
-  }, [finalMapTexture]);
-
-  // Animate opacity each frame
-  useFrame((state, delta) => {
-    const cur = opacityRef.current;
-    const target = targetOpacityRef.current;
-    if (Math.abs(cur - target) > 0.001) {
-      // lerp with a relatively quick speed so fade is fast but visible
-      const next = THREE.MathUtils.lerp(cur, target, Math.min(1, delta * 6));
-      opacityRef.current = next;
-      // apply to material if available
-      if (artworkMaterialRef.current) {
-        artworkMaterialRef.current.opacity = next;
-        artworkMaterialRef.current.transparent = next < 0.999;
-      }
-      if (paintingMaterialRef.current) {
-        paintingMaterialRef.current.opacity = next;
-        paintingMaterialRef.current.transparent = next < 0.999;
-      }
-    }
-  });
 
   useEffect(() => {
     setIsInternalLoadingError(false);
@@ -376,8 +347,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 roughness={1}
                 metalness={0}
                 envMapIntensity={0.2}
-                transparent={true}
-                opacity={opacityRef.current}
+                transparent={false}
               />
             </mesh>
           </React.Fragment>
@@ -406,8 +376,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                   roughness={1} 
                   metalness={0} 
                   envMapIntensity={0.2}
-                  transparent={true} 
-                  opacity={opacityRef.current} 
+                  transparent={false} 
                 />
               </mesh>
           </group>
