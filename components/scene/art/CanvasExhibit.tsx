@@ -3,7 +3,7 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import TexturedWallDisplay from './TexturedWallDisplay';
 import { Html } from '@react-three/drei';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Maximize } from 'lucide-react';
 import { getVideoEmbedUrl } from '../../../services/utils/videoUtils';
 import * as THREE from 'three';
 import { useLoader } from '@react-three/fiber';
@@ -41,7 +41,7 @@ const EMBED_VIDEO_VERTICAL_OFFSET = 0;
 const MOTION_WALL_BACKING_MULTIPLIER = 2.5; 
 
 // NEW: Small screen specific Y offset for motion videos
-const SMALL_SCREEN_MOTION_Y_OFFSET = 0;
+const SMALL_SCREEN_MOTION_Y_OFFSET = 0.5;
 
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
   artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0, artworkData // NEW: accept artworkData
@@ -50,6 +50,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
   const [showFeedback, setShowFeedback] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [lastAction, setLastAction] = useState<'play' | 'pause' | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false); // NEW: track fullscreen state
   const feedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null); // NEW: ref to the video iframe
   const containerRef = useRef<HTMLDivElement>(null); // NEW: ref for the video container
@@ -58,14 +59,21 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
 
   // NEW: Handle fullscreen toggle
   const toggleFullscreen = useCallback(() => {
-    const element = iframeRef.current;
-    if (!element) return;
+    const element = containerRef.current;
+    if (!element) {
+      console.error("Container element not found");
+      return;
+    }
     
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(err => console.error("Error exiting fullscreen:", err));
+    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+      const exitMethod = document.exitFullscreen || (document as any).webkitExitFullscreen;
+      if (exitMethod) {
+        exitMethod.call(document).catch(err => console.error("Error exiting fullscreen:", err));
+      }
     } else {
       const requestMethod = element.requestFullscreen || 
                            (element as any).webkitRequestFullscreen || 
+                           (element as any).webkitEnterFullscreen ||
                            (element as any).mozRequestFullScreen || 
                            (element as any).msRequestFullscreen;
       
@@ -73,6 +81,8 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
         requestMethod.call(element).catch(err => {
           console.error("Error attempting to enable fullscreen:", err);
         });
+      } else {
+        console.error("Fullscreen API not supported");
       }
     }
   }, []);
@@ -109,6 +119,36 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     }
   }, [isPlaying, isMotionVideo, textureUrl]);
 
+  // NEW: Monitor fullscreen state and toggle between custom UI and Vimeo controls
+  useEffect(() => {
+    if (!isMotionVideo || !iframeRef.current) return;
+
+    const handleFullscreenChange = () => {
+      const isNowFullscreen = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+      setIsFullscreen(isNowFullscreen);
+      
+      const isVimeo = textureUrl?.includes('vimeo.com');
+      
+      if (isVimeo && iframeRef.current) {
+        // Show Vimeo controls when in fullscreen, hide when not
+        const message = JSON.stringify({
+          method: isNowFullscreen ? 'enableControls' : 'disableControls'
+        });
+        iframeRef.current.contentWindow?.postMessage(message, '*');
+        
+        console.log(isNowFullscreen ? 'Fullscreen: Using Vimeo controls' : 'Normal: Using custom UI');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, [isMotionVideo, textureUrl]);
+
   if (orientation === 'landscape') {
     maxDimension = 16.0; 
   }
@@ -122,8 +162,9 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
 
     const url = getVideoEmbedUrl(textureUrl);
     if (!url) {
-      
+      return null;
     }
+    
     return url;
   }, [isMotionVideo, isFaultyMotionVideo, textureUrl]);
 
@@ -246,109 +287,28 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
           center
           occlude={[wallRef]}
           transform
+          zIndexRange={[0, 10]}
+          pointerEvents="auto"
         >
-          <div style={{ position: 'relative', width: iframeWidthPx, height: iframeHeightPx }}>
+          <div 
+            ref={containerRef} 
+            style={{ position: 'relative', width: iframeWidthPx, height: iframeHeightPx }}
+          >
             <iframe
-              ref={iframeRef} // NEW: Attach ref
+              ref={iframeRef}
               src={embedUrl}
               width="100%"
               height="100%"
               frameBorder="0"
-              allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-share"
+              allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; accelerometer; gyroscope"
               allowFullScreen
-              sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
-              style={{ display: 'block', position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+              webkitallowfullscreen="true"
+              mozallowfullscreen="true"
+              style={{ display: 'block', position: 'absolute', top: 0, left: 0 }}
               title="Embedded video player"
               aria-label="Embedded video player"
               referrerPolicy="strict-origin-when-cross-origin"
             />
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                zIndex: 1,
-                cursor: 'pointer',
-                touchAction: 'manipulation', // prefer manipulation so taps are handled but small gestures won't trigger browser gesture
-                WebkitTapHighlightColor: 'transparent',
-              }}
-              onPointerDown={(e) => { e.stopPropagation(); }}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              onClick={(e) => {
-                // NEW: Toggle playback if it's a motion video
-                if (isMotionVideo) {
-                  togglePlayback();
-                }
-                onArtworkClickedHtml(e, artworkPosition, artworkRotation, artworkType);
-              }}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                if (isMotionVideo) {
-                  toggleFullscreen();
-                }
-              }}
-            >
-              <style>{`
-                @keyframes feedback-fade-out {
-                  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-                  20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-                  80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-                  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
-                }
-              `}</style>
-              {isHovered && !showFeedback && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    zIndex: 2,
-                    pointerEvents: 'none',
-                    color: 'white',
-                    fontSize: '14px',
-                    fontFamily: 'sans-serif',
-                    textShadow: '0 0 4px rgba(0,0,0,0.8)',
-                    whiteSpace: 'nowrap',
-                    opacity: 0.8,
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '2px 8px',
-                    borderRadius: '4px'
-                  }}
-                >
-                  Double click to Full screen
-                </div>
-              )}
-              {showFeedback && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 2,
-                    pointerEvents: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '100px',
-                    height: '100px',
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    borderRadius: '50%',
-                    animation: 'feedback-fade-out 1s ease-out forwards'
-                  }}
-                >
-                  {lastAction === 'play' ? (
-                    <Play size={40} color="white" fill="white" />
-                  ) : (
-                    <Pause size={40} color="white" fill="white" />
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         </Html>
       </group>

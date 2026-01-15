@@ -12,6 +12,8 @@ export const getVideoEmbedUrl = (watchUrl: string): string | null => {
         
         const embedParams = new URLSearchParams();
         embedParams.set('autoplay', '1');
+        embedParams.set('controls', '1'); // Show Vimeo controls
+        embedParams.set('unmute_button', '0'); // Hide unmute button
         embedParams.set('loop', '1');
         embedParams.set('muted', '1');
         embedParams.set('byline', '0');
@@ -19,6 +21,7 @@ export const getVideoEmbedUrl = (watchUrl: string): string | null => {
         embedParams.set('title', '0');
         embedParams.set('api', '1'); // NEW: Enable JS API for Vimeo
 
+        // Preserve original query parameters like 'h' (hash for private videos)
         url.searchParams.forEach((value, key) => {
             if (!embedParams.has(key)) { 
                 embedParams.set(key, value);
