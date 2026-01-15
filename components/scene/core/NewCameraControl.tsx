@@ -62,9 +62,18 @@ interface NewCameraControlProps {
 }
 
 const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraControlProps>((props, ref) => {
-  const { camera, gl } = useThree();
+  const { camera, gl, controls } = useThree() as any;
   const controlsRef = useRef<any>(null);
   const [isEmbedActive, setIsEmbedActive] = useState(false);
+
+  // Debug position logging
+  useFrame(() => {
+    if (typeof window !== 'undefined' && (window as any).__SHOW_CAMERA_DEBUG) {
+      const pos = camera.position;
+      const tgt = controls?.target || { x: 0, y: 0, z: 0 };
+      console.log(`[DEBUG] CamPos: [${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}] | CamTgt: [${tgt.x.toFixed(2)}, ${tgt.y.toFixed(2)}, ${tgt.z.toFixed(2)}]`);
+    }
+  });
 
   // NEW: Handle embed mode click-to-activate behavior
   useEffect(() => {
@@ -126,7 +135,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
     // Priority: arg customPosition > current prop lightingConfig > absolute system center
     const toPosition = customPosition || props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
-    const toTgt = INITIAL_CAMERA_TARGET; // always reset target to [0, 1, 0]
+    const toTgt = props.lightingConfig?.customCameraTarget || INITIAL_CAMERA_TARGET;
 
     const animDuration = duration !== undefined ? duration : 600; // default 0.6s for user reset
     const targetVec = new THREE.Vector3(...toPosition);
@@ -505,8 +514,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         if (props.onCameraPositionChange) {
           // Determine whether camera is at initial by comparing position AND target to the active preset/default
           const defaultPos = props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
+          const defaultTgt = props.lightingConfig?.customCameraTarget || INITIAL_CAMERA_TARGET;
           const posDist = camera.position.distanceTo(new THREE.Vector3(...defaultPos));
-          const tgtDist = controlsRef.current.target.distanceTo(new THREE.Vector3(...INITIAL_CAMERA_TARGET));
+          const tgtDist = controlsRef.current.target.distanceTo(new THREE.Vector3(...defaultTgt));
           const atInitial = posDist < 0.2 && tgtDist < 0.2;
           props.onCameraPositionChange(atInitial);
         }
@@ -630,8 +640,8 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       dampingFactor={0.05}
       minDistance={props.isArtworkFocused || props.isRankingMode || props.isZeroGravityMode || moveToConfig || isAnimatingState ? 10 : 15}
       maxDistance={40}
-      // keep target in sync with INITIAL_CAMERA_TARGET until moved
-      target={INITIAL_CAMERA_TARGET}
+      // keep target in sync with initial system or custom target until moved
+      target={props.lightingConfig?.customCameraTarget || INITIAL_CAMERA_TARGET}
       enabled={!props.isEditorOpen || !!moveToConfig}
       enableRotate={true}
       onStart={() => {
@@ -644,8 +654,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
         // Check if we are at initial after manual move
         if (props.onCameraPositionChange) {
           const defaultPos = props.lightingConfig?.customCameraPosition || INITIAL_CAMERA_POSITION;
+          const defaultTgt = props.lightingConfig?.customCameraTarget || INITIAL_CAMERA_TARGET;
           const posDist = camera.position.distanceTo(new THREE.Vector3(...defaultPos));
-          const tgtDist = controlsRef.current.target.distanceTo(new THREE.Vector3(...INITIAL_CAMERA_TARGET));
+          const tgtDist = controlsRef.current.target.distanceTo(new THREE.Vector3(...defaultTgt));
           const atInitial = posDist < 0.2 && tgtDist < 0.2;
           props.onCameraPositionChange(atInitial);
         }

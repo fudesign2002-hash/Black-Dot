@@ -119,9 +119,11 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
               <h3 className={`text-5xl font-serif font-medium tracking-tight uppercase ${uiConfig.text}`}>
                 {showArtworkData ? artworkDataForPanel?.title : activeExhibition.title}
               </h3>
-              <p className={`text-base font-serif opacity-70 ${uiConfig.text}`}>
-                {showArtworkData ? `by ${artworkDataForPanel?.artist || 'Unknown Artist'}` : `Curated by ${activeExhibition.artist}`}
-              </p>
+              {(showArtworkData || (activeExhibition.artist && activeExhibition.artist.toUpperCase() !== 'OOTB')) && (
+                <p className={`text-base font-serif opacity-70 ${uiConfig.text}`}>
+                  {showArtworkData ? `by ${artworkDataForPanel?.artist || 'Unknown Artist'}` : `Artist : ${activeExhibition.artist}`}
+                </p>
+              )}
             </div>
 
             {showArtworkData && (
@@ -152,39 +154,47 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                   </div>
                 ) : (
                   <div className={`grid grid-cols-2 gap-6 mb-8 p-6 bg-neutral-500/5 border ${uiConfig.border} rounded-sm`}>
-                    <div className="flex items-start gap-4">
-                        <Image size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
-                        <div>
-                             <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Focus</p>
-                             <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{formatArtworkType(artworkDataForPanel?.artwork_type)}</p>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-4">
-                        <Brush size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
-                        <div>
-                             <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Artist</p>
-                             <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.artist || 'N/A'}</p>
-                        </div>
-                    </div>
-
-                    <div className={`col-span-2 pt-4 border-t border-neutral-500/10 flex items-start gap-4`}>
-                        <Ruler size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
-                        <div>
-                            <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Composition</p>
-                            <div className="space-y-1">
-                                <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.materials || 'Mixed Media'}</p>
-                                <p className={`text-xs opacity-50 ${uiConfig.text}`}>{artworkDataForPanel?.size || 'Variable Dimensions'}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {artworkDataForPanel?.fileSizeMB !== undefined && (
-                      <div className={`col-span-2 pt-4 border-t border-neutral-500/10 flex items-start gap-4`}>
-                          <Weight size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                    {artworkDataForPanel?.artwork_type && artworkDataForPanel.artwork_type !== 'unknown' && (
+                      <div className="flex items-start gap-4">
+                          <Image size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                           <div>
-                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Digital Footprint</p>
-                               <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel.fileSizeMB.toFixed(2)} MB</p>
+                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Artwork Type</p>
+                               <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{formatArtworkType(artworkDataForPanel?.artwork_type)}</p>
+                          </div>
+                      </div>
+                    )}
+                    
+                    {artworkDataForPanel?.artist && (
+                      <div className="flex items-start gap-4">
+                          <Brush size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                          <div>
+                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Artist</p>
+                               <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.artist}</p>
+                          </div>
+                      </div>
+                    )}
+
+                    {artworkDataForPanel?.artwork_date && (
+                      <div className="flex items-start gap-4">
+                          <Calendar size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                          <div>
+                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Date</p>
+                               <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel.artwork_date}</p>
+                          </div>
+                      </div>
+                    )}
+
+                    {(artworkDataForPanel?.artwork_medium || artworkDataForPanel?.materials) && (
+                      <div className={`col-span-2 pt-4 border-t border-neutral-500/10 flex items-start gap-4`}>
+                          <Layers size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
+                          <div>
+                              <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Medium</p>
+                              <div className="space-y-1">
+                                  <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel.artwork_medium || artworkDataForPanel.materials}</p>
+                                  {(artworkDataForPanel.artwork_dimensions || artworkDataForPanel.size) && (
+                                    <p className={`text-xs opacity-50 ${uiConfig.text}`}>{artworkDataForPanel.artwork_dimensions || artworkDataForPanel.size}</p>
+                                  )}
+                              </div>
                           </div>
                       </div>
                     )}

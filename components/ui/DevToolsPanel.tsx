@@ -275,7 +275,7 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
           {/* NEW: Debug Mode Toggle */}
           <div className={`border-t pt-2 mt-2 space-y-1 ${uiConfig.border}`}>
             <p className={`${uiConfig.subtext} flex items-center gap-2`}><Cpu className="w-4 h-4" /> Debug Mode</p>
-            <div className="ml-4 space-y-0.5">
+            <div className="ml-4 space-y-2">
               <div className="flex justify-between items-center">
                 <span className={`${uiConfig.subtext}`}>Status:</span>
                 <button
@@ -290,6 +290,27 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
                   {isDebugMode ? 'ON' : 'OFF'}
                 </button>
               </div>
+
+              {isDebugMode && (
+                <div className="flex justify-between items-center border-t pt-2 border-dashed border-neutral-500/20">
+                  <span className={`${uiConfig.subtext}`}>Cam Console Log:</span>
+                  <button
+                    onClick={() => {
+                        (window as any).__SHOW_CAMERA_DEBUG = !(window as any).__SHOW_CAMERA_DEBUG;
+                        // Force local re-render if needed or just let console start flowing
+                        const btn = document.activeElement as HTMLElement;
+                        if(btn) btn.blur(); 
+                    }}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors border ${
+                        (window as any).__SHOW_CAMERA_DEBUG 
+                        ? 'bg-rose-500/10 text-rose-500 border-rose-500/30' 
+                        : 'bg-neutral-500/10 text-neutral-500 border-neutral-500/30'
+                    }`}
+                  >
+                    {(window as any).__SHOW_CAMERA_DEBUG ? 'LOGGING' : 'OFF'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

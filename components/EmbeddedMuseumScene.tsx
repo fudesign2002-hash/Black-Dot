@@ -94,6 +94,22 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
   const nextItem = useMemo(() => (exhibitions.length ? exhibitions[(currentIndex + 1) % exhibitions.length] : null), [exhibitions, currentIndex]);
   const prevItem = useMemo(() => (exhibitions.length ? exhibitions[(currentIndex - 1 + exhibitions.length) % exhibitions.length] : null), [exhibitions, currentIndex]);
 
+  const focusedArtworkTitle = useMemo(() => {
+    if (!focusedArtworkInstanceId || !currentLayout) return null;
+    const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+    if (!artItem) return null;
+    const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
+    return firebaseArt ? firebaseArt.title.toUpperCase() : null;
+  }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
+
+  const focusedArtworkArtist = useMemo(() => {
+    if (!focusedArtworkInstanceId || !currentLayout) return null;
+    const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+    if (!artItem) return null;
+    const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
+    return firebaseArt ? firebaseArt.artist : null;
+  }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
+
   const zeroGravityViews = useMemo(() => {
     if (!currentLayout || currentLayout.length === 0) return { minViews: 0, maxViews: 0, extraTicks: 0 };
     const views = currentLayout.map(a => a.view_count || 0);
@@ -183,7 +199,8 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         isArtworkFocusedForControls={false}
         onDismissArtworkControls={() => setFocusedArtworkInstanceId(null)}
         onInfoOpen={() => setIsInfoOpen(true)}
-        focusedArtworkTitle={null}
+        focusedArtworkTitle={focusedArtworkTitle}
+        focusedArtworkArtist={focusedArtworkArtist}
         onLikeTriggered={() => {}}
         isRankingMode={isRankingMode}
         onRankingToggle={() => setIsRankingMode(!isRankingMode)}

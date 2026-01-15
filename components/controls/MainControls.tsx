@@ -29,6 +29,7 @@ interface MainControlsProps {
   onDismissArtworkControls: () => void;
   onInfoOpen: () => void;
   focusedArtworkTitle: string | null;
+  focusedArtworkArtist?: string | null;
   onLikeTriggered: (artworkInstanceId: string) => void;
   isRankingMode: boolean;
   onRankingToggle: () => void;
@@ -73,6 +74,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   onDismissArtworkControls,
   onInfoOpen,
   focusedArtworkTitle,
+  focusedArtworkArtist,
   onLikeTriggered,
   isRankingMode,
   onRankingToggle,
@@ -183,8 +185,9 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                       setHeartEmitterArtworkId(null);
                       onInfoOpen();
                     }}
-                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors duration-300 active:scale-95 bg-cyan-500 text-white hover:bg-cyan-600`}
-                    title="Artwork Info"
+                    disabled={focusedArtworkArtist?.toUpperCase() === 'OOTB'}
+                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors duration-300 active:scale-95 bg-cyan-500 text-white hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none`}
+                    title={focusedArtworkArtist?.toUpperCase() === 'OOTB' ? "Info locked" : "Artwork Info"}
                     aria-label="View info for this artwork"
                 >
                     <Info className="w-5 h-5" />

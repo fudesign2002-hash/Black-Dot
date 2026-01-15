@@ -264,9 +264,21 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     const baseConfig = { ...DEFAULT_SIMPLIFIED_LIGHTING_CONFIG, ...activeZone.lightingDesign.defaultConfig };
     // NEW: Apply customCameraPosition from baseConfig, then any overrides
     const finalConfig = { ...baseConfig, ...lightingOverrides[activeZone.id] };
-    if (!finalConfig.customCameraPosition) {
+
+    // Check if the current exhibition has any motion artworks
+    const hasMotionArt = activeExhibition.exhibit_artworks?.some(artId => {
+      const art = firebaseArtworks.find(a => a.id === artId);
+      return art?.artwork_type === 'motion';
+    });
+
+    if (hasMotionArt) {
+      // If motion, lock camera to a specific perspective for the best view
+      finalConfig.customCameraPosition = [-8.37, 2.23, 17.97];
+      finalConfig.customCameraTarget = [-4.81, -0.58, -1.93];
+    } else if (!finalConfig.customCameraPosition) {
       finalConfig.customCameraPosition = INITIAL_CAMERA_POSITION;
     }
+
     // Ranking camera is a fixed internal constant and is not stored on lighting configs.
     if (finalConfig.useExhibitionBackground === undefined) { // NEW: Ensure useExhibitionBackground is always defined
       finalConfig.useExhibitionBackground = false;
@@ -275,7 +287,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       finalConfig.floorColor = DEFAULT_SIMPLIFIED_LIGHTING_CONFIG.floorColor;
     }
     return finalConfig;
-  }, [activeZone, lightingOverrides]);
+  }, [activeZone, lightingOverrides, activeExhibition, firebaseArtworks]);
 
   const currentLayout = useMemo((): ExhibitionArtItem[] => {
     const canonicalArtworkIds = new Set(activeExhibition.exhibit_artworks || []);
@@ -312,6 +324,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     const cloned: SimplifiedLightingConfig = {
       ...config,
       customCameraPosition: config.customCameraPosition ? [...config.customCameraPosition] as [number, number, number] : config.customCameraPosition,
+      customCameraTarget: config.customCameraTarget ? [...config.customCameraTarget] as [number, number, number] : config.customCameraTarget,
     };
     console.groupCollapsed('%c[useMuseumState] setLightingOverride', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
     console.log('zoneId:', zoneId, 'customCameraPosition:', cloned.customCameraPosition);

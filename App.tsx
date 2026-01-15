@@ -1180,10 +1180,6 @@ function MuseumApp({
   }, [cameraControlRef, setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setisRankingMode, setIsZeroGravityMode, setHeartEmitterArtworkId, lightingConfig.customCameraPosition]);
 
   const updateArtworkLikesInFirebase = useCallback(async (artworkId: string, incrementBy: number) => {
-    if (embedMode) {
-      // In embed mode we don't write likes to DB
-      return;
-    }
     try {
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       await artworkDocRef.update({
@@ -1197,7 +1193,6 @@ function MuseumApp({
   const viewedArtworkInstanceRef = useRef<string | null>(null);
 
   const updateArtworkViewsInFirebase = useCallback(async (artworkId: string) => {
-    if (embedMode) return;
     try {
       const artworkDocRef = db.collection('artworks').doc(artworkId);
       await artworkDocRef.update({
@@ -1500,6 +1495,13 @@ function MuseumApp({
     return firebaseArt ? firebaseArt.title.toUpperCase() : null;
   }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
 
+  const focusedArtworkArtist = useMemo(() => {
+    const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+    if (!artItem) return null;
+    const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
+    return firebaseArt ? firebaseArt.artist : null;
+  }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
+
   const showGlobalOverlay = isTransitioning || isEffectRegistryLoading || !authResolved || isLoading; // Show overlay if explicitly transitioning OR still loading critical data
   // MODIFIED: Use transitionMessage state for overlay message
   // const overlayMessage = isEffectRegistryLoading ? 'Loading Effects...' : (isTransitioning ? 'Loading Gallery...' : 'Loading Gallery...'); // NEW: Update overlay message
@@ -1723,6 +1725,7 @@ function MuseumApp({
         onDismissArtworkControls={handleDismissArtworkControls}
         onInfoOpen={handleOpenInfo}
         focusedArtworkTitle={focusedArtworkDisplayTitle}
+        focusedArtworkArtist={focusedArtworkArtist}
         onLikeTriggered={onLikeTriggered}
         isRankingMode={isRankingMode}
         onRankingToggle={handleRankingToggle}

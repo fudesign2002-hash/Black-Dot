@@ -25,6 +25,7 @@ export interface SimplifiedLightingConfig {
   keyLightPosition: [number, number, number];
   fillLightPosition: [number, number, number];
   customCameraPosition?: [number, number, number]; // NEW: Add customCameraPosition
+  customCameraTarget?: [number, number, number]; // NEW: Add customCameraTarget
   useExhibitionBackground?: boolean; // NEW: Add toggle for exhibition background
   floorColor?: string; // NEW: Add floorColor for custom background
   backgroundColor?: string; // NEW: Add backgroundColor for scene background
@@ -128,6 +129,9 @@ export interface FirebaseArtwork {
   artwork_file?: string;
   digitalSize?: string;
   materials?: string;
+  artwork_medium?: string;
+  artwork_date?: string;
+  artwork_dimensions?: string;
   size?: string;
   artwork_data?: ArtworkData;
   fileSizeMB?: number;
