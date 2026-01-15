@@ -59,6 +59,24 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
 
   const showArtworkData = !!artworkDataForPanel;
 
+  // NEW: Calculate aggregated likes and views for the exhibition view if showArtworkData is false
+  const exhibitionStats = useMemo(() => {
+    if (showArtworkData || !activeExhibition || !allFirebaseArtworks) return { liked: 0, viewed: 0 };
+    
+    // MODIFIED: Aggregate from both exhibit_artworks AND the default/current layout
+    const artworkIds = new Set([
+      ...(activeExhibition.exhibit_artworks || []),
+      ...(activeExhibition.defaultLayout?.map(item => item.artworkId) || [])
+    ]);
+
+    const artworksInExhibit = allFirebaseArtworks.filter(art => artworkIds.has(art.id));
+    
+    const liked = artworksInExhibit.reduce((sum, art) => sum + (art.artwork_liked || 0), 0);
+    const viewed = artworksInExhibit.reduce((sum, art) => sum + (art.artwork_viewed || 0), 0);
+    
+    return { liked, viewed };
+  }, [showArtworkData, activeExhibition, allFirebaseArtworks]);
+
   const formatArtworkType = (type: string | undefined) => {
     if (!type) return 'N/A';
     return type.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
@@ -126,18 +144,24 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
               )}
             </div>
 
-            {showArtworkData && (
-              <div className="flex items-center gap-6 pt-2">
-                 <div className="flex items-center gap-2 group">
-                    <Heart className={`w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-rose-500 transition-all ${uiConfig.text}`} strokeWidth={1.5} />
-                    <span className={`text-xs font-bold tracking-widest ${uiConfig.text}`}>{artworkDataForPanel?.artwork_liked ?? '0'}</span>
-                 </div>
-                  <div className="flex items-center gap-2 group">
-                    <Eye className={`w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-cyan-500 transition-all ${uiConfig.text}`} strokeWidth={1.5} />
-                    <span className={`text-xs font-bold tracking-widest ${uiConfig.text}`}>{artworkDataForPanel?.artwork_viewed ?? '0'}</span>
-                  </div>
-              </div>
-            )}
+            <div className="flex items-center gap-6 pt-2">
+               <div className="flex items-center gap-2 group">
+                  <Heart className={`w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-rose-500 transition-all ${uiConfig.text}`} strokeWidth={1.5} />
+                  <span className={`text-xs font-bold tracking-widest ${uiConfig.text}`}>
+                    {showArtworkData 
+                      ? (artworkDataForPanel?.artwork_liked ?? '0') 
+                      : (activeExhibition.exhibit_liked || exhibitionStats.liked || '0')}
+                  </span>
+               </div>
+                <div className="flex items-center gap-2 group">
+                  <Eye className={`w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-cyan-500 transition-all ${uiConfig.text}`} strokeWidth={1.5} />
+                  <span className={`text-xs font-bold tracking-widest ${uiConfig.text}`}>
+                    {showArtworkData 
+                      ? (artworkDataForPanel?.artwork_viewed ?? '0') 
+                      : (activeExhibition.exhibit_viewed || exhibitionStats.viewed || '0')}
+                  </span>
+                </div>
+            </div>
           </div>
           <button onClick={onClose} className={`p-3 transition-all ${uiConfig.text} opacity-50 hover:opacity-100`}>
             <X className="w-8 h-8" strokeWidth={1} />

@@ -13,15 +13,15 @@ interface SideNavigationProps {
   prevItem: Exhibition | null;
   nextItem: Exhibition | null;
   isSmallScreen: boolean;
-  focusedArtworkInstanceId: string | null; // NEW: Add focusedArtworkInstanceId
+  isArtworkFocusedForControls: boolean; // MODIFIED: Use isArtworkFocusedForControls instead of focusedArtworkInstanceId
   isRankingMode: boolean; // NEW: Add isRankingMode prop
   isZeroGravityMode: boolean; // NEW: Add isZeroGravityMode prop
 }
 
-const SideNavigation: React.FC<SideNavigationProps> = React.memo(({ uiConfig, isFirstItem, isLastItem, onPrev, onNext, prevItem, nextItem, isSmallScreen, focusedArtworkInstanceId, isRankingMode, isZeroGravityMode }) => {
+const SideNavigation: React.FC<SideNavigationProps> = React.memo(({ uiConfig, isFirstItem, isLastItem, onPrev, onNext, prevItem, nextItem, isSmallScreen, isArtworkFocusedForControls, isRankingMode, isZeroGravityMode }) => {
   // NEW: Determine if navigation should be hidden based on focused artwork or ranking mode
   // MODIFIED: Also hide if in zero gravity mode
-  const isNavigationHidden = !!focusedArtworkInstanceId || isRankingMode || isZeroGravityMode; 
+  const isNavigationHidden = isArtworkFocusedForControls || isRankingMode || isZeroGravityMode; 
 
   const animationClasses = `transition-all duration-500 ease-out ${isNavigationHidden ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'}`;
 

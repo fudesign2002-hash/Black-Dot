@@ -103,6 +103,8 @@ export interface Exhibition {
   supportedBy?: string;
   exhibit_poster?: string;
   exhibit_background?: string; // NEW: Add exhibit_background property
+  exhibit_liked?: number; // NEW: Add exhibit_liked
+  exhibit_viewed?: number; // NEW: Add exhibit_viewed
 }
 
 export interface ZoneArtworkItem {

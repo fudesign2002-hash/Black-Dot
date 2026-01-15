@@ -466,7 +466,8 @@ const SceneContent: React.FC<SceneProps> = ({
           if (scene.background instanceof THREE.Color) {
             scene.background.copy(targetBgColor);
           } else {
-            scene.background = targetBgColor.clone();
+            // Use cached colors instead of cloning every frame
+            scene.background = targetBgColor === darkBgColor ? darkBgColor : (targetBgColor === lightBgColor ? lightBgColor : targetBgColor.clone());
           }
         }
         

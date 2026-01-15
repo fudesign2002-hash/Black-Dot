@@ -105,6 +105,20 @@ function MuseumApp({
 
   const isSignedIn = Boolean(user && !user.isAnonymous && (user.providerData && user.providerData.length > 0));
 
+  // NEW: Add hotkey for debug panel (Command/Ctrl + Shift + D)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        if (isSignedIn) {
+          setIsDevToolsOpen(prev => !prev);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSignedIn]);
+
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [editorLayout, setEditorLayout] = useState<ExhibitionArtItem[] | null>(null);
   const [selectedArtworkId, setSelectedArtworkId] = useState<string | null>(null);
@@ -1305,6 +1319,19 @@ function MuseumApp({
       if (lastUserInteractionWasDragRef.current) {
         lastUserInteractionWasDragRef.current = false;
       } else {
+        // MODIFIED: If it's a motion video, skip the camera zoom focus (it already uses a locked perspective)
+        if (isMotionVideo) {
+          setIsArtworkFocusedForControls(false); // DO NOT show the UI controls for motion artworks
+          // Increment view count for motion artwork too
+          if (viewedArtworkInstanceRef.current !== artworkInstanceId) {
+            viewedArtworkInstanceRef.current = artworkInstanceId;
+            if (actualArtworkId) {
+              void updateArtworkViewsInFirebase(actualArtworkId);
+            }
+          }
+          return;
+        }
+
         if (cameraControlRef.current && cameraControlRef.current.moveCameraToArtwork) {
           // Show artwork action controls because we're performing a zoom-in
           setIsArtworkFocusedForControls(true);
@@ -1347,9 +1374,28 @@ function MuseumApp({
       }
     } else {
       setFocusedArtworkFirebaseId(null);
+
+      // NEW: If focused on exhibition (not an artwork), aggregate likes and views
+      if (activeExhibition && activeExhibition.id !== 'fallback_id') {
+        // MODIFIED: Aggregate from both exhibit_artworks AND currentLayout to be safe
+        const artworkIds = new Set([
+          ...(activeExhibition.exhibit_artworks || []),
+          ...(currentLayout.map(item => item.artworkId))
+        ]);
+        
+        const artworksInExhibit = firebaseArtworks.filter(art => artworkIds.has(art.id));
+        const totalLikes = artworksInExhibit.reduce((sum, art) => sum + (art.artwork_liked || 0), 0);
+        const totalViews = artworksInExhibit.reduce((sum, art) => sum + (art.artwork_viewed || 0), 0);
+        
+        // Update Firestore exhibition doc with aggregated counts
+        void db.collection('exhibitions').doc(activeExhibition.id).update({
+          exhibit_liked: totalLikes,
+          exhibit_viewed: totalViews
+        }).catch(err => console.error("Error updating exhibition stats:", err));
+      }
     }
     setIsInfoOpen(true);
-  }, [focusedArtworkInstanceId, currentLayout, setFocusedArtworkFirebaseId]);
+  }, [focusedArtworkInstanceId, currentLayout, setFocusedArtworkFirebaseId, activeExhibition, firebaseArtworks]);
 
   const handleCloseInfo = useCallback(() => {
     setIsInfoOpen(false);
@@ -1668,7 +1714,7 @@ function MuseumApp({
         prevItem={prevItem}
         nextItem={nextItem}
         isSmallScreen={isSmallScreen}
-        focusedArtworkInstanceId={focusedArtworkInstanceId}
+        isArtworkFocusedForControls={isArtworkFocusedForControls}
         isRankingMode={isRankingMode}
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
         />

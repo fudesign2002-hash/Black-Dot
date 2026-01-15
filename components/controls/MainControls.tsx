@@ -116,7 +116,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   
   // NEW: Determine if next/prev buttons should be hidden for small screens when artwork is focused
   // MODIFIED: Also hide if in zero gravity mode
-  const hideNextPrevOnSmallScreen = isSmallScreen && (focusedArtworkInstanceId || isZeroGravityMode);
+  const hideNextPrevOnSmallScreen = isSmallScreen && (isArtworkFocusedForControls || isZeroGravityMode);
   const nextPrevAnimationClasses = `transition-all duration-500 ease-out ${hideNextPrevOnSmallScreen ? 'opacity-0 translate-x-full pointer-events-none' : 'opacity-100 translate-x-0'}`;
 
   // NEW: Logic for conditional divider rendering
@@ -125,14 +125,14 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   // MODIFIED: Hide editor mode toggle if in zero gravity mode. Now uses MapIcon and opens editor directly.
   const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && !!isSignedIn && !isEmbed;
   // Determine right-side buttons based on their visibility conditions
-  // Show DevTools toggle only for signed-in users
-  const hasDevToolsToggle = !!isSignedIn;
+  // REMOVED: DevTools toggle button as it is now controlled via hotkey only
+  const hasDevToolsToggle = false; 
   // MODIFIED: In simplified editor flow, keep reset and ranking buttons visible
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
   const hasRankingToggle = !isZeroGravityMode && !hideRankingControl; 
   const hasZeroGravityToggle = !isRankingMode && !hideZeroGravityControl; 
   // MODIFIED: Keep small screen navigation visible in editor mode
-  const hasSmallScreenNav = isSmallScreen && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && !isEmbed; 
+  const hasSmallScreenNav = isSmallScreen && !isArtworkFocusedForControls && !isRankingMode && !isZeroGravityMode && !isEmbed; 
 
   // Calculate if there are any visible buttons on the left or right side of the divider
   // MODIFIED: Reordered per user request: [Lights][Ranking][ZeroGravity] | [Editor][Reset][Nav]
@@ -263,7 +263,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 <button onClick={() => {
                   setHeartEmitterArtworkId(null);
                   onEditorOpen();
-                }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${isEditorMode ? uiConfig.glassActive : uiConfig.glass}`} title="Open Floor Plan Editor">
+                }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${isEditorMode ? uiConfig.glassActive : uiConfig.glass}`} title="Open Exhibit Editor">
                     <MapIcon className={`w-4 h-4 ${isEditorMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
                 </button>
             )}

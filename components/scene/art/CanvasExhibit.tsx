@@ -3,6 +3,7 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import TexturedWallDisplay from './TexturedWallDisplay';
 import { Html } from '@react-three/drei';
+import { Play, Pause } from 'lucide-react';
 import { getVideoEmbedUrl } from '../../../services/utils/videoUtils';
 import * as THREE from 'three';
 import { useLoader } from '@react-three/fiber';
@@ -45,8 +46,69 @@ const SMALL_SCREEN_MOTION_Y_OFFSET = 0;
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
   artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0, artworkData // NEW: accept artworkData
 }) => {
+  const [isPlaying, setIsPlaying] = useState(true); // NEW: track motion playback state
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [lastAction, setLastAction] = useState<'play' | 'pause' | null>(null);
+  const feedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null); // NEW: ref to the video iframe
+  const containerRef = useRef<HTMLDivElement>(null); // NEW: ref for the video container
+
   let maxDimension = (sourceArtworkType === 'painting' || sourceArtworkType === 'photography') ? 6.0 : 3.0; 
-  
+
+  // NEW: Handle fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    const element = iframeRef.current;
+    if (!element) return;
+    
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(err => console.error("Error exiting fullscreen:", err));
+    } else {
+      const requestMethod = element.requestFullscreen || 
+                           (element as any).webkitRequestFullscreen || 
+                           (element as any).mozRequestFullScreen || 
+                           (element as any).msRequestFullscreen;
+      
+      if (requestMethod) {
+        requestMethod.call(element).catch(err => {
+          console.error("Error attempting to enable fullscreen:", err);
+        });
+      }
+    }
+  }, []);
+
+  // NEW: Handle playback toggle for motion videos
+  const togglePlayback = useCallback(() => {
+    if (!isMotionVideo || !iframeRef.current) return;
+    
+    const nextIsPlaying = !isPlaying;
+    setIsPlaying(nextIsPlaying);
+    setLastAction(nextIsPlaying ? 'play' : 'pause');
+    setShowFeedback(true);
+
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => {
+      setShowFeedback(false);
+    }, 1000);
+
+    const isYouTube = textureUrl?.includes('youtube.com') || textureUrl?.includes('youtu.be');
+    const isVimeo = textureUrl?.includes('vimeo.com');
+
+    if (isYouTube) {
+      const message = JSON.stringify({
+        event: 'command',
+        func: nextIsPlaying ? 'playVideo' : 'pauseVideo',
+        args: ''
+      });
+      iframeRef.current.contentWindow?.postMessage(message, '*');
+    } else if (isVimeo) {
+      const message = JSON.stringify({
+        method: nextIsPlaying ? 'play' : 'pause'
+      });
+      iframeRef.current.contentWindow?.postMessage(message, '*');
+    }
+  }, [isPlaying, isMotionVideo, textureUrl]);
+
   if (orientation === 'landscape') {
     maxDimension = 16.0; 
   }
@@ -187,6 +249,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
         >
           <div style={{ position: 'relative', width: iframeWidthPx, height: iframeHeightPx }}>
             <iframe
+              ref={iframeRef} // NEW: Attach ref
               src={embedUrl}
               width="100%"
               height="100%"
@@ -212,8 +275,80 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
                 WebkitTapHighlightColor: 'transparent',
               }}
               onPointerDown={(e) => { e.stopPropagation(); }}
-              onClick={(e) => onArtworkClickedHtml(e, artworkPosition, artworkRotation, artworkType)}
-            />
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onClick={(e) => {
+                // NEW: Toggle playback if it's a motion video
+                if (isMotionVideo) {
+                  togglePlayback();
+                }
+                onArtworkClickedHtml(e, artworkPosition, artworkRotation, artworkType);
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                if (isMotionVideo) {
+                  toggleFullscreen();
+                }
+              }}
+            >
+              <style>{`
+                @keyframes feedback-fade-out {
+                  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+                  20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                  80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+                }
+              `}</style>
+              {isHovered && !showFeedback && (
+                <div 
+                  style={{
+                    position: 'absolute',
+                    bottom: '10px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 2,
+                    pointerEvents: 'none',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontFamily: 'sans-serif',
+                    textShadow: '0 0 4px rgba(0,0,0,0.8)',
+                    whiteSpace: 'nowrap',
+                    opacity: 0.8,
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '2px 8px',
+                    borderRadius: '4px'
+                  }}
+                >
+                  Double click to Full screen
+                </div>
+              )}
+              {showFeedback && (
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 2,
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100px',
+                    height: '100px',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    borderRadius: '50%',
+                    animation: 'feedback-fade-out 1s ease-out forwards'
+                  }}
+                >
+                  {lastAction === 'play' ? (
+                    <Play size={40} color="white" fill="white" />
+                  ) : (
+                    <Pause size={40} color="white" fill="white" />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </Html>
       </group>

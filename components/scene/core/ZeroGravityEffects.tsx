@@ -66,5 +66,3 @@ const ZeroGravityEffects: React.FC<Props> = ({ artworks }) => {
 };
 
 export default ZeroGravityEffects;
-
-export default ZeroGravityEffects;

@@ -177,7 +177,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
       >
         <div className={`px-4 py-3 border-b flex justify-between items-center ${uiConfig.border}`}>
           <div className="flex items-center gap-2">
-              <h3 className="font-bold tracking-widest uppercase text-sm">Zone Editor</h3>
+              <h3 className="font-bold tracking-widest uppercase text-sm">Exhibit Editor</h3>
               <div className={`flex items-center gap-1.5 text-green-500 transition-opacity duration-300 ${showSaved ? 'opacity-100' : 'opacity-0'}`}>
                  <Check className="w-4 h-4" />
                  <span className="text-xs font-bold">Saved</span>
@@ -194,18 +194,18 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                 >
                     <Sun className="w-4 h-4" /> Lighting
                 </button>
+                <button
+                    onClick={() => handleTabClick('layout')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'layout' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
+                >
+                    <Map className="w-4 h-4" /> Layout
+                </button>
                 {/* NEW: Scene Tab Button */}
                 <button
                     onClick={() => handleTabClick('scene')}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'scene' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
                 >
                     <Camera className="w-4 h-4" /> Scene
-                </button>
-                <button
-                    onClick={() => handleTabClick('layout')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'layout' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
-                >
-                    <Map className="w-4 h-4" /> Layout
                 </button>
                 <button
                     onClick={() => handleTabClick('artworks')}
@@ -229,22 +229,6 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             onUpdateLighting={onUpdateLighting}
             fullZoneLightingDesign={fullZoneLightingDesign}
             currentZoneNameForEditor={currentZoneNameForEditor}
-          />
-        ) : activeTab === 'scene' ? ( // NEW: Render SceneTab
-          <SceneTab
-            uiConfig={uiConfig}
-            lightingConfig={lightingConfig}
-            onUpdateLighting={onUpdateLighting}
-            fullZoneLightingDesign={fullZoneLightingDesign}
-            currentZoneNameForEditor={currentZoneNameForEditor}
-            activeExhibitionBackgroundUrl={activeExhibitionBackgroundUrl}
-            useExhibitionBackground={useExhibitionBackground}
-            activeZoneTheme={activeZoneTheme}
-            onUpdateZoneTheme={onUpdateZoneTheme}
-            effectRegistry={effectRegistry} // NEW: Pass effect registry
-            isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass loading state
-            activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
-            onUpdateZoneGravity={onUpdateZoneGravity} // NEW: Pass onUpdateZoneGravity
           />
         ) : activeTab === 'layout' ? (
           <LayoutTab 
@@ -270,6 +254,22 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}
             onOpenConfirmationDialog={onOpenConfirmationDialog} // NEW: Pass onOpenConfirmationDialog
             isSignedIn={isSignedIn} // NEW: Pass isSignedIn
+          />
+        ) : activeTab === 'scene' ? ( // NEW: Render SceneTab
+          <SceneTab
+            uiConfig={uiConfig}
+            lightingConfig={lightingConfig}
+            onUpdateLighting={onUpdateLighting}
+            fullZoneLightingDesign={fullZoneLightingDesign}
+            currentZoneNameForEditor={currentZoneNameForEditor}
+            activeExhibitionBackgroundUrl={activeExhibitionBackgroundUrl}
+            useExhibitionBackground={useExhibitionBackground}
+            activeZoneTheme={activeZoneTheme}
+            onUpdateZoneTheme={onUpdateZoneTheme}
+            effectRegistry={effectRegistry} // NEW: Pass effect registry
+            isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass loading state
+            activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
+            onUpdateZoneGravity={onUpdateZoneGravity} // NEW: Pass onUpdateZoneGravity
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab

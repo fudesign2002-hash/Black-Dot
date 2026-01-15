@@ -51,16 +51,16 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
   effectRegistryError, // NEW: Destructure effectRegistryError
 }) => {
   const panelRef = useRef<HTMLDivElement>(null); // NEW: Ref for the panel
-  const [position, setPosition] = useState({ x: 0, y: 0 }); // NEW: State for panel position
+  const [position, setPosition] = useState({ x: 16, y: 16 }); // NEW: State for panel position (default top-left)
   const [isDragging, setIsDragging] = useState(false); // NEW: State for dragging status
   const dragStartOffset = useRef({ x: 0, y: 0 }); // NEW: Ref to store drag start offset
 
   // NEW: Calculate initial position on mount/open
   useEffect(() => {
     if (isOpen && panelRef.current) {
-      // Calculate initial position to be bottom-right, respecting padding
-      const initialX = window.innerWidth - panelRef.current.offsetWidth - 16; // 16px from right (bottom-4 / right-4 implies 16px)
-      const initialY = window.innerHeight - panelRef.current.offsetHeight - 16; // 16px from bottom
+      // Calculate initial position to be top-left, respecting padding
+      const initialX = 16; // 16px from left
+      const initialY = 16; // 16px from top
       setPosition({ x: initialX, y: initialY });
     }
   }, [isOpen]);

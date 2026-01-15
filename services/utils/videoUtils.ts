@@ -17,6 +17,7 @@ export const getVideoEmbedUrl = (watchUrl: string): string | null => {
         embedParams.set('byline', '0');
         embedParams.set('portrait', '0');
         embedParams.set('title', '0');
+        embedParams.set('api', '1'); // NEW: Enable JS API for Vimeo
 
         url.searchParams.forEach((value, key) => {
             if (!embedParams.has(key)) { 
@@ -42,6 +43,8 @@ export const getVideoEmbedUrl = (watchUrl: string): string | null => {
         embedParams.set('modestbranding', '1');
         embedParams.set('rel', '0');
         embedParams.set('showinfo', '0');
+        embedParams.set('enablejsapi', '1'); // NEW: Enable JS API for YouTube
+        embedParams.set('origin', window.location.origin); // NEW: Required for JS API
 
         url.searchParams.forEach((value, key) => {
           if (!embedParams.has(key)) {

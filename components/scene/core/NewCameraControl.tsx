@@ -138,7 +138,10 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     const toTgt = props.lightingConfig?.customCameraTarget || INITIAL_CAMERA_TARGET;
 
     const animDuration = duration !== undefined ? duration : 600; // default 0.6s for user reset
-    const targetVec = new THREE.Vector3(...toPosition);
+    
+    // Use preallocated ref to avoid object creation
+    tmpOffset.current.set(...toPosition);
+    const targetVec = tmpOffset.current;
 
     // Skip logic for performance if already there and it's an animation
     if (animDuration > 0) {
@@ -147,14 +150,16 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       }
       if (camera.position.distanceTo(targetVec) < 0.05) {
         // Even if position matches, we might need to reset the target, so only skip if BOTH match
-        const targetDist = controlsRef.current.target.distanceTo(new THREE.Vector3(...toTgt));
+        tmpArtworkWorldPosition.current.set(...toTgt);
+        const targetDist = controlsRef.current.target.distanceTo(tmpArtworkWorldPosition.current);
         if (targetDist < 0.05) return;
       }
     }
     
     // Mark this as the pending target for animated moves
     if (animDuration > 0) {
-        pendingTargetPositionRef.current = targetVec.clone();
+        if (!pendingTargetPositionRef.current) pendingTargetPositionRef.current = new THREE.Vector3();
+        pendingTargetPositionRef.current.copy(targetVec);
     }
 
     if (animDuration === 0) {
