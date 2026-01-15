@@ -121,6 +121,14 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   const [collidingArtworkId, setCollidingArtworkId] = useState<string | null>(null);
   const [cameraIconRotation, setCameraIconRotation] = useState(0); // NEW: State for camera icon rotation in degrees
 
+  const hasMotionArt = useMemo(() => {
+    return currentLayout.some(art => art.type === 'motion') || 
+           currentLayout.some(art => {
+             const fbArt = firebaseArtworks.find(f => f.id === art.artworkId);
+             return fbArt?.artwork_type === 'motion';
+           });
+  }, [currentLayout, firebaseArtworks]);
+
   const { lightsOn, text, subtext, border } = uiConfig;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
 
@@ -155,6 +163,11 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     if (id !== 'keyLight' && id !== 'fillLight' && id !== 'customCamera') { // MODIFIED: Add customCamera
       onSelectArtwork(id);      
     } else {
+      // If motion art is present, camera position is fixed and cannot be dragged
+      if (id === 'customCamera' && hasMotionArt) {
+        return;
+      }
+
       // onSelectArtwork(null); // Deselect artwork when interacting with lights - REMOVED for simplification
       if (!lightsOn && (id === 'keyLight' || id === 'fillLight')) { // Only disable lights if lights are off
         setDraggedElementId(null);
@@ -166,7 +179,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
       setIsAnyLayoutItemDragging(true); // NEW: Set dragging state to true
     }
     setDraggedElementId(id);      
-  }, [onSelectArtwork, lightsOn, setIsAnyLayoutItemDragging]); // Add setIsAnyLayoutItemDragging to deps
+  }, [onSelectArtwork, lightsOn, setIsAnyLayoutItemDragging, hasMotionArt]); // Add setIsAnyLayoutItemDragging to deps
 
   // NEW: Effect to set initial camera icon rotation
   useEffect(() => {
@@ -491,10 +504,12 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
         </div>
 
         {/* NEW: Custom Camera Position */}
-        <div
+        <div 
           onPointerDown={(e) => handleElementPointerDown(e, 'customCamera')}
-          className={`absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center transition-transform cursor-grab z-20 ${draggedElementId === 'customCamera' ? 'scale-125' : ''}`}
+          className={`absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center transition-transform ${hasMotionArt ? 'cursor-not-allowed opacity-50' : 'cursor-grab'} z-20 ${draggedElementId === 'customCamera' ? 'scale-125' : ''}`}
           style={{ top: `${customCameraTop}%`, left: `${customCameraLeft}%` }}
+          title={hasMotionArt ? "Camera position fixed for motion exhibition" : "Drag to set custom starting camera position"}
+        >
           title="Custom Camera Position"
         >
           <div className="relative" style={{ transform: `rotate(${cameraIconRotation}deg)` }}> {/* NEW: Apply rotation here */}
