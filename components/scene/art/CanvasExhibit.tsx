@@ -47,7 +47,7 @@ const EMBED_VIDEO_VERTICAL_OFFSET = 0;
 const MOTION_WALL_BACKING_MULTIPLIER = 2.5; 
 
 // NEW: Y offset specifically for mobile browsers (iPhone, iPad, Android)
-const MOBILE_BROWSER_MOTION_Y_OFFSET = 0.5;
+const MOBILE_BROWSER_MOTION_Y_OFFSET = 0.15;
 
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
   artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0, artworkData // NEW: accept artworkData
