@@ -41,7 +41,7 @@ const EMBED_VIDEO_VERTICAL_OFFSET = 0;
 const MOTION_WALL_BACKING_MULTIPLIER = 2.5; 
 
 // NEW: Small screen specific Y offset for motion videos
-const SMALL_SCREEN_MOTION_Y_OFFSET = 0.5;
+const SMALL_SCREEN_MOTION_Y_OFFSET = 0;
 
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
   artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0, artworkData // NEW: accept artworkData
@@ -309,6 +309,22 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               aria-label="Embedded video player"
               referrerPolicy="strict-origin-when-cross-origin"
             />
+            {/* DEBUG: Display SMALL_SCREEN_MOTION_Y_OFFSET value */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '-40px',
+                left: 0,
+                color: 'red',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                fontFamily: 'monospace',
+                zIndex: 100,
+                pointerEvents: 'none',
+              }}
+            >
+              SMALL_SCREEN_MOTION_Y_OFFSET = {SMALL_SCREEN_MOTION_Y_OFFSET} (adjustedYOffset = {adjustedYOffset})
+            </div>
           </div>
         </Html>
       </group>
