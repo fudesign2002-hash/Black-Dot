@@ -316,6 +316,22 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               aria-label="Embedded video player"
               referrerPolicy="strict-origin-when-cross-origin"
             />
+            {/* DEBUG: Display MOBILE_BROWSER_MOTION_Y_OFFSET value */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '-40px',
+                left: 0,
+                color: 'red',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                fontFamily: 'monospace',
+                zIndex: 100,
+                pointerEvents: 'none',
+              }}
+            >
+              MOBILE_BROWSER_MOTION_Y_OFFSET = {MOBILE_BROWSER_MOTION_Y_OFFSET} (isMobile: {isMobile ? 'YES' : 'NO'}, adjustedYOffset = {adjustedYOffset})
+            </div>
           </div>
         </Html>
       </group>
