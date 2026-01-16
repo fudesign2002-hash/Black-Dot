@@ -15,6 +15,7 @@ interface LightingTabProps {
   onUpdateLighting: (newConfig: SimplifiedLightingConfig) => void;
   fullZoneLightingDesign: ZoneLightingDesign;
   currentZoneNameForEditor: string;
+  exhibitionTitle?: string; // NEW: Add exhibition title for display
   // REMOVED: activeExhibitionBackgroundUrl?: string;
   // REMOVED: useExhibitionBackground: boolean;
 }
@@ -37,6 +38,7 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
   onUpdateLighting,
   fullZoneLightingDesign,
   currentZoneNameForEditor,
+  exhibitionTitle, // NEW: Get exhibition title
   // REMOVED: activeExhibitionBackgroundUrl,
   // REMOVED: useExhibitionBackground,
 }) => {
@@ -94,7 +96,7 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
                     <div className="flex items-start gap-4 w-full">
                         <Sparkles className="w-5 h-5 text-cyan-500 mt-0.5 shrink-0" />
                         <div>
-                            <h4 className="font-bold text-sm mb-2">Lighting Presets for "{currentZoneNameForEditor}"</h4>
+                            <h4 className="font-bold text-sm mb-2">Lighting Presets for "{exhibitionTitle || currentZoneNameForEditor}"</h4>
                             <p className={`text-base leading-relaxed ${subtext} mb-4`}>{fullZoneLightingDesign.description}</p>
                             <div className="flex flex-wrap gap-2">
                                 {availablePresets.map((preset: SimplifiedLightingPreset) => (

@@ -97,6 +97,11 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   const [showSaved, setShowSaved] = useState(false);
   const saveTimeoutRef = useRef<number | null>(null);
   const [isAnyLayoutItemDragging, setIsAnyLayoutItemDragging] = useState(false); // NEW state
+  
+  // NEW: States for panel dragging (no restrictions)
+  const [panelOffset, setPanelOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStateRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number } | null>(null);
 
   const { lightsOn } = uiConfig;
 
@@ -158,6 +163,47 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
     onActiveTabChange(tab);
   }, [onActiveTabChange]);
 
+  // NEW: Handle drag start
+  const handleDragStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return; // Only left mouse button
+    setIsDragging(true);
+    dragStateRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      offsetX: panelOffset.x,
+      offsetY: panelOffset.y,
+    };
+  }, [panelOffset]);
+
+  // NEW: Handle drag move and end
+  useEffect(() => {
+    if (!isDragging || !dragStateRef.current) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStateRef.current) return;
+      const deltaX = e.clientX - dragStateRef.current.startX;
+      const deltaY = e.clientY - dragStateRef.current.startY;
+
+      setPanelOffset({
+        x: dragStateRef.current.offsetX + deltaX,
+        y: dragStateRef.current.offsetY + deltaY,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragStateRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
   // If the panel is closed, don't render it at all to avoid layout/stacking leaks
   if (!isOpen) return null;
 
@@ -173,49 +219,56 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
       <div 
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        className={`fixed top-0 right-0 h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] border-l ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'} ${uiConfig.border} ${uiConfig.text} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-[10px] right-[10px] h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden rounded-xl border ${lightsOn ? 'bg-white/90 shadow-2xl border-white/20' : 'bg-neutral-900/90 shadow-2xl border-white/10'} ${uiConfig.text}`}
+        style={{
+          transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
+          transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.19,1,0.22,1)',
+        }}
       >
-        <div className={`px-4 py-3 border-b flex justify-between items-center ${uiConfig.border}`}>
-          <div className="flex items-center gap-2">
-              <h3 className="font-bold tracking-widest uppercase text-sm">Exhibit Editor</h3>
-              <div className={`flex items-center gap-1.5 text-green-500 transition-opacity duration-300 ${showSaved ? 'opacity-100' : 'opacity-0'}`}>
+        <div 
+          onMouseDown={handleDragStart}
+          className={`px-6 py-4 border-b flex justify-between items-center gap-4 ${uiConfig.border} cursor-move select-none hover:opacity-80 transition-opacity`}
+        >
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+              <h3 className="font-bold tracking-widest uppercase text-sm truncate">Exhibit Editor</h3>
+              <div className={`flex items-center gap-1.5 text-green-500 transition-opacity duration-300 ml-auto ${showSaved ? 'opacity-100' : 'opacity-0'}`}>
                  <Check className="w-4 h-4" />
                  <span className="text-xs font-bold">Saved</span>
               </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-neutral-500/10 rounded-full transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-neutral-500/20 rounded-lg transition-colors cursor-pointer flex-shrink-0"><X className="w-5 h-5" /></button>
         </div>
         
-        <div className={`p-2 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/70' : 'bg-neutral-900/70'}`}>
-            <div className="flex items-center gap-1">
+        <div className={`p-3 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/50' : 'bg-neutral-800/50'}`}>
+            <div className="flex items-center gap-2">
                 <button
                     onClick={() => handleTabClick('lighting')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'lighting' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'lighting' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
                     <Sun className="w-4 h-4" /> Lighting
                 </button>
                 <button
                     onClick={() => handleTabClick('layout')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'layout' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'layout' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
                     <Map className="w-4 h-4" /> Layout
                 </button>
                 {/* NEW: Scene Tab Button */}
                 <button
                     onClick={() => handleTabClick('scene')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'scene' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'scene' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
                     <Camera className="w-4 h-4" /> Scene
                 </button>
                 <button
                     onClick={() => handleTabClick('artworks')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'artworks' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'artworks' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
                     <Brush className="w-4 h-4" /> Artworks
                 </button>
                 <button
                     onClick={() => handleTabClick('admin')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'admin' ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'}`}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'admin' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
                     <SquarePen className="w-4 h-4" />
                 </button>
@@ -229,6 +282,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             onUpdateLighting={onUpdateLighting}
             fullZoneLightingDesign={fullZoneLightingDesign}
             currentZoneNameForEditor={currentZoneNameForEditor}
+            exhibitionTitle={activeExhibition?.title} // NEW: Pass exhibition title
           />
         ) : activeTab === 'layout' ? (
           <LayoutTab 
