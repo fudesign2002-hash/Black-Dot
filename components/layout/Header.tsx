@@ -23,9 +23,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, hideUserCount, hideLogo, zoneCapacity, isEmbed = false, useExhibitionBackground = false, activeExhibition = null, showCelebration = false }) => {
   const treatAsCompact = isSmallScreen || isEmbed;
   const handleLogoClick = () => {
-    if (treatAsCompact) {
-      setIsHeaderExpanded(!isHeaderExpanded);
-    }
+    setIsHeaderExpanded(!isHeaderExpanded);
   };
 
   // Animated counters
@@ -193,21 +191,22 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
     ${treatAsCompact ? (isHeaderExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none') : 'opacity-100'}
   `;
   
-  const logoRotationStyle = treatAsCompact && isHeaderExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+  const logoRotationStyle = isHeaderExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
 
   return (
     <React.Fragment>
       {!hideLogo && (
-        <div className={`fixed top-10 right-10 z-40 select-none transition-opacity duration-500 overflow-hidden ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
+        <div className={`fixed top-10 right-10 z-40 select-none transition-opacity duration-500 py-4 ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
           <div className={innerFlexContainerClasses} style={headerColorStyle}>
-              <div className={`relative ${treatAsCompact ? (isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-100'}`}>
-                <div className="overflow-hidden h-10">
-                  <div className={`flex flex-col justify-center h-10 items-end transform transition-all duration-500 ease-out ${treatAsCompact ? (isHeaderExpanded ? 'translate-x-0' : 'translate-x-full') : 'translate-x-0'}`}>
-                      <h1 className="font-serif text-2xl font-medium tracking-[0.15em] uppercase">Black Dot</h1>
-                      <div className="flex items-center gap-1">
-                        <span className={`h-px w-3 ${smallUnderlineClass}`}></span>
-                        <p className={`text-[8px] tracking-[0.3em] uppercase font-medium ${subtextClass}`}>museum technology</p>
-                      </div>
+              <div className={`relative ${isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <div className="overflow-hidden">
+                  <div className={`flex flex-col justify-center items-end transform transition-all duration-500 ease-out ${isHeaderExpanded ? 'translate-x-0' : 'translate-x-full'}`}>
+                      <p className="text-[0.5rem] tracking-[0.4em] uppercase font-bold mb-0.5" style={{ color: '#94a3b8' }}>
+                        Powered By
+                      </p>
+                      <h1 className="text-[1.2rem] font-normal tracking-[-0.05em] leading-none m-0" style={{ color: headerColorValue || '#000000' }}>
+                        kurodot<span style={{ color: '#9ca3af' }}>.io</span>
+                      </h1>
                   </div>
                 </div>
               </div>

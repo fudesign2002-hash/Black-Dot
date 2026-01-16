@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function BlackDotLogo({ treatAsCompact = false, logoRotationStyle = 'rotate(0deg)', onClick, ariaLabel = 'Black Dot logo', className = '' }: Props) {
-  const classes = `stroke-current transition-transform duration-500 ease-out shrink-0 ${treatAsCompact ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'} ${className}`;
+  const classes = `stroke-current transition-transform duration-500 ease-out shrink-0 pointer-events-auto cursor-pointer ${className}`;
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none"
       className={classes}
