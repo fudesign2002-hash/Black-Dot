@@ -63,6 +63,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
   const [isHovered, setIsHovered] = useState(false);
   const [lastAction, setLastAction] = useState<'play' | 'pause' | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false); // NEW: track fullscreen state
+  const [debugValues, setDebugValues] = useState<any>(null);
   const feedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null); // NEW: ref to the video iframe
   const containerRef = useRef<HTMLDivElement>(null); // NEW: ref for the video container
@@ -286,6 +287,40 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
         );
       }
       
+      // Store debug values in state
+      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
+      setDebugValues({
+        htmlContentCenterY,
+        htmlPositionY,
+        backingWallMeshCenterY,
+        backingWallHeight,
+        iframeRenderedHeight,
+        iframeHeightPx,
+        dpr,
+        dprOffset
+      });
+      
+      // Create/update debug display element directly in DOM
+      if (typeof document !== 'undefined') {
+        let debugElem = document.getElementById('canvas-exhibit-debug');
+        if (!debugElem) {
+          debugElem = document.createElement('div');
+          debugElem.id = 'canvas-exhibit-debug';
+          debugElem.style.cssText = 'position:fixed;top:0;left:0;color:lime;font-size:11px;font-weight:bold;font-family:monospace;z-index:99999;pointer-events:none;line-height:1.3;background:rgba(0,0,0,0.8);padding:8px 10px;border-radius:0 0 4px 0;';
+          document.body.appendChild(debugElem);
+        }
+        debugElem.innerHTML = `
+          <div style="color:lime">iframe Y: ${htmlContentCenterY?.toFixed(3)}</div>
+          <div style="color:lime">pos Y: ${htmlPositionY?.toFixed(3)}</div>
+          <div style="color:yellow">wall Y: ${backingWallMeshCenterY?.toFixed(3)}</div>
+          <div style="color:cyan">wall h: ${backingWallHeight?.toFixed(3)}</div>
+          <div style="color:magenta">ifr h: ${iframeRenderedHeight?.toFixed(3)}</div>
+          <div style="color:orange">px: ${iframeHeightPx?.toFixed(0)}</div>
+          <div style="color:orange">dpr: ${dpr}</div>
+          <div style="color:red">offset: ${dprOffset?.toFixed(3)}</div>
+        `;
+      }
+      
       // Log actual scale of Html component for debugging
       if (htmlRef.current) {
         console.log('Html scale:', {
@@ -295,7 +330,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
           positionY: htmlRef.current.position.y
         });
       }
-    }, [onDimensionsCalculated, iframeRenderedWidth, iframeRenderedHeight, zPosition, htmlContentCenterY]);
+    }, [onDimensionsCalculated, iframeRenderedWidth, iframeRenderedHeight, zPosition, htmlContentCenterY, htmlPositionY, backingWallMeshCenterY, backingWallHeight, dprOffset]);
 
     return (
       <group>
@@ -350,33 +385,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               aria-label="Embedded video player"
               referrerPolicy="strict-origin-when-cross-origin"
             />
-            {/* DEBUG: Display positioning info in corner */}
-            <div
-              style={{
-                position: 'fixed',
-                top: '10px',
-                left: '10px',
-                color: 'lime',
-                fontSize: '9px',
-                fontWeight: 'bold',
-                fontFamily: 'monospace',
-                zIndex: 9999,
-                pointerEvents: 'none',
-                lineHeight: '1.2',
-                backgroundColor: 'rgba(0,0,0,0.7)',
-                padding: '6px',
-                borderRadius: '3px',
-              }}
-            >
-              <div style={{ color: 'lime' }}>iframe Y: {htmlContentCenterY.toFixed(3)}</div>
-              <div style={{ color: 'lime' }}>pos Y: {htmlPositionY.toFixed(3)}</div>
-              <div style={{ color: 'yellow' }}>wall Y: {backingWallMeshCenterY.toFixed(3)}</div>
-              <div style={{ color: 'cyan' }}>wall h: {backingWallHeight.toFixed(3)}</div>
-              <div style={{ color: 'magenta' }}>ifr h: {iframeRenderedHeight.toFixed(3)}</div>
-              <div style={{ color: 'orange' }}>px: {iframeHeightPx.toFixed(0)}</div>
-              <div style={{ color: 'orange' }}>dpr: {typeof window !== 'undefined' ? window.devicePixelRatio : 'N/A'}</div>
-              <div style={{ color: 'red' }}>offset: {dprOffset.toFixed(3)}</div>
-            </div>
+            {/* DEBUG REMOVED - moved to global display */}
           </div>
         </Html>
       </group>
@@ -399,8 +408,6 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
         artworkType={artworkType}
         sourceArtworkType={sourceArtworkType}
       />
-
-      
     </React.Fragment>
   );
 };
