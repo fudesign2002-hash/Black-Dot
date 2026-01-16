@@ -862,19 +862,34 @@ function MuseumApp({
         clearTimeout(lightingUpdateTimeoutRef.current);
     }
 
-    if (!activeZone?.id || activeZone.id === 'fallback_zone_id') return;
+    if (!activeZone?.id || activeZone.id === 'fallback_zone_id') {
+      console.error('%c[handleLightingUpdate] BLOCKED: Zone is missing or fallback', 'color:red;font-weight:bold', {
+        activeZoneId: activeZone?.id,
+        isFallback: activeZone?.id === 'fallback_zone_id'
+      });
+      return;
+    }
 
     lightingUpdateTimeoutRef.current = window.setTimeout(async () => {
         try {
             if (LOG_APP_LIGHTING) {
-              // eslint-disable-next-line no-console
-              
+              console.log('%c[handleLightingUpdate] Firebase write starting', 'color:#0ea5e9', {
+                zoneId: activeZone.id,
+                customCameraPosition: newConfig.customCameraPosition,
+                timestamp: new Date().toISOString()
+              });
             }
           const zoneDocRef = db.collection('zones').doc(activeZone.id);
+          
+          // Clean out undefined values before writing (Firestore doesn't accept undefined)
+          const cleanedConfig = Object.fromEntries(
+            Object.entries(newConfig).filter(([_, v]) => v !== undefined)
+          ) as SimplifiedLightingConfig;
+          
           // If the user opted to use default colors (useCustomColors === false), remove stored color fields
-          if ((newConfig as any).useCustomColors === false) {
+          if ((cleanedConfig as any).useCustomColors === false) {
             // If we're switching to defaults, remove color keys from the object we store
-              const cleaned = { ...newConfig } as any;
+              const cleaned = { ...cleanedConfig } as any;
               delete cleaned.backgroundColor;
               delete cleaned.floorColor;
               // Save cleaned config (without color fields) and ensure useCustomColors is false
@@ -882,11 +897,18 @@ function MuseumApp({
               await zoneDocRef.update({
                 'lightingDesign.defaultConfig': cleaned,
               });
+              console.log('%c[handleLightingUpdate] Firebase write successful (cleaned)', 'color:green', {
+                zoneId: activeZone.id,
+              });
           } else {
-            await zoneDocRef.update({ 'lightingDesign.defaultConfig': newConfig });
+            await zoneDocRef.update({ 'lightingDesign.defaultConfig': cleanedConfig });
+            console.log('%c[handleLightingUpdate] Firebase write successful (full)', 'color:green', {
+              zoneId: activeZone.id,
+              customCameraPosition: cleanedConfig.customCameraPosition,
+            });
           }
       } catch (error) {
-            // [log removed] Firebase update error
+            console.error('%c[handleLightingUpdate] Firebase write FAILED', 'color:red;font-weight:bold', error);
       }
     }, 500);
   }, [activeZone.id, setLightingOverride]);
