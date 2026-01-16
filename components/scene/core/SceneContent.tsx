@@ -68,6 +68,7 @@ const SceneContent: React.FC<SceneProps> = ({
   isEffectRegistryLoading, // NEW: Destructure isEffectRegistryLoading
   onLoadingStatusChange, // NEW: Destructure onLoadingStatusChange
   isEmbed, // NEW: Destructure isEmbed
+  thresholdLevel, // NEW: Destructure thresholdLevel
 }) => {
   const LOG_COLORS = false; // Toggle debug logs for color updates
   const { lightsOn } = lightingConfig;
@@ -766,6 +767,7 @@ const SceneContent: React.FC<SceneProps> = ({
                     isCameraMovingToArtwork={isCameraMovingToArtwork}
                     displayLikes={art.displayLikes}
                     isSmallScreen={isSmallScreen}
+                    thresholdLevel={thresholdLevel}
                   />
                 </ArtworkWrapper>
               );

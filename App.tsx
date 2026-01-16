@@ -88,6 +88,7 @@ function MuseumApp({
   const [isZeroGravityMode, setIsZeroGravityMode] = useState(initialZeroGravityMode);
 
   const [isSceneLoading, setIsSceneLoading] = useState(true); // NEW: Track 3D scene loading status
+  const [showCelebration, setShowCelebration] = useState(false); // NEW: Track celebration gif visibility
   const isTransitionPendingRef = useRef(true); // NEW: Track if we are waiting for a scene to load after transition
 
   const [user, setUser] = useState<firebase.User | null>(null);
@@ -1558,6 +1559,40 @@ function MuseumApp({
     return activeZone && activeZone.id ? (onlineUsersPerZone[activeZone.id] ?? 0) : 0;
   }, [activeZone, onlineUsersPerZone]);
 
+  // NEW: Calculate threshold level based on capacity percentage
+  const getThresholdLevel = (percentage: number): number => {
+    if (percentage >= 3000) return 6;
+    if (percentage >= 1600) return 5;
+    if (percentage >= 800) return 4;
+    if (percentage >= 400) return 3;
+    if (percentage >= 200) return 2;
+    if (percentage >= 100) return 1;
+    return 0;
+  };
+
+  const currentThresholdLevel = useMemo(() => {
+    const capacityPercentage = (currentActiveZoneOnlineUsers / zoneCapacity) * 100;
+    return getThresholdLevel(capacityPercentage);
+  }, [currentActiveZoneOnlineUsers, zoneCapacity]);
+
+  // NEW: Show celebration gif when reaching max threshold
+  useEffect(() => {
+    if (currentThresholdLevel === 6) {
+      setShowCelebration(true);
+    }
+  }, [currentThresholdLevel]);
+
+  // NEW: Hide celebration gif after 11 seconds
+  useEffect(() => {
+    if (showCelebration) {
+      const timer = setTimeout(() => {
+        setShowCelebration(false);
+      }, 11000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showCelebration]);
+
   const handleSetOnlineUsersForActiveZone = useCallback((newCount: number) => {
     if (activeZone && activeZone.id) {
       setOnlineUsersPerZone(prev => ({ ...prev, [activeZone.id]: newCount }));
@@ -1672,6 +1707,7 @@ function MuseumApp({
           onLoadingStatusChange={setIsSceneLoading} // NEW: Pass loading status callback
           isArtworkFocusedForControls={isArtworkFocusedForControls} // ADDED: Pass the focus state
           isEmbed={embedMode}
+          thresholdLevel={currentThresholdLevel} // NEW: Pass threshold level for confetti animation
         />
       </React.Fragment>
 
@@ -1689,6 +1725,7 @@ function MuseumApp({
         isEmbed={!!embedMode}
         useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
         activeExhibition={activeExhibition}
+        showCelebration={showCelebration}
       />
 
       {!hideExhibitInfo && (

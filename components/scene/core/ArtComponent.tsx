@@ -74,6 +74,7 @@ interface ArtComponentProps {
     isCameraMovingToArtwork: boolean; // NEW: Camera moving state
     displayLikes?: number | null;
     isSmallScreen: boolean; // NEW: Add isSmallScreen prop
+    thresholdLevel?: number; // NEW: Threshold level for confetti animation
 }
 
 
@@ -83,7 +84,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
     isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn,
       uiConfig, setFocusedArtworkInstanceId, activeExhibition, onInfoOpen, isDebugMode,
       triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
-      isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType // NEW: Destructure isSmallScreen and sourceArtworkType
+      isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType, thresholdLevel // NEW: Destructure thresholdLevel
 }) => {
   // Debug logging removed to reduce console noise in production/dev
     const [visualDimensions, setVisualDimensions] = useState<ExhibitVisualDimensions | null>(null);
@@ -163,6 +164,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
       isSmallScreen,
       isCameraMovingToArtwork,
       materialJson,
+      thresholdLevel, // NEW: Add thresholdLevel
     }), [
       isFocused,
       textureUrl,
@@ -183,6 +185,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
       isCameraMovingToArtwork,
       materialJson,
       artworkData,
+      thresholdLevel, // NEW: Add thresholdLevel dependency
     ]);
 
     const componentMap: { [key: string]: React.ReactNode } = {

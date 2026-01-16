@@ -4,3 +4,10 @@
 button, a, [role="button"], .cursor-pointer { cursor: pointer; }
 button[disabled], .disabled\:cursor-not-allowed[disabled] { cursor: not-allowed; }
 
+/* Standard bounce animation - browsers recognize this natively */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+

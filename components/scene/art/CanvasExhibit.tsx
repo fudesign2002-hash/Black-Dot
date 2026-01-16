@@ -28,6 +28,7 @@ interface CanvasExhibitProps {
   isSmallScreen: boolean; // NEW: Add isSmallScreen prop
   opacity?: number; // NEW: Opacity for fading
   artworkData?: any;
+  thresholdLevel?: number; // NEW: Receive threshold level from parent
 }
 
 const isImageUrl = (url: string | undefined): boolean => {
@@ -56,17 +57,19 @@ const MOTION_WALL_BACKING_MULTIPLIER = 2.5;
 const MOBILE_BROWSER_MOTION_Y_OFFSET = 0.5;
 
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
-  artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0, artworkData // NEW: accept artworkData
+  artworkPosition, artworkRotation, artworkType, sourceArtworkType, onArtworkClickedHtml, isSmallScreen, opacity = 1.0, artworkData, thresholdLevel // NEW: accept thresholdLevel
 }) => {
   const [isPlaying, setIsPlaying] = useState(true); // NEW: track motion playback state
   const [showFeedback, setShowFeedback] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [lastAction, setLastAction] = useState<'play' | 'pause' | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false); // NEW: track fullscreen state
-  const [debugValues, setDebugValues] = useState<any>(null);
+  const [showConfetti, setShowConfetti] = useState(false); // NEW: track confetti visibility
+  const [confettiKey, setConfettiKey] = useState(0); // NEW: key to trigger re-render
   const feedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null); // NEW: ref to the video iframe
   const containerRef = useRef<HTMLDivElement>(null); // NEW: ref for the video container
+  const confettiTimerRef = useRef<NodeJS.Timeout | null>(null); // NEW: ref for confetti timer
 
   let maxDimension = (sourceArtworkType === 'painting' || sourceArtworkType === 'photography') ? 6.0 : 3.0; 
 
@@ -162,12 +165,31 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     };
   }, [isMotionVideo, textureUrl]);
 
+  // NEW: Monitor threshold level and show confetti when reaching max (level 6)
+  useEffect(() => {
+    if (thresholdLevel === 6) {
+      setShowConfetti(true);
+      setConfettiKey(prev => prev + 1); // Trigger re-render
+
+      // Auto-hide confetti after 5 seconds
+      if (confettiTimerRef.current) clearTimeout(confettiTimerRef.current);
+      confettiTimerRef.current = setTimeout(() => {
+        setShowConfetti(false);
+      }, 5000);
+
+      return () => {
+        if (confettiTimerRef.current) {
+          clearTimeout(confettiTimerRef.current);
+        }
+      };
+    }
+  }, [thresholdLevel]);
+
   if (orientation === 'landscape') {
     maxDimension = 16.0; 
   }
 
   const wallRef = useRef<THREE.Mesh>(null);
-  const htmlRef = useRef<THREE.Group>(null);
   const [containerBounds, setContainerBounds] = useState<any>(null);
 
   const embedUrl = useMemo(() => {
@@ -294,54 +316,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
           htmlContentCenterY
         );
       }
-      
-      // Store debug values in state
-      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
-      const isEmbedded = isInIframe();
-      setDebugValues({
-        htmlContentCenterY,
-        htmlPositionY,
-        backingWallMeshCenterY,
-        backingWallHeight,
-        iframeRenderedHeight,
-        iframeHeightPx,
-        dpr,
-        dprOffset,
-        isEmbedded
-      });
-      
-      // Create/update debug display element directly in DOM
-      if (typeof document !== 'undefined') {
-        let debugElem = document.getElementById('canvas-exhibit-debug');
-        if (!debugElem) {
-          debugElem = document.createElement('div');
-          debugElem.id = 'canvas-exhibit-debug';
-          debugElem.style.cssText = 'position:fixed;top:0;left:0;color:lime;font-size:11px;font-weight:bold;font-family:monospace;z-index:99999;pointer-events:none;line-height:1.3;background:rgba(0,0,0,0.8);padding:8px 10px;border-radius:0 0 4px 0;';
-          document.body.appendChild(debugElem);
-        }
-        debugElem.innerHTML = `
-          <div style="color:lime">iframe Y: ${htmlContentCenterY?.toFixed(3)}</div>
-          <div style="color:lime">pos Y: ${htmlPositionY?.toFixed(3)}</div>
-          <div style="color:yellow">wall Y: ${backingWallMeshCenterY?.toFixed(3)}</div>
-          <div style="color:cyan">wall h: ${backingWallHeight?.toFixed(3)}</div>
-          <div style="color:magenta">ifr h: ${iframeRenderedHeight?.toFixed(3)}</div>
-          <div style="color:orange">px: ${iframeHeightPx?.toFixed(0)}</div>
-          <div style="color:orange">dpr: ${dpr}</div>
-          <div style="color:red">offset: ${dprOffset?.toFixed(3)}</div>
-          <div style="color:cyan">embedded: ${isEmbedded ? 'YES' : 'NO'}</div>
-        `;
-      }
-      
-      // Log actual scale of Html component for debugging
-      if (htmlRef.current) {
-        console.log('Html scale:', {
-          scaleX: htmlRef.current.scale.x,
-          scaleY: htmlRef.current.scale.y,
-          scaleZ: htmlRef.current.scale.z,
-          positionY: htmlRef.current.position.y
-        });
-      }
-    }, [onDimensionsCalculated, iframeRenderedWidth, iframeRenderedHeight, zPosition, htmlContentCenterY, htmlPositionY, backingWallMeshCenterY, backingWallHeight, dprOffset]);
+    }, [onDimensionsCalculated, iframeRenderedWidth, iframeRenderedHeight, zPosition, htmlContentCenterY]);
 
     return (
       <group>
@@ -353,7 +328,6 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
         </mesh>
         
         <Html
-          ref={htmlRef}
           position={new THREE.Vector3(0, htmlPositionY, zPosition)}
           wrapperClass="youtube-video-html"
           center
@@ -373,13 +347,6 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               padding: 0,
               boxSizing: 'border-box'
             }}
-            onLoad={() => {
-              if (containerRef.current) {
-                const bounds = containerRef.current.getBoundingClientRect();
-                setContainerBounds(bounds);
-                console.log('Container bounds:', bounds);
-              }
-            }}
           >
             <iframe
               ref={iframeRef}
@@ -396,7 +363,6 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               aria-label="Embedded video player"
               referrerPolicy="strict-origin-when-cross-origin"
             />
-            {/* DEBUG REMOVED - moved to global display */}
           </div>
         </Html>
       </group>

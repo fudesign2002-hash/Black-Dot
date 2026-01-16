@@ -58,6 +58,7 @@ export interface SceneProps {
   zoneGravity: number | undefined; // NEW: Add zoneGravity prop
   isEffectRegistryLoading: boolean; // NEW: Add isEffectRegistryLoading prop
   onLoadingStatusChange?: (isLoading: boolean) => void; // NEW: Add onLoadingStatusChange prop
+  thresholdLevel?: number; // NEW: Threshold level for confetti animation
 }
 
 const Scene: React.FC<SceneProps> = (props) => {
