@@ -270,7 +270,14 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     // Compensate for device pixel ratio differences in Html component rendering
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
     const isEmbedded = isInIframe();
-    const dprOffset = !isEmbedded ? (dpr - 2) * 0.5 : 0; // Only apply offset when NOT embedded
+    let dprOffset = 0;
+    if (!isEmbedded) {
+      // Not embedded: apply dpr compensation
+      dprOffset = (dpr - 2) * 0.5;
+    } else if (isEmbedded && dpr === 3) {
+      // Embedded with dpr=3 (mobile): apply small offset
+      dprOffset = 0.25;
+    }
     const htmlPositionY = htmlContentCenterY + dprOffset;
 
 
