@@ -39,7 +39,7 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
 
     return (
         <React.Fragment>
-        <div className={`absolute left-10 z-40 transition-all duration-500 max-w-xl ${isInfoOpen ? '-translate-x-full opacity-0' : slideOutClass} bottom-28 md:bottom-10`} style={headerColorStyle}>
+        <div className={`absolute ${isSmallScreen ? 'left-6' : 'left-10'} z-40 transition-all duration-500 max-w-xl ${isInfoOpen ? '-translate-x-full opacity-0' : slideOutClass} ${isSmallScreen ? 'bottom-32' : 'bottom-28'} md:bottom-10`} style={headerColorStyle}>
             {isLoading ? (
                 <div className={`flex items-center gap-3 ${textClass} animate-pulse`}>
                     <Loader2 className="w-6 h-6 text-current" />
@@ -53,18 +53,18 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                             {activeExhibition.status === 'now showing' ? 'Now Showing' : activeExhibition.status + ' Exhibition'}
                         </span>
                     </div>
-                    <h2 className={`text-4xl md:text-5xl font-serif font-medium leading-tight uppercase ${textClass} mb-2`}>
+                    <h2 className={`${isSmallScreen ? 'text-2xl' : 'text-4xl'} md:text-5xl font-serif font-medium leading-tight uppercase ${textClass} mb-2`}>
                         {activeExhibition.title}
                     </h2>
                     <div className="flex items-center gap-4 mb-2">
                         <button onClick={onInfoOpen} className={`flex-shrink-0 p-2 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
-                            <Info className="w-5 h-5 text-current" />
+                            <Info className={`${isSmallScreen ? 'w-4 h-4' : 'w-5 h-5'} text-current`} />
                         </button>
-                        <p className={`text-sm md:text-base font-light tracking-widest ${subtextClass} border-l-2 ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-4`}>
+                        <p className={`${isSmallScreen ? 'text-xs' : 'text-sm'} md:text-base font-light tracking-widest ${subtextClass} border-l-2 ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-4`}>
                             {activeExhibition.subtitle}
                         </p>
                     </div>
-                    <div className={`text-[12px] font-mono opacity-60 mt-2 ${textClass}`}>
+                    <div className={`${isSmallScreen ? 'text-[10px]' : 'text-[12px]'} font-mono opacity-60 mt-2 ${textClass}`}>
                         <span className="text-current">{activeExhibition.dates}</span>
                     </div>
                 </React.Fragment>
