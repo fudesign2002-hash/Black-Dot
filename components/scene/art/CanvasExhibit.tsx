@@ -269,7 +269,8 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     
     // Compensate for device pixel ratio differences in Html component rendering
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
-    const dprOffset = (dpr - 2) * 0.5; // Adjust based on difference from base dpr=2
+    const isEmbedded = isInIframe();
+    const dprOffset = !isEmbedded ? (dpr - 2) * 0.5 : 0; // Only apply offset when NOT embedded
     const htmlPositionY = htmlContentCenterY + dprOffset;
 
 
@@ -289,6 +290,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
       
       // Store debug values in state
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
+      const isEmbedded = isInIframe();
       setDebugValues({
         htmlContentCenterY,
         htmlPositionY,
@@ -297,7 +299,8 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
         iframeRenderedHeight,
         iframeHeightPx,
         dpr,
-        dprOffset
+        dprOffset,
+        isEmbedded
       });
       
       // Create/update debug display element directly in DOM
@@ -318,6 +321,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
           <div style="color:orange">px: ${iframeHeightPx?.toFixed(0)}</div>
           <div style="color:orange">dpr: ${dpr}</div>
           <div style="color:red">offset: ${dprOffset?.toFixed(3)}</div>
+          <div style="color:cyan">embedded: ${isEmbedded ? 'YES' : 'NO'}</div>
         `;
       }
       
