@@ -276,7 +276,7 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
       dprOffset = (dpr - 2) * 0.5;
     } else if (isEmbedded && dpr === 3) {
       // Embedded with dpr=3 (mobile): apply small offset
-      dprOffset = 0.25;
+      dprOffset = 0.2;
     }
     const htmlPositionY = htmlContentCenterY + dprOffset;
 
