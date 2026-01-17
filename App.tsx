@@ -645,6 +645,7 @@ function MuseumApp({
   const pusherRef = useRef<Pusher | null>(null);
   const channelSubscriptionsRef = useRef<Record<string, any>>({});
   const userSessionIdRef = useRef(Math.random().toString(36).substr(2, 9));
+  const sessionStartRef = useRef<number | null>(null);
 
   // Initialize Pusher on component mount (Presence via local auth server)
   useEffect(() => {
@@ -688,14 +689,18 @@ function MuseumApp({
     // Subscribe to presence channel
     const channel = pusherRef.current.subscribe(channelName);
 
-    // Track visit on subscription success
+    // Track visit on subscription success and start session timer
     channel.bind('pusher:subscription_succeeded', (members: any) => {
       const count = members.count;
       console.log(`[Pusher] Subscription succeeded. Members: ${count}`);
-      
-      // NEW: Log visit to Firestore for analytics
+
+      // NEW: Log visit to Firestore for analytics (counts, devices, browsers, resolutions)
       trackVisit(exhibitId);
 
+      // Start session timer for duration tracking
+      sessionStartRef.current = Date.now();
+
+      // Update in-memory online count
       setOnlineUsersPerExhibit(prev => ({
         ...prev,
         [exhibitId]: count,
@@ -720,9 +725,44 @@ function MuseumApp({
       }));
     });
 
+    // Session end handler: calculate duration and update analytics
+    const endSession = async () => {
+      try {
+        if (!sessionStartRef.current) return;
+        const durationSec = Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000));
+        sessionStartRef.current = null;
+
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0];
+        const monthStr = dateStr.substring(0, 7);
+
+        const analyticsRef = db.collection('exhibitions').doc(exhibitId).collection('analytics');
+        await analyticsRef.doc(`day_${dateStr}`).set({
+          totalSessionSeconds: firebase.firestore.FieldValue.increment(durationSec),
+          sessionCount: firebase.firestore.FieldValue.increment(1)
+        }, { merge: true });
+
+        await analyticsRef.doc(`month_${monthStr}`).set({
+          totalSessionSeconds: firebase.firestore.FieldValue.increment(durationSec),
+          sessionCount: firebase.firestore.FieldValue.increment(1)
+        }, { merge: true });
+      } catch (err) {
+        console.error('Error ending session:', err);
+      }
+    };
+
+    const handleBeforeUnload = () => { endSession(); };
+    const handleVisibilityChange = () => { if (document.visibilityState === 'hidden') endSession(); };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     channelSubscriptionsRef.current[channelName] = channel;
 
     return () => {
+      // end session when leaving channel
+      endSession();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       console.log(`[Pusher] Unsubscribing from: ${channelName}`);
       pusherRef.current?.unsubscribe(channelName);
       delete channelSubscriptionsRef.current[channelName];

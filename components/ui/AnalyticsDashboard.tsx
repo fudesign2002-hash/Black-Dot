@@ -78,6 +78,22 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             results.push({ label: m.split('-')[1] || m, value: (data && data.count) ? Number(data.count) : 0, devices: data?.devices || {}, browsers: data?.browsers || {}, resolutions: data?.resolutions || {}, fullDate: m });
           }
           setRealTrafficData(results);
+
+          // aggregate tech stats from results
+          {
+            const aggDevices: Record<string, number> = {};
+            const aggBrowsers: Record<string, number> = {};
+            const aggResolutions: Record<string, number> = {};
+            let total = 0;
+            results.forEach(d => {
+              const v = Number(d.value) || 0;
+              total += v;
+              Object.entries(d.devices || {}).forEach(([k, val]) => aggDevices[k] = (aggDevices[k] || 0) + (Number(val) || 0));
+              Object.entries(d.browsers || {}).forEach(([k, val]) => aggBrowsers[k] = (aggBrowsers[k] || 0) + (Number(val) || 0));
+              Object.entries(d.resolutions || {}).forEach(([k, val]) => aggResolutions[k] = (aggResolutions[k] || 0) + (Number(val) || 0));
+            });
+            setTechStats({ devices: aggDevices, browsers: aggBrowsers, resolutions: aggResolutions, totalVisits: total });
+          }
         } else {
           const days = timeRange === '7D' ? 7 : 30;
           const dates = getPastDates(days);
@@ -88,27 +104,23 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             results.push({ label: d.split('-').pop() || d, value: (data && data.count) ? Number(data.count) : 0, devices: data?.devices || {}, browsers: data?.browsers || {}, resolutions: data?.resolutions || {}, fullDate: d });
           }
           setRealTrafficData(results);
-        }
 
-        // aggregate tech stats from the newly fetched data
-        // note: we aggregate from the realTrafficData state after setting it above
-        setTimeout(() => {
-          const src = (timeRange === '12M') ? [] : [];
-          // perform aggregation directly from current realTrafficData state
-          const aggDevices: Record<string, number> = {};
-          const aggBrowsers: Record<string, number> = {};
-          const aggResolutions: Record<string, number> = {};
-          let total = 0;
-          const current = realTrafficData.length > 0 ? realTrafficData : [];
-          current.forEach((d: any) => {
-            const v = Number(d.value) || 0;
-            total += v;
-            Object.entries(d.devices || {}).forEach(([k, val]) => aggDevices[k] = (aggDevices[k] || 0) + (Number(val) || 0));
-            Object.entries(d.browsers || {}).forEach(([k, val]) => aggBrowsers[k] = (aggBrowsers[k] || 0) + (Number(val) || 0));
-            Object.entries(d.resolutions || {}).forEach(([k, val]) => aggResolutions[k] = (aggResolutions[k] || 0) + (Number(val) || 0));
-          });
-          setTechStats({ devices: aggDevices, browsers: aggBrowsers, resolutions: aggResolutions, totalVisits: total });
-        }, 50);
+          // aggregate tech stats from results
+          {
+            const aggDevices: Record<string, number> = {};
+            const aggBrowsers: Record<string, number> = {};
+            const aggResolutions: Record<string, number> = {};
+            let total = 0;
+            results.forEach(d => {
+              const v = Number(d.value) || 0;
+              total += v;
+              Object.entries(d.devices || {}).forEach(([k, val]) => aggDevices[k] = (aggDevices[k] || 0) + (Number(val) || 0));
+              Object.entries(d.browsers || {}).forEach(([k, val]) => aggBrowsers[k] = (aggBrowsers[k] || 0) + (Number(val) || 0));
+              Object.entries(d.resolutions || {}).forEach(([k, val]) => aggResolutions[k] = (aggResolutions[k] || 0) + (Number(val) || 0));
+            });
+            setTechStats({ devices: aggDevices, browsers: aggBrowsers, resolutions: aggResolutions, totalVisits: total });
+          }
+        }
       } catch (err) {
         console.error('Analytics fetch error:', err);
       }

@@ -31,14 +31,20 @@ export const trackVisit = async (exhibitionId: string) => {
   const batch = db.batch();
 
   // Define update payload with specific increments
-  const updateData = {
-    count: firebase.firestore.FieldValue.increment(1),
-    date: dateStr,
-    type: 'day',
-    [`devices.${deviceType}`]: firebase.firestore.FieldValue.increment(1),
-    [`browsers.${browserName}`]: firebase.firestore.FieldValue.increment(1),
-    [`resolutions.${resolution.replace(/\./g, '_')}`]: firebase.firestore.FieldValue.increment(1), // ensure keys are safe
-  };
+    const updateData = {
+        count: firebase.firestore.FieldValue.increment(1),
+        date: dateStr,
+        type: 'day',
+        devices: {
+            [deviceType]: firebase.firestore.FieldValue.increment(1)
+        },
+        browsers: {
+            [browserName]: firebase.firestore.FieldValue.increment(1)
+        },
+        resolutions: {
+            [resolution.replace(/\./g, '_')]: firebase.firestore.FieldValue.increment(1)
+        }
+    };
 
   // 1. Total Daily Visit
   const dayDoc = analyticsRef.doc(`day_${dateStr}`);
@@ -50,8 +56,8 @@ export const trackVisit = async (exhibitionId: string) => {
     count: firebase.firestore.FieldValue.increment(1),
     date: monthStr,
     type: 'month',
-    [`devices.${deviceType}`]: firebase.firestore.FieldValue.increment(1),
-    [`browsers.${browserName}`]: firebase.firestore.FieldValue.increment(1),
+        devices: { [deviceType]: firebase.firestore.FieldValue.increment(1) },
+        browsers: { [browserName]: firebase.firestore.FieldValue.increment(1) },
   }, { merge: true });
 
   try {

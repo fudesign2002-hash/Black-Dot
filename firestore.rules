@@ -51,9 +51,11 @@ service cloud.firestore {
       match /analytics/{docId} {
         allow read: if true;
         // 允許任何人在符合欄位限制的情況下創建或更新每日/每月統計
-        allow create, update: if 
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'date', 'type'])
-          && request.resource.data.count is int;
+        // 支援更多統計欄位：devices, browsers, resolutions, totalSessionSeconds, sessionCount
+        allow create, update: if (
+          request.resource.data.keys().hasOnly(['count', 'date', 'type', 'devices', 'browsers', 'resolutions', 'totalSessionSeconds', 'sessionCount'])
+          || request.resource.data.keys().hasAny(['count','devices','browsers','resolutions','totalSessionSeconds','sessionCount'])
+        );
       }
     }
 
