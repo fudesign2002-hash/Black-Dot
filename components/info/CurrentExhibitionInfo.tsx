@@ -53,20 +53,44 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                             {activeExhibition.status === 'now showing' ? 'Now Showing' : activeExhibition.status + ' Exhibition'}
                         </span>
                     </div>
-                    <h2 className={`${isSmallScreen ? 'text-2xl' : 'text-4xl'} md:text-5xl font-serif font-medium leading-tight uppercase ${textClass} mb-2`}>
-                        {activeExhibition.title}
-                    </h2>
-                    <div className="flex items-center gap-4 mb-2">
-                        <button onClick={onInfoOpen} className={`flex-shrink-0 p-2 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
-                            <Info className={`${isSmallScreen ? 'w-4 h-4' : 'w-5 h-5'} text-current`} />
-                        </button>
-                        <p className={`${isSmallScreen ? 'text-xs' : 'text-sm'} md:text-base font-light tracking-widest ${subtextClass} border-l-2 ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-4`}>
-                            {activeExhibition.subtitle}
-                        </p>
-                    </div>
-                    <div className={`${isSmallScreen ? 'text-[10px]' : 'text-[12px]'} font-mono opacity-60 mt-2 ${textClass}`}>
-                        <span className="text-current">{activeExhibition.dates}</span>
-                    </div>
+                    {isSmallScreen ? (
+                        <div className="flex items-center gap-3 mb-2">
+                            <h2 className={`text-2xl md:text-5xl font-serif font-medium leading-tight uppercase ${textClass}`}>
+                                {activeExhibition.title}
+                            </h2>
+                            <button onClick={onInfoOpen} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
+                                <Info className="w-4 h-4 text-current" />
+                            </button>
+                        </div>
+                    ) : (
+                        <h2 className={`text-4xl md:text-5xl font-serif font-medium leading-tight uppercase ${textClass} mb-2`}>
+                            {activeExhibition.title}
+                        </h2>
+                    )}
+                    {isSmallScreen ? (
+                        <div className={`border-l ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-3`}>
+                            <p className={`text-xs md:text-base font-light tracking-widest ${subtextClass} mb-2`}>
+                                {activeExhibition.subtitle}
+                            </p>
+                            <div className={`text-[10px] font-mono opacity-60 ${textClass}`}>
+                                <span className="text-current">{activeExhibition.dates}</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-4 mb-2">
+                                <button onClick={onInfoOpen} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
+                                    <Info className="w-5 h-5 text-current" />
+                                </button>
+                                <p className={`text-sm md:text-base font-light tracking-widest ${subtextClass} border-l-2 ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-4`}>
+                                    {activeExhibition.subtitle}
+                                </p>
+                            </div>
+                            <div className={`text-[12px] font-mono opacity-60 mt-2 ${textClass}`}>
+                                <span className="text-current">{activeExhibition.dates}</span>
+                            </div>
+                        </>
+                    )}
                 </React.Fragment>
             )}
         </div>
