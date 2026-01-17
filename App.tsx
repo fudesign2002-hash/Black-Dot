@@ -648,10 +648,15 @@ function MuseumApp({
   // Initialize Pusher on component mount (Presence via local auth server)
   useEffect(() => {
     if (!pusherRef.current) {
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const authEndpoint = isLocalhost 
+        ? 'http://localhost:3002/pusher/auth' 
+        : '/api/pusher-auth';
+
       pusherRef.current = new Pusher('262b770d3319b6acc099', {
         cluster: 'mt1',
         forceTLS: true,
-        authEndpoint: 'http://localhost:3002/pusher/auth',
+        authEndpoint: authEndpoint,
         auth: {
           headers: {
             // Optionally forward user context; our demo server ignores headers
