@@ -4,6 +4,7 @@ import { db } from './firebase';
 import firebase from 'firebase/compat/app';
 import { auth } from './firebase';
 import Pusher from 'pusher-js';
+import { trackVisit } from './services/museumService';
 
 import Scene from './components/scene/Scene';
 import Header from './components/layout/Header';
@@ -687,10 +688,14 @@ function MuseumApp({
     // Subscribe to presence channel
     const channel = pusherRef.current.subscribe(channelName);
 
-    // When subscription succeeds, get the member count
+    // Track visit on subscription success
     channel.bind('pusher:subscription_succeeded', (members: any) => {
       const count = members.count;
       console.log(`[Pusher] Subscription succeeded. Members: ${count}`);
+      
+      // NEW: Log visit to Firestore for analytics
+      trackVisit(exhibitId);
+
       setOnlineUsersPerExhibit(prev => ({
         ...prev,
         [exhibitId]: count,

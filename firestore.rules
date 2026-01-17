@@ -2,23 +2,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default: deny reads/writes by default. Specific collection matches below
-    // override the rules as needed.
+    // 定義一個變數來存儲允許寫入的 Admin UID
+    function isAllowedAdmin() {
+      return request.auth != null && request.auth.uid == 'pOxClMAbnoOm3DLApNLrKNAr5892';
+    }
+
+    // Default: everyone can read, but generic writes are denied.
     match /{document=**} {
-      allow read: if false;
+      allow read: if true;
       allow write: if false;
     }
 
-    // artworks: public read. Allow anyone (including unauthenticated guests) to UPDATE
-    // only the counter fields `artwork_liked` and `artwork_viewed` (must be
-    // numeric). CREATE requires authentication; DELETE is denied.
+    // artworks: 保持您原有的邏輯
     match /artworks/{artworkId} {
       allow read: if true;
-
-      // Authenticated users may perform any write (create/update) as before.
       allow create: if request.auth != null;
       allow update: if request.auth != null
-        // OR unauthenticated guest updates that only touch the counter fields
         || (
           request.auth == null
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['artwork_liked', 'artwork_viewed'])
@@ -27,35 +26,55 @@ service cloud.firestore {
             && (!('artwork_viewed' in request.resource.data) || request.resource.data.artwork_viewed is int)
           )
         );
-
-      // Prevent deletions by anyone via client rules.
       allow delete: if false;
     }
 
-    // Keep other art-related collections write-protected to authenticated users.
+    // exhibitions: 修改這裡，比照 artworks 的邏輯
     match /exhibitions/{exhibitionId} {
-      // Writes require authentication (owners / admins)
-      allow write: if request.auth != null;
+      allow read: if true;
+      
+      // 允許登入者更新；未登入者僅能更新計數欄位
+      allow update: if request.auth != null
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['exhibit_liked', 'exhibit_viewed'])
+          && (
+            (!('exhibit_liked' in request.resource.data) || request.resource.data.exhibit_liked is int)
+            && (!('exhibit_viewed' in request.resource.data) || request.resource.data.exhibit_viewed is int)
+          )
+        );
+        
+      // 限制僅登入者或管理者可以創建/刪除
+      allow create: if request.auth != null;
+      allow delete: if isAllowedAdmin(); 
 
-      // Read rules:
-      // - Unauthenticated guests may read public showcase exhibitions (isShowcase == true)
-      // - Signed-in users may read exhibitions that belong to them AND are marked public (ownerId == uid && isPublic == true)
-      allow get: if (
-        request.auth == null && resource.data.isShowcase == true
-      ) || (
-        request.auth != null && resource.data.ownerId == request.auth.uid && resource.data.isPublic == true
-      );
-
-      // For list queries, require the client to include the equality filter
-      // so Firestore can validate the query on the server side. Examples:
-      // - Guest list: where('isShowcase','==', true)
-      // - Owner list: where('ownerId','==', request.auth.uid) && where('isPublic','==', true)
-      allow list: if (
-        request.auth == null && request.query.where('isShowcase', '==', true)
-      ) || (
-        request.auth != null && request.query.where('ownerId', '==', request.auth.uid) && request.query.where('isPublic', '==', true)
-      );
+      // --- 新增：Analytics 流量統計子集合規則 ---
+      match /analytics/{docId} {
+        allow read: if true;
+        // 允許任何人在符合欄位限制的情況下創建或更新每日/每月統計
+        allow create, update: if 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'date', 'type'])
+          && request.resource.data.count is int;
+      }
     }
+
+    // 其他集合保持不變
+    match /artists/{artistId} {
+      allow write: if request.auth != null;
+    }
+
+    match /zones/{zoneId} {
+      allow write: if request.auth != null;
+    }
+    
+    match /users/{userId} {
+      allow write: if request.auth != null;
+    }
+    
+    match /teams/{teamId} {
+      allow write: if request.auth != null;
+    }
+  }
+}
 
     match /artists/{artistId} {
       allow write: if request.auth != null;

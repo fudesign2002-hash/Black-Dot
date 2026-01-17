@@ -1,7 +1,65 @@
 
 import firebase from 'firebase/compat/app';
+import { db } from '../firebase'; // MODIFIED: Import db
 import { Exhibition, ExhibitionZone, FirebaseArtwork, ExhibitionArtItem, ArtType, ZoneArtworkItem, ArtworkData } from '../types';
 import { storage } from '../firebase';
+
+// Analytics tracking
+export const trackVisit = async (exhibitionId: string) => {
+  if (!exhibitionId) return;
+  
+  // Collect client-side metadata
+  const ua = navigator.userAgent;
+  let deviceType = "Desktop";
+  if (/tablet|ipad|playbook|silk/i.test(ua)) deviceType = "Tablet";
+  else if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) deviceType = "Mobile";
+  
+  let browserName = "Other";
+  if (ua.includes("Chrome") && !ua.includes("Edge") && !ua.includes("OPR")) browserName = "Chrome";
+  else if (ua.includes("Safari") && !ua.includes("Chrome")) browserName = "Safari";
+  else if (ua.includes("Firefox")) browserName = "Firefox";
+  else if (ua.includes("Edge") || ua.includes("Edg")) browserName = "Edge";
+
+  const resolution = `${window.screen.width}x${window.screen.height}`;
+  
+  const today = new Date();
+  const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+  const monthStr = dateStr.substring(0, 7); // YYYY-MM
+  const yearStr = dateStr.substring(0, 4); // YYYY
+
+  const analyticsRef = db.collection('exhibitions').doc(exhibitionId).collection('analytics');
+  const batch = db.batch();
+
+  // Define update payload with specific increments
+  const updateData = {
+    count: firebase.firestore.FieldValue.increment(1),
+    date: dateStr,
+    type: 'day',
+    [`devices.${deviceType}`]: firebase.firestore.FieldValue.increment(1),
+    [`browsers.${browserName}`]: firebase.firestore.FieldValue.increment(1),
+    [`resolutions.${resolution.replace(/\./g, '_')}`]: firebase.firestore.FieldValue.increment(1), // ensure keys are safe
+  };
+
+  // 1. Total Daily Visit
+  const dayDoc = analyticsRef.doc(`day_${dateStr}`);
+  batch.set(dayDoc, updateData, { merge: true });
+
+  // 2. Total Monthly Visit (also track devices/browsers at month level)
+  const monthDoc = analyticsRef.doc(`month_${monthStr}`);
+  batch.set(monthDoc, { 
+    count: firebase.firestore.FieldValue.increment(1),
+    date: monthStr,
+    type: 'month',
+    [`devices.${deviceType}`]: firebase.firestore.FieldValue.increment(1),
+    [`browsers.${browserName}`]: firebase.firestore.FieldValue.increment(1),
+  }, { merge: true });
+
+  try {
+    await batch.commit();
+  } catch (error) {
+    console.error('Error tracking visit:', error);
+  }
+};
 
 // Cache parsed artwork_data per document id to avoid returning a new object
 // reference when the semantic content hasn't changed. This reduces upstream
