@@ -3,6 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } fr
 import { db } from './firebase';
 import firebase from 'firebase/compat/app';
 import { auth } from './firebase';
+import Pusher from 'pusher-js';
 
 import Scene from './components/scene/Scene';
 import Header from './components/layout/Header';
@@ -639,49 +640,87 @@ function MuseumApp({
     };
   }, [activeZone?.id, user?.uid]);
 
-  // Exhibit-level online users: random 1-500 with 10s refresh (±10 per update)
-  const exhibitUpdateIntervalRef = useRef<number | null>(null);
+  // Pusher instance and subscription refs
+  const pusherRef = useRef<Pusher | null>(null);
+  const channelSubscriptionsRef = useRef<Record<string, any>>({});
+  const userSessionIdRef = useRef(Math.random().toString(36).substr(2, 9));
 
+  // Initialize Pusher on component mount (Presence via local auth server)
   useEffect(() => {
-    if (!activeExhibition || !activeExhibition.id) return;
+    if (!pusherRef.current) {
+      pusherRef.current = new Pusher('262b770d3319b6acc099', {
+        cluster: 'mt1',
+        forceTLS: true,
+        authEndpoint: 'http://localhost:3002/pusher/auth',
+        auth: {
+          headers: {
+            // Optionally forward user context; our demo server ignores headers
+          }
+        }
+      });
+    }
+  }, []);
+
+  // Subscribe to Pusher Presence Channel based on active exhibition
+  useEffect(() => {
+    if (!activeExhibition || !activeExhibition.id || !pusherRef.current) return;
 
     const exhibitId = activeExhibition.id;
+    const channelName = `presence-${exhibitId}`;
 
-    // Initialize with random 1-100 if not yet set
-    setOnlineUsersPerExhibit(prev => {
-      if (prev[exhibitId] === undefined) {
-        return { ...prev, [exhibitId]: Math.floor(Math.random() * 100) + 1 };
+    console.log(`[Pusher] Subscribing to presence channel: ${channelName}`);
+
+    // Unsubscribe from previous channel if exists
+    Object.keys(channelSubscriptionsRef.current).forEach(prevChannel => {
+      if (prevChannel !== channelName) {
+        console.log(`[Pusher] Unsubscribing from: ${prevChannel}`);
+        pusherRef.current?.unsubscribe(prevChannel);
+        delete channelSubscriptionsRef.current[prevChannel];
       }
-      return prev;
     });
 
-    // Clear previous interval
-    if (exhibitUpdateIntervalRef.current !== null) {
-      window.clearInterval(exhibitUpdateIntervalRef.current);
-      exhibitUpdateIntervalRef.current = null;
-    }
+    // Subscribe to presence channel
+    const channel = pusherRef.current.subscribe(channelName);
 
-    // Update every 10 seconds: random ±5~15
-    exhibitUpdateIntervalRef.current = window.setInterval(() => {
-      setOnlineUsersPerExhibit(prev => {
-        const current = prev[exhibitId] ?? Math.floor(Math.random() * 500) + 1;
-        const delta = Math.floor(Math.random() * 11) + 5; // 5~15
-        const direction = Math.random() > 0.5 ? 1 : -1;
-        const updated = Math.max(1, Math.min(500, current + delta * direction));
-        return { ...prev, [exhibitId]: updated };
-      });
-    }, 10000);
+    // When subscription succeeds, get the member count
+    channel.bind('pusher:subscription_succeeded', (members: any) => {
+      const count = members.count;
+      console.log(`[Pusher] Subscription succeeded. Members: ${count}`);
+      setOnlineUsersPerExhibit(prev => ({
+        ...prev,
+        [exhibitId]: count,
+      }));
+    });
+
+    // When a member joins
+    channel.bind('pusher:member_added', (member: any) => {
+      console.log(`[Pusher] Member added. Total members: ${channel.members.count}`);
+      setOnlineUsersPerExhibit(prev => ({
+        ...prev,
+        [exhibitId]: channel.members.count,
+      }));
+    });
+
+    // When a member leaves
+    channel.bind('pusher:member_removed', (member: any) => {
+      console.log(`[Pusher] Member removed. Total members: ${channel.members.count}`);
+      setOnlineUsersPerExhibit(prev => ({
+        ...prev,
+        [exhibitId]: Math.max(1, channel.members.count),
+      }));
+    });
+
+    channelSubscriptionsRef.current[channelName] = channel;
 
     return () => {
-      if (exhibitUpdateIntervalRef.current !== null) {
-        window.clearInterval(exhibitUpdateIntervalRef.current);
-        exhibitUpdateIntervalRef.current = null;
-      }
+      console.log(`[Pusher] Unsubscribing from: ${channelName}`);
+      pusherRef.current?.unsubscribe(channelName);
+      delete channelSubscriptionsRef.current[channelName];
     };
   }, [activeExhibition?.id]);
 
   const currentExhibitOnlineUsers = useMemo(() => {
-    return activeExhibition && activeExhibition.id ? (onlineUsersPerExhibit[activeExhibition.id] ?? Math.floor(Math.random() * 100) + 1) : 0;
+    return activeExhibition && activeExhibition.id ? (onlineUsersPerExhibit[activeExhibition.id] ?? 0) : 0;
   }, [activeExhibition?.id, onlineUsersPerExhibit]);
 
 
