@@ -363,7 +363,7 @@ export const processFirebaseZones = (docs: firebase.firestore.QueryDocumentSnaps
                 description: 'Default lighting.',
                 defaultConfig: {
                     lightsOn: true,
-                    ambientIntensity: 0.9,
+                    ambientIntensity: 0.5,
                     spotlightMode: 'off',
                     manualSpotlightColor: '#ffffff',
                     colorTemperature: 5500,

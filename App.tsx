@@ -78,6 +78,7 @@ function MuseumApp({
   const [isCurrentExhibitionInfoHidden, setIsCurrentExhibitionInfoHidden] = useState(false);
   const [isCameraAtDefaultPosition, setIsCameraAtDefaultPosition] = useState(true); // NEW: State for camera position
   const [isCameraMovingToArtwork, setIsCameraMovingToArtwork] = useState(false); // NEW: State for camera animation to artwork
+  const [isArtworkLifted, setIsArtworkLifted] = useState(false); // NEW: State for artwork lifted in layout editor
   // Global flag: whether reset button should be enabled/visible. Toggled by user interactions.
   const [isResetCameraEnable, setIsResetCameraEnable] = useState(false);
 
@@ -1696,6 +1697,7 @@ function MuseumApp({
           isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
           onCameraPositionChange={handleCameraPositionChange} // NEW: Pass the callback
           activeZoneId={activeZone.id}
+          isArtworkLifted={isArtworkLifted} // NEW: Pass isArtworkLifted for layout editor
           onUserCameraInteractionStart={() => {
             // We no longer set isResetCameraEnable(true) here to avoid showing the button on tiny movements or clicks.
             // The button will be enabled in onUserCameraInteractionEnd if a significant drag occurred.
@@ -1893,6 +1895,7 @@ function MuseumApp({
             onUpdateZoneGravity={handleUpdateZoneGravity} // NEW: Pass handler for updating zone gravity
             isSignedIn={!!user} // NEW: Pass isSignedIn based on user authentication
             activeZoneId={activeZone.id} // NEW: Pass activeZoneId for zone-specific artwork settings
+            onArtworkLiftedChange={setIsArtworkLifted} // NEW: Pass callback to update artwork lifted state
           />
         </Suspense>
       )}

@@ -30,6 +30,7 @@ interface LayoutTabProps {
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void; // NEW: Add onOpenConfirmationDialog
   isSignedIn?: boolean; // NEW: Add isSignedIn prop
   activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
+  onArtworkLiftedChange?: (isLifted: boolean) => void; // NEW: Callback for artwork lifted state
 }
 
 const PADDING_PERCENT = 3;
@@ -116,12 +117,14 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   onOpenConfirmationDialog, // NEW: Destructure onOpenConfirmationDialog
   isSignedIn = false, // NEW: Destructure isSignedIn
   activeZoneId, // NEW: Destructure activeZoneId
+  onArtworkLiftedChange, // NEW: Destructure onArtworkLiftedChange
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
   const [isEditingArtwork, setIsEditingArtwork] = useState<boolean>(false); // NEW: State for edit panel
   const [collidingArtworkId, setCollidingArtworkId] = useState<string | null>(null);
   const [cameraIconRotation, setCameraIconRotation] = useState(0); // NEW: State for camera icon rotation in degrees
+  const [isArtworkLifted, setIsArtworkLifted] = useState(false); // NEW: Track if artwork is lifted (first selection)
 
   const hasMotionArt = useMemo(() => {
     return currentLayout.some(art => art.type === 'motion') || 
@@ -163,7 +166,9 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     e.stopPropagation();
     // FIX: Only call onSelectArtwork if it's an artwork, not a light
     if (id !== 'keyLight' && id !== 'fillLight' && id !== 'customCamera') { // MODIFIED: Add customCamera
-      onSelectArtwork(id);      
+      onSelectArtwork(id);
+      setIsArtworkLifted(true); // NEW: Lift artwork when selected
+      onArtworkLiftedChange?.(true); // NEW: Notify parent
     } else {
       // If motion art is present, camera position is fixed and cannot be dragged
       if (id === 'customCamera' && hasMotionArt) {
@@ -284,8 +289,10 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     const handlePointerUp = () => {
       setDraggedElementId(null);
       setCollidingArtworkId(null);
-      // NEW: Deselect artwork when drag ends to trigger drop animation
-      onSelectArtwork(null);
+      // NEW: Drop artwork (trigger bounce animation) but keep it selected
+      setIsArtworkLifted(false);
+      onArtworkLiftedChange?.(false); // NEW: Notify parent
+      // Removed: onSelectArtwork(null) - keep artwork selected after drag
       // NEW: Add null check for setIsAnyLayoutItemDragging
       if (typeof setIsAnyLayoutItemDragging === 'function') {
         setIsAnyLayoutItemDragging(false); // NEW: Set dragging state to false
@@ -453,6 +460,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
           const isDragged = art.id === draggedElementId;
           const isColliding = art.id === collidingArtworkId;
           const isCanvas = art.type.startsWith('canvas_');
+          const shouldShowFadedRing = isSelected && !isArtworkLifted; // NEW: Faded ring when selected but not lifted
 
           return (
             <div
@@ -475,7 +483,8 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                 )}
               </div>
               
-              {isSelected && <div className={`absolute w-5 h-5 rounded-full ring-2 ring-cyan-500 ring-offset-2 ${ringOffsetClass}`} />}
+              {isSelected && !shouldShowFadedRing && <div className={`absolute w-5 h-5 rounded-full ring-2 ring-cyan-500 ring-offset-2 ${ringOffsetClass}`} />}
+              {shouldShowFadedRing && <div className={`absolute w-5 h-5 rounded-full ring-2 ring-cyan-300/50 ring-offset-2 ${ringOffsetClass}`} />}
               {isColliding && <div className={`absolute w-5 h-5 rounded-full ring-2 ring-red-500 ring-offset-2 ${ringOffsetClass} colliding-ring`} />}
             </div>
           );

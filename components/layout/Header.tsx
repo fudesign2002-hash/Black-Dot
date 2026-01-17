@@ -201,10 +201,10 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
               <div className={`relative ${isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <div className="overflow-hidden">
                   <div className={`flex flex-col justify-center items-end transform transition-all duration-500 ease-out ${isHeaderExpanded ? 'translate-x-0' : 'translate-x-full'}`}>
-                      <p className="text-[0.5rem] tracking-[0.4em] uppercase font-bold mb-0.5" style={{ color: '#94a3b8' }}>
+                      <p className="text-[0.5rem] tracking-[0.4em] uppercase font-bold font-sans mb-0.5" style={{ color: '#94a3b8' }}>
                         Powered By
                       </p>
-                      <h1 className="text-[1.2rem] font-normal tracking-[-0.05em] leading-none m-0" style={{ color: headerColorValue || '#000000' }}>
+                      <h1 className="text-[1.2rem] font-normal font-sans tracking-[-0.05em] leading-none m-0" style={{ color: headerColorValue || '#000000' }}>
                         kurodot<span style={{ color: '#9ca3af' }}>.io</span>
                       </h1>
                   </div>

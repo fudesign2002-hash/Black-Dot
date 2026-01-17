@@ -60,6 +60,7 @@ export interface SceneProps {
   onLoadingStatusChange?: (isLoading: boolean) => void; // NEW: Add onLoadingStatusChange prop
   thresholdLevel?: number; // NEW: Threshold level for confetti animation
   activeZoneId?: string; // NEW: Add activeZoneId for zone-specific artwork data
+  isArtworkLifted?: boolean; // NEW: Whether artwork is lifted in layout editor
 }
 
 const Scene: React.FC<SceneProps> = (props) => {

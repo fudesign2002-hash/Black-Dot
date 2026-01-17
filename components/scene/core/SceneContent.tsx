@@ -11,6 +11,7 @@ import ProximityHandler from './ProximityHandler';
 import ArtComponent from './ArtComponent';
 import { kelvinToHex, gravityToHex } from '../../../services/utils/colorUtils';
 import SceneAxisHelper from './SceneAxisHelper';
+import SmartSpotlight from '../lighting/SmartSpotlight';
 const ZeroGravityEffects = React.lazy(() => import('./ZeroGravityEffects'));
 import ArtworkWrapper from './ArtworkWrapper';
 import { getShadowMapSize } from '../../../utils/screenSettings'; // NEW: Import getShadowMapSize
@@ -69,6 +70,7 @@ const SceneContent: React.FC<SceneProps> = ({
   isEmbed, // NEW: Destructure isEmbed
   thresholdLevel, // NEW: Destructure thresholdLevel
   activeZoneId, // NEW: Destructure activeZoneId
+  isArtworkLifted, // NEW: Destructure isArtworkLifted
 }) => {
   const LOG_COLORS = false; // Toggle debug logs for color updates
   const { lightsOn } = lightingConfig;
@@ -255,7 +257,18 @@ const SceneContent: React.FC<SceneProps> = ({
 
   // NEW: Track environment and light intensities for smooth transitions
   const envIntensityRef = useRef(lightsOn ? 1.0 : 0.05);
-  const mainLightIntensityRef = useRef(lightsOn ? 3.5 : 0);
+  const mainLightIntensityRef = useRef(lightsOn ? 0.4 : 0);
+
+  // DEBUG: Output lighting values to console
+  useEffect(() => {
+    console.log('🔆 Lighting Values:', {
+      ambientIntensity: lightingConfig.ambientIntensity,
+      mainLightIntensity: mainLightIntensityRef.current,
+      fillLightIntensity: lightsOn ? 1.2 : 0,
+      lightsOn: lightsOn,
+      fullLightingConfig: lightingConfig
+    });
+  }, [lightingConfig, lightsOn]);
 
 
   // NEW: Load background texture when exhibit_background changes and useExhibitionBackground is true
@@ -604,7 +617,7 @@ const SceneContent: React.FC<SceneProps> = ({
   return (
     <React.Fragment>
         <ambientLight 
-          intensity={lightsOn ? (lightingConfig.ambientIntensity ?? 0.8) : 0.05} 
+          intensity={lightsOn ? 0.2 : 0.05} 
           color="#ffffff" 
         />
         {/* FIX: Use THREE.Vector3 for position */}
@@ -626,7 +639,7 @@ const SceneContent: React.FC<SceneProps> = ({
         <directionalLight
             ref={dirLight2Ref}
             position={fillLightPos}
-            intensity={lightsOn ? 2.0 : 0}
+            intensity={lightsOn ? 0.2 : 0}
             color={fillLightColor}
         />
 
@@ -697,9 +710,9 @@ const SceneContent: React.FC<SceneProps> = ({
               const isPhotography = art.source_artwork_type === 'photography';
               const photographyYOffset = isPhotography ? PHOTOGRAPHY_Y_OFFSET : 0;
               
-              // NEW: Apply Y+0.5 offset when artwork is selected (replacing spotlight)
+              // NEW: Apply Y+0.5 offset when artwork is lifted in editor mode
               const SELECTION_Y_OFFSET = 0.5;
-              const selectionYOffset = isSmartSpotlightActive ? SELECTION_Y_OFFSET : 0;
+              const selectionYOffset = (isEditorMode && isExplicitlyFocused && isArtworkLifted) ? SELECTION_Y_OFFSET : 0;
               
               const totalYOffset = photographyYOffset + selectionYOffset;
 
@@ -768,6 +781,16 @@ const SceneContent: React.FC<SceneProps> = ({
                     thresholdLevel={thresholdLevel}
                     activeZoneId={activeZoneId}
                   />
+                  {!lightsOn && (
+                    <SmartSpotlight
+                      isActive={isSmartSpotlightActive}
+                      lightsOn={lightsOn}
+                      color={highlightColor}
+                      artworkType={art.type}
+                      isEditorMode={isEditorMode}
+                      artworkRotation={art.originalRotation || art.rotation}
+                    />
+                  )}
                 </ArtworkWrapper>
               );
             })}
@@ -803,6 +826,7 @@ const SceneContent: React.FC<SceneProps> = ({
           lightingConfig={lightingConfig}
           isArtworkFocused={isArtworkFocusedForControls}
           isEmbed={isEmbed}
+          isSmallScreen={isSmallScreen}
         />
         {!lightsOn && !focusedArtworkInstanceId && !isRankingMode && !isZeroGravityMode && (
           <ProximityHandler

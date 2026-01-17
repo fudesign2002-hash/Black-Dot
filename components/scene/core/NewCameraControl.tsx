@@ -58,6 +58,7 @@ interface NewCameraControlProps {
   userCameraThrottleMs?: number;
   cameraFov?: number; // optional override for the camera field of view (degrees)
   isEmbed?: boolean; // NEW: flag for embed mode zoom behavior
+  isSmallScreen?: boolean; // NEW: flag for small screen responsive zoom behavior
   // Additional props will be added as we migrate logic here
 }
 
@@ -205,8 +206,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
   const moveCameraToArtwork = useCallback((artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => {
     if (!controlsRef.current) return;
 
-    // Set minDistance manually to ensure immediate effect during animation
-    controlsRef.current.minDistance = 10;
+    // Set minDistance based on screen size
+    const minDistanceForPainting = props.isSmallScreen ? 10 : 5;
+    controlsRef.current.minDistance = minDistanceForPainting;
 
     // Save current camera state before moving
     previousCameraPosition.current.copy(camera.position);
@@ -233,12 +235,21 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     let cameraYOffset = CAMERA_ARTWORK_HEIGHT_OFFSET;
 
     if (artworkType.startsWith('canvas_') || artworkType === 'motion') {
-      cameraDistance = CAMERA_PAINTING_CAMERA_Z_DISTANCE;
+      // For paintings: use smaller distance on small screens, larger (half) on normal screens
+      cameraDistance = props.isSmallScreen ? CAMERA_PAINTING_CAMERA_Z_DISTANCE : CAMERA_PAINTING_CAMERA_Z_DISTANCE / 2;
       cameraYOffset = CAMERA_PAINTING_CAMERA_Y_OFFSET;
+      console.log('🎥 Zoom to Painting:', {
+        isSmallScreen: props.isSmallScreen,
+        cameraDistance: cameraDistance,
+        artworkType: artworkType
+      });
     }
 
     const artworkTargetY = position[1] + (artworkType === 'sculpture_base' ? CAMERA_ARTWORK_HEIGHT_OFFSET : 0);
-    tmpArtworkWorldPosition.current.set(position[0], artworkTargetY, position[2]);
+    
+    // Add Z offset for paintings to bring them forward
+    const paintingZOffset = (artworkType.startsWith('canvas_') || artworkType === 'motion') ? -2 : 0;
+    tmpArtworkWorldPosition.current.set(position[0], artworkTargetY, position[2] + paintingZOffset);
     tmpArtworkWorldRotation.current.set(rotation[0], rotation[1], rotation[2], 'YXZ');
 
     tmpOffset.current.set(0, cameraYOffset, cameraDistance);

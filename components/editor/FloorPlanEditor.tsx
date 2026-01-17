@@ -53,6 +53,7 @@ interface FloorPlanEditorProps {
   onUpdateZoneGravity: (gravity: number | undefined) => Promise<void>; // NEW: Add onUpdateZoneGravity
   isSignedIn: boolean; // NEW: Add isSignedIn prop
   activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
+  onArtworkLiftedChange?: (isLifted: boolean) => void; // NEW: Callback for artwork lifted state
 }
 
 const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
@@ -90,6 +91,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity
   isSignedIn, // NEW: Destructure isSignedIn
   activeZoneId, // NEW: Destructure activeZoneId
+  onArtworkLiftedChange, // NEW: Destructure onArtworkLiftedChange
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevIsOpenRef = useRef<boolean>(isOpen);
@@ -300,6 +302,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             setIsAnyLayoutItemDragging={setIsAnyLayoutItemDragging}
             firebaseArtworks={firebaseArtworks}
             activeZoneId={activeZoneId}
+            onArtworkLiftedChange={onArtworkLiftedChange}
             onUpdateArtworkFile={async (artworkId: string, newFileUrl: string) => {
               await onUpdateArtworkFile(artworkId, newFileUrl);
               triggerSaveNotification();

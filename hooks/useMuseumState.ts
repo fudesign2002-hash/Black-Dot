@@ -11,7 +11,7 @@ const INITIAL_CAMERA_POSITION: [number, number, number] = [-8, 4, 25]; // NEW: D
 
 const DEFAULT_SIMPLIFIED_LIGHTING_CONFIG: SimplifiedLightingConfig = {
   lightsOn: true,
-  ambientIntensity: 0.9,
+  ambientIntensity: 0.5,
   spotlightMode: 'off',
   manualSpotlightColor: '#ffffff',
   colorTemperature: 5500,
