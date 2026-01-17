@@ -4,10 +4,26 @@ import cors from 'cors';
 import Pusher from 'pusher';
 
 const PORT = process.env.PORT || 3002;
-const ORIGIN = process.env.ORIGIN || 'http://localhost:3000';
+// Support multiple origins: development and production
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://app.kurodot.io'
+];
 
 const app = express();
-app.use(cors({ origin: ORIGIN, credentials: true }));
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || origin.includes('kurodot.io')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -41,5 +57,6 @@ app.post('/pusher/auth', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`[pusher-auth] listening on http://localhost:${PORT} (allow origin ${ORIGIN})`);
+  console.log(`[pusher-auth] listening on http://localhost:${PORT}`);
+  console.log(`[pusher-auth] allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
 });
