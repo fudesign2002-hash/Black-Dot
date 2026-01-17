@@ -388,17 +388,11 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
 
           // NORMAL MODE: execute steps 1-3 only (compute isSignedIn, toggle menu if signed in, else call onRequestCloseInfo)
           try {
-            console.info('[TopLeftLogout] executing steps 1-3');
-          } catch (err) {}
-
-          try {
             // step 1: compute isSignedIn (already derived above)
-            console.info('[TopLeftLogout] step1: isSignedIn=', isSignedIn);
 
             // step 2: toggle profile menu if signed in
             if (isSignedIn) {
               setOpen(v => !v);
-              console.info('[TopLeftLogout] step2: toggled profile menu');
               return;
             }
 
@@ -406,7 +400,6 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
             if (onRequestCloseInfo) {
               try {
                 onRequestCloseInfo();
-                console.info('[TopLeftLogout] step3: onRequestCloseInfo called');
               } catch (err) {
                 console.error('[TopLeftLogout] step3: onRequestCloseInfo threw', err);
               }

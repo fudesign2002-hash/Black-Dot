@@ -259,18 +259,6 @@ const SceneContent: React.FC<SceneProps> = ({
   const envIntensityRef = useRef(lightsOn ? 1.0 : 0.05);
   const mainLightIntensityRef = useRef(lightsOn ? 0.4 : 0);
 
-  // DEBUG: Output lighting values to console
-  useEffect(() => {
-    console.log('🔆 Lighting Values:', {
-      ambientIntensity: lightingConfig.ambientIntensity,
-      mainLightIntensity: mainLightIntensityRef.current,
-      fillLightIntensity: lightsOn ? 1.2 : 0,
-      lightsOn: lightsOn,
-      fullLightingConfig: lightingConfig
-    });
-  }, [lightingConfig, lightsOn]);
-
-
   // NEW: Load background texture when exhibit_background changes and useExhibitionBackground is true
   useEffect(() => {
     if (useExhibitionBackground && activeExhibition.exhibit_background) {

@@ -26,78 +26,9 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
     setIsHeaderExpanded(!isHeaderExpanded);
   };
 
-  // Animated counters
-  const [displayOnlineUsers, setDisplayOnlineUsers] = useState(onlineUsers);
-  const [displayZoneCapacity, setDisplayZoneCapacity] = useState(zoneCapacity);
-  const animationFrameRef = useRef<number | null>(null);
-
-  // Animate online users count
-  useEffect(() => {
-    const startValue = displayOnlineUsers;
-    const endValue = onlineUsers;
-    const duration = 800; // ms
-    const startTime = Date.now();
-
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Ease out cubic
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
-      
-      const currentValue = Math.round(startValue + (endValue - startValue) * easeProgress);
-      setDisplayOnlineUsers(currentValue);
-
-      if (progress < 1) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    animationFrameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [onlineUsers]);
-
-  // Animate zone capacity count
-  useEffect(() => {
-    const startValue = displayZoneCapacity;
-    const endValue = zoneCapacity;
-    const duration = 800; // ms
-    const startTime = Date.now();
-
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Ease out cubic
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
-      
-      const currentValue = Math.round(startValue + (endValue - startValue) * easeProgress);
-      setDisplayZoneCapacity(currentValue);
-
-      if (progress < 1) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    animationFrameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [zoneCapacity]);
+  // Non-animated counters: use values directly
+  const displayOnlineUsers = onlineUsers;
+  const displayZoneCapacity = zoneCapacity;
 
   const capacityPercentage = (displayOnlineUsers / displayZoneCapacity) * 100;
 

@@ -146,6 +146,11 @@ function MuseumApp({
   const lightingUpdateTimeoutRef = useRef<number | null>(null);
 
   const [onlineUsersPerZone, setOnlineUsersPerZone] = useState<Record<string, number>>({});
+  const [onlineUsersPerExhibit, setOnlineUsersPerExhibit] = useState<Record<string, number>>({});
+  // Presence tracking refs
+  const presenceHeartbeatRef = useRef<number | null>(null);
+  const presenceUnsubRef = useRef<(() => void) | null>(null);
+  const presenceDocUidRef = useRef<string | null>(null);
   const [zoneCapacity, setZoneCapacity] = useState(100);
 
   const cameraControlRef = useRef<{ 
@@ -549,20 +554,135 @@ function MuseumApp({
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
+  // Real-time online users per zone via Firestore presence heartbeat
   useEffect(() => {
+    // Cleanup previous listeners/intervals
+    if (presenceHeartbeatRef.current !== null) {
+      window.clearInterval(presenceHeartbeatRef.current);
+      presenceHeartbeatRef.current = null;
+    }
+    if (presenceUnsubRef.current) {
+      try { presenceUnsubRef.current(); } catch (e) {}
+      presenceUnsubRef.current = null;
+    }
+
     if (activeZone && activeZone.id) {
       // Use exhibition's exhibit_capacity instead of zone's zone_capacity
       const capacity = activeExhibition?.exhibit_capacity || 100;
       setZoneCapacity(capacity);
 
-      setOnlineUsersPerZone(prev => {
-        if (prev[activeZone.id] === undefined) {
-          return { ...prev, [activeZone.id]: Math.floor(Math.random() * 80) + 10 };
+      // Resolve a stable uid for presence (signed-in uid or local anonymous id)
+      let uid = user?.uid || null;
+      if (!uid) {
+        try {
+          const existing = window.localStorage.getItem('anonPresenceUid');
+          if (existing) {
+            uid = existing;
+          } else {
+            uid = `anon_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+            window.localStorage.setItem('anonPresenceUid', uid);
+          }
+        } catch (e) {
+          uid = `anon_${Math.random().toString(36).slice(2)}_${Date.now()}`;
         }
-        return prev;
-      });
+      }
+      presenceDocUidRef.current = uid;
+
+      // Presence doc per user: stores current zone and lastSeenMs
+      const docRef = db.collection('presence').doc(uid);
+      const updatePresence = async () => {
+        try {
+          await docRef.set({
+            uid,
+            zoneId: activeZone.id,
+            lastSeenMs: Date.now(),
+          }, { merge: true });
+        } catch (err) { /* silent */ }
+      };
+      // Initial write and start heartbeat (every 15s)
+      void updatePresence();
+      presenceHeartbeatRef.current = window.setInterval(updatePresence, 15000);
+
+      // Subscribe to recent presence in this zone (last 30s)
+      try {
+        presenceUnsubRef.current = db
+          .collection('presence')
+          .where('zoneId', '==', activeZone.id)
+          .onSnapshot((snap) => {
+            const nowMs = Date.now();
+            let count = 0;
+            snap.forEach(doc => {
+              const d = doc.data() as any;
+              if (typeof d.lastSeenMs === 'number' && (nowMs - d.lastSeenMs) <= 30000) {
+                count += 1;
+              }
+            });
+            setOnlineUsersPerZone(prev => ({ ...prev, [activeZone.id]: count }));
+          }, () => {
+            // On error, don't crash UI; keep previous count
+          });
+      } catch (e) {
+        // Fallback: keep previous count
+      }
     }
-  }, [activeZone]);
+
+    // Cleanup on zone change/unmount
+    return () => {
+      if (presenceHeartbeatRef.current !== null) {
+        window.clearInterval(presenceHeartbeatRef.current);
+        presenceHeartbeatRef.current = null;
+      }
+      if (presenceUnsubRef.current) {
+        try { presenceUnsubRef.current(); } catch (e) {}
+        presenceUnsubRef.current = null;
+      }
+    };
+  }, [activeZone?.id, user?.uid]);
+
+  // Exhibit-level online users: random 1-500 with 10s refresh (±10 per update)
+  const exhibitUpdateIntervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!activeExhibition || !activeExhibition.id) return;
+
+    const exhibitId = activeExhibition.id;
+
+    // Initialize with random 1-100 if not yet set
+    setOnlineUsersPerExhibit(prev => {
+      if (prev[exhibitId] === undefined) {
+        return { ...prev, [exhibitId]: Math.floor(Math.random() * 100) + 1 };
+      }
+      return prev;
+    });
+
+    // Clear previous interval
+    if (exhibitUpdateIntervalRef.current !== null) {
+      window.clearInterval(exhibitUpdateIntervalRef.current);
+      exhibitUpdateIntervalRef.current = null;
+    }
+
+    // Update every 10 seconds: random ±5~15
+    exhibitUpdateIntervalRef.current = window.setInterval(() => {
+      setOnlineUsersPerExhibit(prev => {
+        const current = prev[exhibitId] ?? Math.floor(Math.random() * 500) + 1;
+        const delta = Math.floor(Math.random() * 11) + 5; // 5~15
+        const direction = Math.random() > 0.5 ? 1 : -1;
+        const updated = Math.max(1, Math.min(500, current + delta * direction));
+        return { ...prev, [exhibitId]: updated };
+      });
+    }, 10000);
+
+    return () => {
+      if (exhibitUpdateIntervalRef.current !== null) {
+        window.clearInterval(exhibitUpdateIntervalRef.current);
+        exhibitUpdateIntervalRef.current = null;
+      }
+    };
+  }, [activeExhibition?.id]);
+
+  const currentExhibitOnlineUsers = useMemo(() => {
+    return activeExhibition && activeExhibition.id ? (onlineUsersPerExhibit[activeExhibition.id] ?? Math.floor(Math.random() * 100) + 1) : 0;
+  }, [activeExhibition?.id, onlineUsersPerExhibit]);
 
 
   useEffect(() => {
@@ -1327,10 +1447,14 @@ function MuseumApp({
 
     // Existing logic after handling the new updates
     if (isRankingMode) {
-      // In ranking mode: trigger like (+2 points) and heart emitter
-      
+      // In ranking mode: trigger like (+1 point) and heart emitter
       setHeartEmitterArtworkId(artworkInstanceId);
       setHeartEmitterTrigger(prev => prev + 1);
+      
+      // Save like to Firebase in ranking mode
+      if (actualArtworkId) {
+        void updateArtworkLikesInFirebase(actualArtworkId, 1);
+      }
     } else if (isZeroGravityMode) {
       // In zero gravity mode: just visual feedback, no like
       
@@ -1745,7 +1869,7 @@ function MuseumApp({
         isSmallScreen={isSmallScreen}
         isHeaderExpanded={isHeaderExpanded}
         setIsHeaderExpanded={setIsHeaderExpanded}
-        onlineUsers={currentActiveZoneOnlineUsers}
+        onlineUsers={currentExhibitOnlineUsers}
         hideUserCount={hideUserCount}
         hideLogo={hideLogo}
         zoneCapacity={zoneCapacity}
@@ -1953,7 +2077,7 @@ function MuseumApp({
         isEditorMode={isEditorMode}
         activeEditorTab={activeEditorTab}
         selectedArtworkTitle={selectedArtworkTitle}
-        onlineUsers={currentActiveZoneOnlineUsers}
+        onlineUsers={currentExhibitOnlineUsers}
         setOnlineUsers={handleSetOnlineUsersForActiveZone}
         isDebugMode={isDebugMode}
         setIsDebugMode={setIsDebugMode}

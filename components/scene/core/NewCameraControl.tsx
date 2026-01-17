@@ -238,11 +238,6 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       // For paintings: use smaller distance on small screens, larger (half) on normal screens
       cameraDistance = props.isSmallScreen ? CAMERA_PAINTING_CAMERA_Z_DISTANCE : CAMERA_PAINTING_CAMERA_Z_DISTANCE / 2;
       cameraYOffset = CAMERA_PAINTING_CAMERA_Y_OFFSET;
-      console.log('🎥 Zoom to Painting:', {
-        isSmallScreen: props.isSmallScreen,
-        cameraDistance: cameraDistance,
-        artworkType: artworkType
-      });
     }
 
     const artworkTargetY = position[1] + (artworkType === 'sculpture_base' ? CAMERA_ARTWORK_HEIGHT_OFFSET : 0);
