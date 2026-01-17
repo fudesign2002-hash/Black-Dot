@@ -59,6 +59,7 @@ const normalizeDegrees = (degrees: number): number => {
 
 interface ArtworkSettingsFormProps {
   artwork: FirebaseArtwork;
+  activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
   uiConfig: {
     lightsOn: boolean;
     text: string;
@@ -72,6 +73,7 @@ interface ArtworkSettingsFormProps {
 
 const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
   artwork,
+  activeZoneId, // NEW: Destructure activeZoneId
   uiConfig,
   onUpdateArtworkFile,
   onUpdateArtworkData,
@@ -103,8 +105,9 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
     setPreviewMediaError(false);
 
     if ((artwork.artwork_type as string) === 'sculpture' || ((artwork.artwork_type as string) === 'sculpture' && artwork.artwork_file?.toLowerCase().includes('.glb'))) {
-      // Initialize scale
-      setLocalScale(artwork.artwork_data?.scale_offset ?? 1.0);
+      // Initialize scale from zone-specific field if available, otherwise use global
+      const zoneScale = artwork.artwork_data?.scale_offset_per_zone?.[activeZoneId];
+      setLocalScale(zoneScale ?? artwork.artwork_data?.scale_offset ?? 1.0);
 
       // Initialize rotation
       const rotationOffset = artwork.artwork_data?.rotation_offset;
@@ -118,7 +121,9 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
           normalizeDegrees(initialRotation[2] * (180 / Math.PI)), // Three.js Z-axis -> UI visual Z-axis (roll left/right)
       ]);
 
-      const savedMaterial = artwork.artwork_data?.material;
+      // Get zone-specific material or fall back to global material
+      const zoneMaterial = artwork.artwork_data?.material_per_zone?.[activeZoneId];
+      const savedMaterial = zoneMaterial !== undefined ? zoneMaterial : artwork.artwork_data?.material;
       let presetIdFound: string | null = 'original';
       if (savedMaterial) {
           const matchedPreset = MATERIAL_PRESETS.find(preset => {
@@ -138,7 +143,7 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
       setSelectedMaterialPresetId(null);
       setLocalScale(1.0);
     }
-  }, [artwork]);
+  }, [artwork, activeZoneId]);
 
   const handleUpdateStatus = useCallback((status: 'idle' | 'saving' | 'saved' | 'error', duration: number = 2000) => {
     setUpdateStatus(status);
@@ -208,20 +213,28 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
   const handleSaveMaterial = useCallback(async (presetId: string, materialConfig: ArtworkMaterialConfig | null) => {
     handleUpdateStatus('saving');
     try {
-        console.log('[debug] ArtworkSettingsForm.handleSaveMaterial START', { artworkId: artwork.id, presetId });
+        console.log('[debug] ArtworkSettingsForm.handleSaveMaterial START', { artworkId: artwork.id, presetId, activeZoneId });
         setSelectedMaterialPresetId(presetId);
-        await onUpdateArtworkData(artwork.id, { material: materialConfig });
+        // Save to zone-specific field
+        const newMaterialPerZone = {
+          ...(artwork.artwork_data?.material_per_zone || {}),
+          [activeZoneId]: materialConfig
+        };
+        await onUpdateArtworkData(artwork.id, { material_per_zone: newMaterialPerZone });
         console.log('[debug] ArtworkSettingsForm.handleSaveMaterial END', { artworkId: artwork.id });
         handleUpdateStatus('saved');
     } catch (error) {
         console.error('[debug] ArtworkSettingsForm.handleSaveMaterial ERROR', error);
         handleUpdateStatus('error', 3000);
     }
-  }, [onUpdateArtworkData, handleUpdateStatus, artwork.id]);
+  }, [artwork, activeZoneId, onUpdateArtworkData, handleUpdateStatus]);
 
   const handleScaleChange = useCallback(async (increment: number) => {
     handleUpdateStatus('saving');
-    const currentScale = artwork.artwork_data?.scale_offset ?? 1.0;
+    
+    // Get current scale from zone-specific field if available, otherwise use global
+    const currentScalePerZone = artwork.artwork_data?.scale_offset_per_zone?.[activeZoneId];
+    const currentScale = currentScalePerZone ?? artwork.artwork_data?.scale_offset ?? 1.0;
     let newScale = currentScale + increment;
 
     newScale = Math.max(0.1, Math.min(5.0, newScale));
@@ -229,15 +242,20 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
     setLocalScale(newScale);
 
     try {
-      console.log('[debug] ArtworkSettingsForm.handleScaleChange START', { artworkId: artwork.id, newScale });
-        await onUpdateArtworkData(artwork.id, { scale_offset: newScale });
+      console.log('[debug] ArtworkSettingsForm.handleScaleChange START', { artworkId: artwork.id, newScale, activeZoneId });
+        // Save to zone-specific field
+        const newScalePerZone = {
+          ...(artwork.artwork_data?.scale_offset_per_zone || {}),
+          [activeZoneId]: newScale
+        };
+        await onUpdateArtworkData(artwork.id, { scale_offset_per_zone: newScalePerZone });
       console.log('[debug] ArtworkSettingsForm.handleScaleChange END', { artworkId: artwork.id });
         handleUpdateStatus('saved');
     } catch (error) {
       console.error('[debug] ArtworkSettingsForm.handleScaleChange ERROR', error);
         handleUpdateStatus('error', 3000);
     }
-  }, [artwork, onUpdateArtworkData, handleUpdateStatus]);
+  }, [artwork, activeZoneId, onUpdateArtworkData, handleUpdateStatus]);
 
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

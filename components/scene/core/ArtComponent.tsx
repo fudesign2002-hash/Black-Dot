@@ -75,6 +75,7 @@ interface ArtComponentProps {
     displayLikes?: number | null;
     isSmallScreen: boolean; // NEW: Add isSmallScreen prop
     thresholdLevel?: number; // NEW: Threshold level for confetti animation
+    activeZoneId?: string; // NEW: Add activeZoneId for zone-specific artwork data
 }
 
 
@@ -84,7 +85,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
     isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn,
       uiConfig, setFocusedArtworkInstanceId, activeExhibition, onInfoOpen, isDebugMode,
       triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
-      isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType, thresholdLevel // NEW: Destructure thresholdLevel
+      isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType, thresholdLevel, activeZoneId // NEW: Destructure thresholdLevel and activeZoneId
 }) => {
   // Debug logging removed to reduce console noise in production/dev
     const [visualDimensions, setVisualDimensions] = useState<ExhibitVisualDimensions | null>(null);
@@ -192,7 +193,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
         'canvas_portrait': <LazyCanvasExhibit orientation="portrait" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,
         'canvas_landscape': <LazyCanvasExhibit orientation="landscape" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,
         'canvas_square': <LazyCanvasExhibit orientation="square" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,
-        'sculpture_base': <LazySculptureExhibit {...commonProps} onDimensionsCalculated={handleSculptureDimensionsCalculated} />,
+        'sculpture_base': <LazySculptureExhibit {...commonProps} onDimensionsCalculated={handleSculptureDimensionsCalculated} activeZoneId={activeZoneId} />,
     };
 
     const componentToRender = componentMap[type] || null;

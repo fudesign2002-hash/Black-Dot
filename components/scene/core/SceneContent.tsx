@@ -9,7 +9,6 @@ import { SceneProps } from '../Scene';
 import NewCameraControl from './NewCameraControl';
 import ProximityHandler from './ProximityHandler';
 import ArtComponent from './ArtComponent';
-import SmartSpotlight from '../lighting/SmartSpotlight';
 import { kelvinToHex, gravityToHex } from '../../../services/utils/colorUtils';
 import SceneAxisHelper from './SceneAxisHelper';
 const ZeroGravityEffects = React.lazy(() => import('./ZeroGravityEffects'));
@@ -69,6 +68,7 @@ const SceneContent: React.FC<SceneProps> = ({
   onLoadingStatusChange, // NEW: Destructure onLoadingStatusChange
   isEmbed, // NEW: Destructure isEmbed
   thresholdLevel, // NEW: Destructure thresholdLevel
+  activeZoneId, // NEW: Destructure activeZoneId
 }) => {
   const LOG_COLORS = false; // Toggle debug logs for color updates
   const { lightsOn } = lightingConfig;
@@ -695,17 +695,23 @@ const SceneContent: React.FC<SceneProps> = ({
               // NEW: Apply a global Y offset for photography artworks to lower them in the scene
               const PHOTOGRAPHY_Y_OFFSET = -1.5;
               const isPhotography = art.source_artwork_type === 'photography';
-              const yOffset = isPhotography ? PHOTOGRAPHY_Y_OFFSET : 0;
+              const photographyYOffset = isPhotography ? PHOTOGRAPHY_Y_OFFSET : 0;
+              
+              // NEW: Apply Y+0.5 offset when artwork is selected (replacing spotlight)
+              const SELECTION_Y_OFFSET = 0.5;
+              const selectionYOffset = isSmartSpotlightActive ? SELECTION_Y_OFFSET : 0;
+              
+              const totalYOffset = photographyYOffset + selectionYOffset;
 
               const adjustedOriginalPosition: [number, number, number] = [
                 (art.originalPosition || art.position)[0],
-                (art.originalPosition || art.position)[1] + yOffset,
+                (art.originalPosition || art.position)[1] + totalYOffset,
                 (art.originalPosition || art.position)[2]
               ];
 
               const adjustedTargetPosition: [number, number, number] = [
                 art.position[0],
-                art.position[1] + yOffset,
+                art.position[1] + totalYOffset,
                 art.position[2]
               ];
 
@@ -733,14 +739,6 @@ const SceneContent: React.FC<SceneProps> = ({
                     }
                   }}
                 >
-                  <SmartSpotlight
-                    isActive={isSmartSpotlightActive}
-                    lightsOn={lightsOn}
-                    color={highlightColor}
-                    isEditorMode={isEditorMode}
-                    artworkRotation={art.rotation}
-                    artworkType={art.type}
-                  />
                   <ArtComponent
                     id={art.id}
                     type={art.type}
@@ -768,6 +766,7 @@ const SceneContent: React.FC<SceneProps> = ({
                     displayLikes={art.displayLikes}
                     isSmallScreen={isSmallScreen}
                     thresholdLevel={thresholdLevel}
+                    activeZoneId={activeZoneId}
                   />
                 </ArtworkWrapper>
               );

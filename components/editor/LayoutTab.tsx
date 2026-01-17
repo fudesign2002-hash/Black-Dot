@@ -29,6 +29,7 @@ interface LayoutTabProps {
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>; // NEW: Add onRemoveArtworkFromLayout
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void; // NEW: Add onOpenConfirmationDialog
   isSignedIn?: boolean; // NEW: Add isSignedIn prop
+  activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
 }
 
 const PADDING_PERCENT = 3;
@@ -114,6 +115,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   onRemoveArtworkFromLayout, // NEW: Destructure onRemoveArtworkFromLayout
   onOpenConfirmationDialog, // NEW: Destructure onOpenConfirmationDialog
   isSignedIn = false, // NEW: Destructure isSignedIn
+  activeZoneId, // NEW: Destructure activeZoneId
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
@@ -282,6 +284,8 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     const handlePointerUp = () => {
       setDraggedElementId(null);
       setCollidingArtworkId(null);
+      // NEW: Deselect artwork when drag ends to trigger drop animation
+      onSelectArtwork(null);
       // NEW: Add null check for setIsAnyLayoutItemDragging
       if (typeof setIsAnyLayoutItemDragging === 'function') {
         setIsAnyLayoutItemDragging(false); // NEW: Set dragging state to false
@@ -593,6 +597,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                 {firebaseArtworks.find(fw => fw.id === selectedArt.artworkId) && (
                   <ArtworkSettingsForm
                     artwork={firebaseArtworks.find(fw => fw.id === selectedArt.artworkId)!}
+                    activeZoneId={activeZoneId}
                     uiConfig={uiConfig}
                     onUpdateArtworkFile={onUpdateArtworkFile}
                     onUpdateArtworkData={onUpdateArtworkData}

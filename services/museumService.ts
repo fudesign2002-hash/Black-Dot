@@ -344,6 +344,8 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             exhibit_background: data.exhibit_background || undefined, // NEW: Add exhibit_background from Firestore
             exhibit_liked: typeof data.exhibit_liked === 'number' ? data.exhibit_liked : 0, // NEW: Add exhibit_liked
             exhibit_viewed: typeof data.exhibit_viewed === 'number' ? data.exhibit_viewed : 0, // NEW: Add exhibit_viewed
+            exhibit_capacity: typeof data.exhibit_capacity === 'number' ? data.exhibit_capacity : 100, // NEW: Add exhibit_capacity with default 100
+            exhibit_linktype: data.exhibit_linktype || 'tickets', // NEW: Add exhibit_linktype with default 'tickets'
         };
         return exhibition;
     });

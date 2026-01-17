@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info, Eye } from 'lucide-react';
+import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info, Eye, BookOpen, Instagram, Globe } from 'lucide-react';
 import { Exhibition, FirebaseArtwork } from '../../types';
 
 interface InfoPanelProps {
@@ -19,6 +19,40 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
   const [posterLoadError, setPosterLoadError] = React.useState(false);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const prevIsOpenRef = React.useRef<boolean>(isOpen);
+
+  // Helper function to get button config based on link type
+  const getButtonConfig = (linkType?: string, status?: string) => {
+    if (status === 'past') {
+      return {
+        icon: Ticket,
+        text: 'View Archive'
+      };
+    }
+    
+    switch (linkType) {
+      case 'learn_more':
+        return {
+          icon: BookOpen,
+          text: 'Learn More'
+        };
+      case 'instagram':
+        return {
+          icon: Instagram,
+          text: 'Instagram'
+        };
+      case 'website':
+        return {
+          icon: Globe,
+          text: 'Website'
+        };
+      case 'tickets':
+      default:
+        return {
+          icon: Ticket,
+          text: 'Tickets'
+        };
+    }
+  };
 
   React.useEffect(() => {
     try {
@@ -333,17 +367,21 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                   <Info size={18} strokeWidth={1.5} className="group-hover:rotate-12 transition-transform opacity-60" />
                   <span className="text-sm">Exhibition</span>
                </button>
-               {activeExhibition.admissionLink ? ( 
-                 <a 
-                   href={activeExhibition.admissionLink} 
-                   target="_blank" 
-                   rel="noopener noreferrer"
-                   className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-neutral-900 text-white hover:bg-black shadow-xl group`}
-                 >
-                    <Ticket size={20} strokeWidth={1.5} />
-                    <span className="text-sm">Tickets</span>
-                 </a>
-               ) : (
+               {activeExhibition.admissionLink ? (() => {
+                 const buttonConfig = getButtonConfig(activeExhibition.exhibit_linktype);
+                 const ButtonIcon = buttonConfig.icon;
+                 return (
+                   <a 
+                     href={activeExhibition.admissionLink} 
+                     target="_blank" 
+                     rel="noopener noreferrer"
+                     className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-neutral-900 text-white hover:bg-black shadow-xl group`}
+                   >
+                      <ButtonIcon size={20} strokeWidth={1.5} />
+                      <span className="text-sm">{buttonConfig.text}</span>
+                   </a>
+                 );
+               })() : (
                   <button className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-white/10 text-neutral-400 cursor-not-allowed border ${uiConfig.border}`} disabled>
                       <Ticket size={20} strokeWidth={1.5} />
                       <span className="text-sm">N/A</span>
@@ -356,17 +394,21 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                       <Calendar size={20} strokeWidth={1.5} className="group-hover:scale-110 transition-transform" />
                       <span className="text-sm">Remind Me</span>
                    </button>
-               ) : activeExhibition.admissionLink ? ( 
+               ) : activeExhibition.admissionLink ? (() => {
+                 const buttonConfig = getButtonConfig(activeExhibition.exhibit_linktype, activeExhibition.status);
+                 const ButtonIcon = buttonConfig.icon;
+                 return (
                    <a 
                      href={activeExhibition.admissionLink} 
                      target="_blank" 
                      rel="noopener noreferrer"
                      className={`w-full h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-neutral-900 text-white hover:bg-black shadow-xl group`}
                    >
-                      <Ticket size={20} strokeWidth={1.5} />
-                      <span className="text-sm">{activeExhibition.status === 'past' ? 'View Archive' : 'Tickets'}</span>
+                      <ButtonIcon size={20} strokeWidth={1.5} />
+                      <span className="text-sm">{buttonConfig.text}</span>
                    </a>
-               ) : (
+                 );
+               })() : (
                   <button className={`w-full h-16 flex items-center justify-center gap-4 font-bold tracking-[0.5em] uppercase transition-all duration-500 rounded-sm bg-white/10 text-neutral-400 cursor-not-allowed border ${uiConfig.border}`} disabled>
                       <Ticket size={20} strokeWidth={1.5} />
                       <span className="text-sm">{activeExhibition.status === 'past' ? 'View Archive' : 'N/A'}</span>

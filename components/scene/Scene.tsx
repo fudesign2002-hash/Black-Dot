@@ -59,6 +59,7 @@ export interface SceneProps {
   isEffectRegistryLoading: boolean; // NEW: Add isEffectRegistryLoading prop
   onLoadingStatusChange?: (isLoading: boolean) => void; // NEW: Add onLoadingStatusChange prop
   thresholdLevel?: number; // NEW: Threshold level for confetti animation
+  activeZoneId?: string; // NEW: Add activeZoneId for zone-specific artwork data
 }
 
 const Scene: React.FC<SceneProps> = (props) => {

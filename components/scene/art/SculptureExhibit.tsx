@@ -59,6 +59,7 @@ interface SculptureExhibitProps {
   artworkPosition: [number, number, number];
   artworkRotation: [number, number, number];
   artworkType: ArtType;
+  activeZoneId?: string; // NEW: Add activeZoneId for zone-specific data
   // REMOVED: onArtworkClickedHtml?: (e: React.MouseEvent<HTMLDivElement>, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType) => void;
 }
 
@@ -67,7 +68,7 @@ const DEFAULT_SCULPTURE_GROUNDING_ADJUSTMENT = 0;
 // REMOVED: const FADE_DURATION = 800;
 
 const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textureUrl, onDimensionsCalculated,
-  artworkPosition, artworkRotation, artworkType
+  artworkPosition, artworkRotation, artworkType, activeZoneId
 }) => {
   const isGLB = useMemo(() => textureUrl && textureUrl.toLowerCase().includes('.glb'), [textureUrl]);
 
@@ -110,13 +111,20 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     return sceneClone;
   }, [isGLB, gltf?.scene]);
 
+  // NEW: Read zone-specific material if available, otherwise use global material
+  const currentMaterialConfig = useMemo(() => {
+    if (activeZoneId && artworkData?.material_per_zone?.[activeZoneId] !== undefined) {
+      return artworkData.material_per_zone[activeZoneId];
+    }
+    return artworkData?.material;
+  }, [artworkData, activeZoneId]);
+
   // NEW: Effect to manage the lifecycle and material application of the cloned GLB scene.
   // This useEffect now runs only when cleanedGlbScene or material properties actually change.
   useEffect(() => {
     // Debugging: log material and scene change detection to help diagnose first-click missing apply
     // material apply debug logging removed to reduce console noise
     // If the GLB scene object itself has changed or material config is different
-    const currentMaterialConfig = artworkData?.material;
     const materialConfigChanged = !shallowEqual(prevMaterialConfigRef.current, currentMaterialConfig);
     const glbSceneChanged = cleanedGlbScene !== prevGlbSceneRef.current;
 
@@ -138,7 +146,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
 
             const materials = Array.isArray(child.material) ? child.material : [child.material];
             materials.forEach(originalMaterial => {
-              const config = artworkData?.material;
+              const config = currentMaterialConfig;
 
               let newMaterial: THREE.Material;
               const needsPhysicalMaterial = config && (
@@ -218,7 +226,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
       prevMaterialConfigRef.current = undefined;
       prevGlbSceneRef.current = null;
     };
-  }, [isGLB, cleanedGlbScene, artworkData?.material, defaultMaterialPropsForGlb]);
+  }, [isGLB, cleanedGlbScene, currentMaterialConfig, defaultMaterialPropsForGlb]);
 
 
   const defaultMaterialProps = useMemo(() => {
@@ -263,7 +271,14 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
 
   const positionOffset = artworkData?.position_offset || [0, 0, 0]; 
   const rotationOffset = artworkData?.rotation_offset || [0, 0, 0]; 
-  const scaleOffset = artworkData?.scale_offset ?? 1.0; // NEW: Read scale_offset
+  
+  // NEW: Read zone-specific scale_offset if available, otherwise use global scale_offset
+  const scaleOffset = useMemo(() => {
+    if (activeZoneId && artworkData?.scale_offset_per_zone?.[activeZoneId] !== undefined) {
+      return artworkData.scale_offset_per_zone[activeZoneId];
+    }
+    return artworkData?.scale_offset ?? 1.0;
+  }, [artworkData, activeZoneId]);
 
   const glbRotationEuler = useMemo(() => {
     

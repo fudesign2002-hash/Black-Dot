@@ -550,7 +550,9 @@ function MuseumApp({
 
   useEffect(() => {
     if (activeZone && activeZone.id) {
-      setZoneCapacity(activeZone.zone_capacity || 100);
+      // Use exhibition's exhibit_capacity instead of zone's zone_capacity
+      const capacity = activeExhibition?.exhibit_capacity || 100;
+      setZoneCapacity(capacity);
 
       setOnlineUsersPerZone(prev => {
         if (prev[activeZone.id] === undefined) {
@@ -1693,6 +1695,7 @@ function MuseumApp({
           isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
           isSmallScreen={isSmallScreen} // NEW: Pass isSmallScreen
           onCameraPositionChange={handleCameraPositionChange} // NEW: Pass the callback
+          activeZoneId={activeZone.id}
           onUserCameraInteractionStart={() => {
             // We no longer set isResetCameraEnable(true) here to avoid showing the button on tiny movements or clicks.
             // The button will be enabled in onUserCameraInteractionEnd if a significant drag occurred.
@@ -1889,6 +1892,7 @@ function MuseumApp({
             activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
             onUpdateZoneGravity={handleUpdateZoneGravity} // NEW: Pass handler for updating zone gravity
             isSignedIn={!!user} // NEW: Pass isSignedIn based on user authentication
+            activeZoneId={activeZone.id} // NEW: Pass activeZoneId for zone-specific artwork settings
           />
         </Suspense>
       )}

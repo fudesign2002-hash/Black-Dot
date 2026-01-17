@@ -19,6 +19,7 @@ interface ArtworkTabProps {
   };
   firebaseArtworks: FirebaseArtwork[];
   currentLayout: ExhibitionArtItem[];
+  activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
   onFocusArtwork: (artworkInstanceId: string | null) => void;
@@ -81,6 +82,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
   uiConfig, 
   firebaseArtworks, 
   currentLayout, 
+  activeZoneId, // NEW: Destructure activeZoneId
   onUpdateArtworkFile, 
   onUpdateArtworkData, 
   onFocusArtwork, 
@@ -219,19 +221,28 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
     handleUpdateStatus(artworkId, 'saving');
     try {
         setSelectedMaterialPresetId(presetId);
-        await onUpdateArtworkData(artworkId, { material: materialConfig });
+        const currentArtwork = firebaseArtworks.find(art => art.id === artworkId);
+        // Save to zone-specific field
+        const newMaterialPerZone = {
+          ...(currentArtwork?.artwork_data?.material_per_zone || {}),
+          [activeZoneId]: materialConfig
+        };
+        await onUpdateArtworkData(artworkId, { material_per_zone: newMaterialPerZone });
         handleUpdateStatus(artworkId, 'saved');
     } catch (error) {
         // 
         handleUpdateStatus(artworkId, 'error', 3000);
     }
-  }, [onUpdateArtworkData, handleUpdateStatus]);
+  }, [firebaseArtworks, activeZoneId, onUpdateArtworkData, handleUpdateStatus]);
 
   // NEW: handleScaleChange function
   const handleScaleChange = useCallback(async (artworkId: string, increment: number) => {
     handleUpdateStatus(artworkId, 'saving');
     const currentArtwork = firebaseArtworks.find(art => art.id === artworkId);
-    const currentScale = currentArtwork?.artwork_data?.scale_offset ?? 1.0;
+    
+    // Get current scale from zone-specific field if available, otherwise use global
+    const currentScalePerZone = currentArtwork?.artwork_data?.scale_offset_per_zone?.[activeZoneId];
+    const currentScale = currentScalePerZone ?? currentArtwork?.artwork_data?.scale_offset ?? 1.0;
     let newScale = currentScale + increment;
 
     // Clamp scale between 10% (0.1) and 500% (5.0)
@@ -240,13 +251,18 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
     setLocalScale(newScale); // Update local state for immediate UI feedback
 
     try {
-        await onUpdateArtworkData(artworkId, { scale_offset: newScale });
+        // Save to zone-specific field
+        const newScalePerZone = {
+          ...(currentArtwork?.artwork_data?.scale_offset_per_zone || {}),
+          [activeZoneId]: newScale
+        };
+        await onUpdateArtworkData(artworkId, { scale_offset_per_zone: newScalePerZone });
         handleUpdateStatus(artworkId, 'saved');
     } catch (error) {
         // 
         handleUpdateStatus(artworkId, 'error', 3000);
     }
-  }, [firebaseArtworks, onUpdateArtworkData, handleUpdateStatus]);
+  }, [firebaseArtworks, activeZoneId, onUpdateArtworkData, handleUpdateStatus]);
 
 
   const handleToggleEdit = useCallback((artwork: FirebaseArtwork) => {
@@ -296,7 +312,9 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
               normalizeDegrees(initialRotation[2] * (180 / Math.PI)), // Three.js Z-axis -> UI visual Z-axis (roll left/right)
           ]);
 
-          const savedMaterial = artwork.artwork_data?.material;
+          // Get zone-specific material or fall back to global material
+          const zoneMaterial = artwork.artwork_data?.material_per_zone?.[activeZoneId];
+          const savedMaterial = zoneMaterial !== undefined ? zoneMaterial : artwork.artwork_data?.material;
           let presetIdFound: string | null = 'original';
           if (savedMaterial) {
               const matchedPreset = MATERIAL_PRESETS.find(preset => {
@@ -312,13 +330,17 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
               }
           }
           setSelectedMaterialPresetId(presetIdFound);
+          
+          // Get zone-specific scale or fall back to global scale
+          const zoneScale = artwork.artwork_data?.scale_offset_per_zone?.[activeZoneId];
+          setLocalScale(zoneScale ?? artwork.artwork_data?.scale_offset ?? 1.0);
       } else {
           setGlbPreviewRotation([0, 0, 0]);
           setSelectedMaterialPresetId(null);
           setLocalScale(1.0); // Reset scale when not a sculpture
       }
     }
-  }, [editingUrlArtworkId, setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks, onSelectArtwork, normalizeDegrees]);
+  }, [editingUrlArtworkId, activeZoneId, setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks, onSelectArtwork, normalizeDegrees]);
 
   const handleArtworkDoubleClick = useCallback((artwork: FirebaseArtwork) => {
     const artworkInstance = currentLayout.find(item => item.artworkId === artwork.id);
@@ -560,6 +582,20 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
   }, [updateStatus, addArtworkStatus]);
 
   const currentArtworkForScale = useMemo(() => relevantArtworks.find(art => art.id === editingUrlArtworkId), [relevantArtworks, editingUrlArtworkId]);
+  
+  // Helper to get zone-specific scale
+  const getZoneSpecificScale = useCallback((artwork: FirebaseArtwork | undefined) => {
+    if (!artwork) return 1.0;
+    const zoneScale = artwork.artwork_data?.scale_offset_per_zone?.[activeZoneId];
+    return zoneScale ?? artwork.artwork_data?.scale_offset ?? 1.0;
+  }, [activeZoneId]);
+  
+  // Helper to get zone-specific material
+  const getZoneSpecificMaterial = useCallback((artwork: FirebaseArtwork | undefined) => {
+    if (!artwork) return null;
+    const zoneMaterial = artwork.artwork_data?.material_per_zone?.[activeZoneId];
+    return zoneMaterial !== undefined ? zoneMaterial : artwork.artwork_data?.material;
+  }, [activeZoneId]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
@@ -739,18 +775,18 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
                                 onClick={() => handleScaleChange(artwork.id, -0.2)}
                                 className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${text}`}
                                 title="Decrease Scale"
-                                disabled={updateStatus[artwork.id] === 'saving' || (currentArtworkForScale?.artwork_data?.scale_offset ?? 1.0) <= 0.1}
+                                disabled={updateStatus[artwork.id] === 'saving' || getZoneSpecificScale(currentArtworkForScale) <= 0.1}
                             >
                                 <ZoomOut className="w-4 h-4" />
                             </button>
                             <span className={`text-sm font-mono tracking-tight flex-1 text-center ${text}`}>
-                                {Math.round((currentArtworkForScale?.artwork_data?.scale_offset ?? 1.0) * 100)}%
+                                {Math.round(getZoneSpecificScale(currentArtworkForScale) * 100)}%
                             </span>
                             <button
                                 onClick={() => handleScaleChange(artwork.id, 0.2)}
                                 className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${text}`}
                                 title="Increase Scale"
-                                disabled={updateStatus[artwork.id] === 'saving' || (currentArtworkForScale?.artwork_data?.scale_offset ?? 1.0) >= 5.0}
+                                disabled={updateStatus[artwork.id] === 'saving' || getZoneSpecificScale(currentArtworkForScale) >= 5.0}
                             >
                                 <ZoomIn className="w-4 h-4" />
                             </button>

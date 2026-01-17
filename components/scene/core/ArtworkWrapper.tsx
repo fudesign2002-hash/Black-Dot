@@ -153,6 +153,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     isZeroGravityMode: false, // NEW
     targetPosition: new THREE.Vector3(),
     targetRotation: new THREE.Euler(),
+    originalPosition: new THREE.Vector3(), // NEW: Track originalPosition changes
     artworkType: 'sculpture_base' as ArtType, // Initialize with a default value
     zoneGravity: undefined as number | undefined, // NEW
     artworkGravity: undefined as number | undefined, // NEW
@@ -179,8 +180,8 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
 
     // Get previous states from ref
-    // MODIFIED: Include prevIsZeroGravityModeValue, prevZoneGravity, and prevArtworkGravity
-    const { isRankingMode: prevIsRankingModeValue, isZeroGravityMode: prevIsZeroGravityModeValue, targetPosition: prevTargetPositionValue, targetRotation: prevTargetRotationValue, artworkType: prevArtworkType, zoneGravity: prevZoneGravity, artworkGravity: prevArtworkGravity } = prevProps.current;
+    // MODIFIED: Include prevIsZeroGravityModeValue, prevZoneGravity, prevArtworkGravity, and prevOriginalPosition
+    const { isRankingMode: prevIsRankingModeValue, isZeroGravityMode: prevIsZeroGravityModeValue, targetPosition: prevTargetPositionValue, targetRotation: prevTargetRotationValue, originalPosition: prevOriginalPositionValue, artworkType: prevArtworkType, zoneGravity: prevZoneGravity, artworkGravity: prevArtworkGravity } = prevProps.current;
     const prevExternalOffsetX = prevProps.current.externalOffsetX ?? 0;
 
     // Track if animation needs to be triggered
@@ -306,6 +307,21 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       animTargetScale = 1.0;
       rotationBlendCurrent.current = 0;
     }
+    // NEW: Original position change (e.g., artwork selection in layout editor)
+    // Use elastic animation when dropping back down
+    else if (!isRankingMode && !isZeroGravityMode && prevOriginalPositionValue && !newOriginalVec.equals(prevOriginalPositionValue)) {
+      shouldAnimate = true;
+      newAnimationState = 'revert'; // Use revert state for elastic bounce
+      revertSource.current = null; // Not from ranking or zero gravity
+      animStartPos.copy(groupRef.current.position);
+      animStartRot.copy(groupRef.current.rotation);
+      animStartScale = groupRef.current.scale.x;
+
+      animTargetPos.copy(newOriginalVec);
+      animTargetRot.copy(newOriginalEuler);
+      animTargetScale = 1.0;
+      rotationBlendCurrent.current = 0;
+    }
 
 
     if (shouldAnimate) {
@@ -356,6 +372,7 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       isZeroGravityMode, // NEW
       targetPosition: newTargetVec,
       targetRotation: newTargetEuler,
+      originalPosition: newOriginalVec, // NEW: Track originalPosition
       artworkType, 
       zoneGravity, // NEW
       artworkGravity, // NEW

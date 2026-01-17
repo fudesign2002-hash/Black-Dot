@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition, ExhibitionArtItem, FirebaseArtwork } from '../../types'; // MODIFIED: Add ExhibitionArtItem and FirebaseArtwork
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2 } from 'lucide-react'; // MODIFIED: Add BarChart2
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2, ExternalLink, BookOpen, Instagram, Globe } from 'lucide-react'; // MODIFIED: Add BarChart2, ExternalLink, BookOpen, Instagram, Globe
 import AnalyticsDashboard from '../ui/AnalyticsDashboard'; // NEW: Import AnalyticsDashboard
 
 interface AdminTabProps {
@@ -25,7 +25,7 @@ const DEBOUNCE_DELAY = 700;
 // NEW: Explicitly define the keys of Exhibition that are string or string | undefined
 type ExhibitionEditableFieldKeys =
   'title' | 'subtitle' | 'overview' | 'dateFrom' | 'dateTo' |
-  'venue' | 'hours' | 'admissionLink' | 'admission' | 'supportedBy'; // REMOVED: artist, dates, exhibit_poster
+  'venue' | 'hours' | 'admissionLink' | 'admission' | 'supportedBy' | 'exhibit_capacity' | 'exhibit_linktype'; // REMOVED: artist, dates, exhibit_poster
 
 // FIX: Refactored InputFieldProps to be generic to prevent 'never' type errors
 interface InputFieldProps<T extends ExhibitionEditableFieldKeys> {
@@ -100,6 +100,8 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
     admissionLink: activeExhibition.admissionLink || '',
     admission: activeExhibition.admission || '',
     supportedBy: activeExhibition.supportedBy || '',
+    exhibit_capacity: String(activeExhibition.exhibit_capacity ?? 100),
+    exhibit_linktype: activeExhibition.exhibit_linktype || 'tickets',
   }));
   // FIX: Type updateStatus with Partial<Record<ExhibitionEditableFieldKeys, ...>> to allow empty object initialization
   const [updateStatus, setUpdateStatus] = useState<Partial<Record<ExhibitionEditableFieldKeys, 'idle' | 'saving' | 'saved' | 'error'>>>({});
@@ -149,6 +151,8 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
       admissionLink: activeExhibition.admissionLink || '',
       admission: activeExhibition.admission || '',
       supportedBy: activeExhibition.supportedBy || '',
+      exhibit_capacity: String(activeExhibition.exhibit_capacity ?? 100),
+      exhibit_linktype: activeExhibition.exhibit_linktype || 'tickets',
     };
     setLocalExhibition(initialLocalExhibition);
     // FIX: Clear updateStatus by setting an empty object, now compatible with Partial<Record>
@@ -180,8 +184,14 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
         // FIX: Call the defined handleUpdateStatus
         handleUpdateStatus(field, 'saving');
         try {
-          // MODIFIED: value is now guaranteed to be a string (possibly empty)
-          const updatedField: Partial<Exhibition> = { [field]: value };
+          // MODIFIED: Convert exhibit_capacity to number if it's the field being updated
+          let updatedField: Partial<Exhibition>;
+          if (field === 'exhibit_capacity') {
+            const numValue = parseInt(value, 10);
+            updatedField = { [field]: isNaN(numValue) ? 100 : numValue };
+          } else {
+            updatedField = { [field]: value };
+          }
           if ((import.meta as any).env?.DEV) {
             // eslint-disable-next-line no-console
             console.warn('[AdminTab] onUpdateExhibition call', { field, value, exhibitionId: activeExhibition.id });
@@ -349,7 +359,41 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
         <InputField label="Admission" field="admission" icon={Ticket} value={localExhibition.admission} onChange={handleChange} statusIcon={getStatusIcon('admission')} uiConfig={uiConfig} />
         <InputField label="Overview" field="overview" icon={FileText} isTextArea value={localExhibition.overview} onChange={handleChange} statusIcon={getStatusIcon('overview')} uiConfig={uiConfig} />
         <InputField label="Supported By" field="supportedBy" icon={FileText} value={localExhibition.supportedBy} onChange={handleChange} statusIcon={getStatusIcon('supportedBy')} uiConfig={uiConfig} />
-        <InputField label="Purchase Ticket Link" field="admissionLink" icon={Ticket} value={localExhibition.admissionLink} onChange={handleChange} statusIcon={getStatusIcon('admissionLink')} uiConfig={uiConfig} />
+        
+        {/* Action Button Section */}
+        <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
+          <div className="flex items-center gap-2 mb-2">
+            <ExternalLink className={`w-4 h-4 opacity-70 ${text}`} />
+            <p className={`text-sm font-medium ${text}`}>Action Button</p>
+            <div className="ml-auto flex items-center gap-2">
+              {getStatusIcon('admissionLink')}
+            </div>
+          </div>
+          <div className="flex gap-2 mb-2">
+            <select
+              value={localExhibition.exhibit_linktype}
+              onChange={(e) => handleChange(e.target.value, 'exhibit_linktype')}
+              className={`px-3 py-2 rounded-md text-xs ${input} border ${border}`}
+            >
+              <option value="tickets">Tickets</option>
+              <option value="learn_more">Learn More</option>
+              <option value="instagram">Instagram</option>
+              <option value="website">Website</option>
+            </select>
+            <div className="ml-auto flex items-center gap-2">
+              {getStatusIcon('exhibit_linktype')}
+            </div>
+          </div>
+          <input
+            type="text"
+            value={localExhibition.admissionLink}
+            onChange={(e) => handleChange(e.target.value, 'admissionLink')}
+            className={`w-full px-3 py-2 rounded-md text-xs ${input}`}
+            placeholder="https://..."
+          />
+        </div>
+        
+        <InputField label="Exhibit Capacity" field="exhibit_capacity" icon={UsersIcon} inputType="number" value={localExhibition.exhibit_capacity} onChange={handleChange} statusIcon={getStatusIcon('exhibit_capacity')} uiConfig={uiConfig} />
 
 
         {/* Embed panel moved to top */}

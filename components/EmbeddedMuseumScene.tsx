@@ -132,7 +132,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         onlineUsers={0}
         hideUserCount={hideUserCount}
         hideLogo={hideLogo}
-        zoneCapacity={100}
+        zoneCapacity={activeExhibition?.exhibit_capacity || 100}
         isEmbed={true}
         activeExhibition={activeExhibition as Exhibition}
       />

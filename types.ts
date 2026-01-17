@@ -54,9 +54,11 @@ export interface ArtworkMaterialConfig {
 export interface ArtworkData {
   geometry?: ArtworkGeometry;
   material?: ArtworkMaterialConfig;
+  material_per_zone?: Record<string, ArtworkMaterialConfig>; // NEW: Zone-specific materials
   position_offset?: [number, number, number];
   rotation_offset?: [number, number, number];
   scale_offset?: number; // NEW: Add scale_offset
+  scale_offset_per_zone?: Record<string, number>; // NEW: Zone-specific scale offsets
 }
 
 export interface ExhibitionArtItem {
@@ -105,6 +107,8 @@ export interface Exhibition {
   exhibit_background?: string; // NEW: Add exhibit_background property
   exhibit_liked?: number; // NEW: Add exhibit_liked
   exhibit_viewed?: number; // NEW: Add exhibit_viewed
+  exhibit_capacity?: number; // NEW: Add exhibit_capacity
+  exhibit_linktype?: 'tickets' | 'learn_more' | 'instagram' | 'website'; // NEW: Add exhibit_linktype
 }
 
 export interface ZoneArtworkItem {
