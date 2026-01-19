@@ -54,6 +54,27 @@ export default async function handler(req, res) {
   // Choose the type of data to fetch (stats, series, metrics, etc.)
   const { type = 'series' } = req.query || {};
 
+  // Convert start/end to timestamps (ms). Support ISO date strings or ms timestamps.
+  const parseToMs = (v) => {
+    if (v === undefined || v === null) return undefined;
+    const s = String(v).trim();
+    if (s.length === 0) return undefined;
+    if (/^\d+$/.test(s)) return Number(s);
+    const parsed = Date.parse(s);
+    return isNaN(parsed) ? undefined : parsed;
+  };
+
+  let startAt = parseToMs(start);
+  let endAt = parseToMs(end);
+  const nowTs = Date.now();
+  if (!endAt) endAt = nowTs;
+  if (!startAt) startAt = endAt - 7 * 24 * 60 * 60 * 1000;
+
+  const params = new URLSearchParams();
+  params.set('startAt', String(startAt));
+  params.set('endAt', String(endAt));
+  params.set('timezone', timezone || 'UTC');
+
   // For type=metrics, query param 'metric' should be passed through automatically
   if (req.query.metric) {
     params.set('type', req.query.metric);
