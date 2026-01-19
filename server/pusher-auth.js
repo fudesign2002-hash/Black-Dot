@@ -8,7 +8,18 @@ const PORT = process.env.PORT || 3002;
 const ORIGIN = process.env.ORIGIN || 'http://localhost:3001';
 
 const app = express();
-app.use(cors({ origin: ORIGIN }));
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (e.g., curl, native apps)
+    if (!origin) return callback(null, true);
+    // allow any localhost with any port (e.g., http://localhost:3000..3999)
+    if (origin && origin.startsWith('http://localhost:')) return callback(null, true);
+    // allow explicitly configured ORIGIN
+    if (ORIGIN && origin === ORIGIN) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(bodyParser.json());
 
 const pusher = new Pusher({

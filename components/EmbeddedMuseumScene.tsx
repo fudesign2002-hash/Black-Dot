@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Scene from './scene/Scene';
+import { recordAnalytics } from '../services/museumService';
+import { trackUmamiEvent } from '../services/umamiService';
 import TransitionOverlay from './ui/TransitionOverlay';
 import SideNavigation from './layout/SideNavigation';
 import Header from './layout/Header';
@@ -89,7 +91,35 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
     [lightsOn]
   );
 
-  const handleSelectArtwork = useCallback((id: string | null) => setFocusedArtworkInstanceId(id), []);
+  const handleSelectArtwork = useCallback((id: string | null) => {
+    setFocusedArtworkInstanceId(id);
+    if (id && activeExhibition && activeExhibition.id) {
+      console.debug('[analytics][embed] tracking Focus-Artwork for', activeExhibition.id, id);
+      trackUmamiEvent('Focus-Artwork', { exhibitionId: activeExhibition.id, artworkInstanceId: id });
+    }
+  }, [activeExhibition && activeExhibition.id]);
+
+  const handleRankingToggle = useCallback(() => {
+    setIsRankingMode(prev => {
+      const next = !prev;
+      if (next && activeExhibition && activeExhibition.id) {
+      console.debug('[analytics][embed] recording Ranking-Mode for', activeExhibition.id);
+        trackUmamiEvent('Ranking-Mode', { exhibitionId: activeExhibition.id });
+      }
+      return next;
+    });
+  }, [activeExhibition && activeExhibition.id]);
+
+  const handleZeroGravityToggle = useCallback(() => {
+    setIsZeroGravityMode(prev => {
+      const next = !prev;
+        if (next && activeExhibition && activeExhibition.id) {
+        console.debug('[analytics][embed] recording Zero-Gravity for', activeExhibition.id);
+          trackUmamiEvent('Zero-Gravity', { exhibitionId: activeExhibition.id });
+      }
+      return next;
+    });
+  }, [activeExhibition && activeExhibition.id]);
 
   const nextItem = useMemo(() => (exhibitions.length ? exhibitions[(currentIndex + 1) % exhibitions.length] : null), [exhibitions, currentIndex]);
   const prevItem = useMemo(() => (exhibitions.length ? exhibitions[(currentIndex - 1 + exhibitions.length) % exhibitions.length] : null), [exhibitions, currentIndex]);
@@ -179,7 +209,12 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         uiConfig={uiConfig}
         isInfoOpen={isInfoOpen}
         lightsOn={lightsOn}
-        onLightToggle={() => {}}
+        onLightToggle={() => {
+          if (activeExhibition && activeExhibition.id) {
+            console.debug('[analytics][embed] tracking lighting toggle for', activeExhibition.id);
+            trackUmamiEvent('Light-Toggle', { exhibitionId: activeExhibition.id });
+          }
+        }}
         hideLightsControl={hideLightsControl}
         isEditorMode={false}
         onEditorModeToggle={() => {}}
@@ -203,11 +238,12 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         focusedArtworkArtist={focusedArtworkArtist}
         onLikeTriggered={() => {}}
         isRankingMode={isRankingMode}
-        onRankingToggle={() => setIsRankingMode(!isRankingMode)}
+        onRankingToggle={handleRankingToggle}
         hideRankingControl={hideRankingControl}
         isZeroGravityMode={isZeroGravityMode}
-        onZeroGravityToggle={() => setIsZeroGravityMode(!isZeroGravityMode)}
+        onZeroGravityToggle={handleZeroGravityToggle}
         hideZeroGravityControl={hideZeroGravityControl}
+        exhibitionId={activeExhibition?.id}
         isSignedIn={false}
         isEmbed={true}
         isCameraAtDefaultPosition={true}

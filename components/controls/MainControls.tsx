@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { trackUmamiEvent } from '../../services/umamiService';
 import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Cpu, ChevronLeft, ChevronRight, Users, Heart, Info, X, ChevronDown, Share2, ListOrdered, Orbit } from 'lucide-react'; // NEW: Import Orbit icon for Zero Gravity
 import { Exhibition } from '../../types';
 // REMOVED: import { EffectRegistry } from '../../effect_bundle'; // NEW: Import EffectRegistry
@@ -45,6 +46,7 @@ interface MainControlsProps {
   customCameraPosition?: [number, number, number]; // NEW: Add customCameraPosition prop
   isEmbed?: boolean; // NEW: hide certain controls when embedded
   showGlobalOverlay?: boolean; // NEW: Add showGlobalOverlay prop to prevent UI flicker
+  exhibitionId?: string; // NEW: optional exhibition id for analytics attributes
   // REMOVED: activeEffectName: string | null; // NEW: Add activeEffectName
   // REMOVED: onEffectToggle: (effectName: string) => void; // NEW: Add onEffectToggle
 }
@@ -86,6 +88,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   isCameraAtDefaultPosition, // NEW: Destructure isCameraAtDefaultPosition
   isResetCameraEnable, // NEW: Destructure isResetCameraEnable
   isEmbed = false,
+  exhibitionId,
   setHeartEmitterArtworkId,
   hasMotionArtwork, // NEW: Destructure hasMotionArtwork
   customCameraPosition, // NEW: Destructure customCameraPosition
@@ -183,6 +186,14 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                     onClick={(e) => {
                       e.stopPropagation();
                       setHeartEmitterArtworkId(null);
+                      try {
+                        if (exhibitionId && focusedArtworkInstanceId) {
+                          trackUmamiEvent('Artwork-Info', { exhibitionId, artworkInstanceId: focusedArtworkInstanceId });
+                        }
+                        if (exhibitionId) {
+                          trackUmamiEvent('Exhibit-Info', { exhibitionId });
+                        }
+                      } catch(e) {}
                       onInfoOpen();
                     }}
                     disabled={focusedArtworkArtist?.toUpperCase() === 'OOTB'}
@@ -232,6 +243,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${isRankingMode ? uiConfig.glassActive : uiConfig.glass} ${hasMotionArtwork ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title={hasMotionArtwork ? 'Disabled while scene contains motion artworks' : (isRankingMode ? 'Exit Ranking' : 'Show Ranking')}
                 aria-label={isRankingMode ? 'Exit ranking mode' : 'Show artwork ranking by likes'}
+                
               >
                 <ListOrdered className={`w-4 h-4 ${isRankingMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
               </button>
@@ -248,6 +260,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${isZeroGravityMode ? uiConfig.glassActive : uiConfig.glass} ${hasMotionArtwork ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title={hasMotionArtwork ? 'Disabled while scene contains motion artworks' : (isZeroGravityMode ? 'Exit Zero Gravity' : 'Enter Zero Gravity')}
                 aria-label={isZeroGravityMode ? 'Exit zero gravity mode' : 'Enter zero gravity mode'}
+                
               >
                 <Orbit className={`w-4 h-4 ${isZeroGravityMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
               </button>

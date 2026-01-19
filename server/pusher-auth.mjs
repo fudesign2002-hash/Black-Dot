@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3002;
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://localhost:3004',
   'https://app.kurodot.io'
 ];
 
@@ -16,6 +17,8 @@ app.use(cors({
   origin: function (origin, callback) {
     // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+    // allow any localhost during development (different vite ports)
+    if (origin && origin.startsWith('http://localhost:')) return callback(null, true);
     if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || origin.includes('kurodot.io')) {
       callback(null, true);
     } else {

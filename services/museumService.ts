@@ -50,6 +50,19 @@ export const trackVisit = async (exhibitionId: string) => {
   const dayDoc = analyticsRef.doc(`day_${dateStr}`);
   batch.set(dayDoc, updateData, { merge: true });
 
+    // 1b. Hourly visit (YYYY-MM-DD-HH)
+    const hourKey = `${dateStr}-${String(today.getHours()).padStart(2, '0')}`;
+    const hourDoc = analyticsRef.doc(`hour_${hourKey}`);
+    batch.set(hourDoc, {
+        count: firebase.firestore.FieldValue.increment(1),
+        date: dateStr,
+        hour: String(today.getHours()).padStart(2, '0'),
+        type: 'hour',
+        devices: { [deviceType]: firebase.firestore.FieldValue.increment(1) },
+        browsers: { [browserName]: firebase.firestore.FieldValue.increment(1) },
+        resolutions: { [resolution.replace(/\./g, '_')]: firebase.firestore.FieldValue.increment(1) },
+    }, { merge: true });
+
   // 2. Total Monthly Visit (also track devices/browsers at month level)
   const monthDoc = analyticsRef.doc(`month_${monthStr}`);
   batch.set(monthDoc, { 
@@ -65,6 +78,113 @@ export const trackVisit = async (exhibitionId: string) => {
   } catch (error) {
     console.error('Error tracking visit:', error);
   }
+};
+
+// Record usage of a named feature for an exhibition (increments hourly/day/month counters)
+export const recordFeatureUsage = async (exhibitionId: string, featureName: string, count: number = 1) => {
+    if (!exhibitionId || !featureName) return;
+    try {
+        console.debug('[museumService] recordFeatureUsage', exhibitionId, featureName, count);
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        const monthStr = dateStr.substring(0, 7); // YYYY-MM
+        const hourKey = `${dateStr}-${String(today.getHours()).padStart(2, '0')}`;
+
+        const analyticsRef = db.collection('exhibitions').doc(exhibitionId).collection('analytics');
+        const batch = db.batch();
+
+        const featurePath = `features.${featureName}`;
+
+        // Hourly doc
+        const hourDoc = analyticsRef.doc(`hour_${hourKey}`);
+        batch.set(hourDoc, { [featurePath]: firebase.firestore.FieldValue.increment(count), date: dateStr, hour: String(today.getHours()).padStart(2, '0'), type: 'hour' }, { merge: true });
+
+        // Daily doc
+        const dayDoc = analyticsRef.doc(`day_${dateStr}`);
+        batch.set(dayDoc, { [featurePath]: firebase.firestore.FieldValue.increment(count), date: dateStr, type: 'day' }, { merge: true });
+
+        // Monthly doc
+        const monthDoc = analyticsRef.doc(`month_${monthStr}`);
+        batch.set(monthDoc, { [featurePath]: firebase.firestore.FieldValue.increment(count), date: monthStr, type: 'month' }, { merge: true });
+
+        await batch.commit();
+        console.debug('[museumService] recordFeatureUsage committed', exhibitionId, featureName, count);
+    } catch (err) {
+        console.error('Error recording feature usage:', err);
+    }
+};
+
+// Record session duration (increments totalSessionSeconds and sessionCount)
+export const recordSessionDuration = async (exhibitionId: string, durationSec: number) => {
+    if (!exhibitionId || typeof durationSec !== 'number') return;
+    try {
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0];
+        const monthStr = dateStr.substring(0, 7);
+        const hourKey = `${dateStr}-${String(today.getHours()).padStart(2, '0')}`;
+
+        const analyticsRef = db.collection('exhibitions').doc(exhibitionId).collection('analytics');
+        const batch = db.batch();
+
+        batch.set(analyticsRef.doc(`hour_${hourKey}`), {
+            totalSessionSeconds: firebase.firestore.FieldValue.increment(durationSec),
+            sessionCount: firebase.firestore.FieldValue.increment(1),
+            date: dateStr,
+            hour: String(today.getHours()).padStart(2, '0'),
+            type: 'hour'
+        }, { merge: true });
+
+        batch.set(analyticsRef.doc(`day_${dateStr}`), {
+            totalSessionSeconds: firebase.firestore.FieldValue.increment(durationSec),
+            sessionCount: firebase.firestore.FieldValue.increment(1),
+            date: dateStr,
+            type: 'day'
+        }, { merge: true });
+
+        batch.set(analyticsRef.doc(`month_${monthStr}`), {
+            totalSessionSeconds: firebase.firestore.FieldValue.increment(durationSec),
+            sessionCount: firebase.firestore.FieldValue.increment(1),
+            date: monthStr,
+            type: 'month'
+        }, { merge: true });
+
+        await batch.commit();
+    } catch (err) {
+        console.error('Error recording session duration:', err);
+    }
+};
+
+// Generic analytics recorder - centralized API for different event types
+export type AnalyticsEvent =
+    | { type: 'visit' }
+    | { type: 'feature'; name: string; count?: number }
+    | { type: 'session'; durationSec: number }
+    | { type: 'custom'; path: string; increment?: number };
+
+export const recordAnalytics = async (exhibitionId: string, event: AnalyticsEvent) => {
+    if (!exhibitionId || !event) return;
+    try {
+        if (event.type === 'visit') return await trackVisit(exhibitionId);
+        if (event.type === 'feature') return await recordFeatureUsage(exhibitionId, event.name, event.count || 1);
+        if (event.type === 'session') return await recordSessionDuration(exhibitionId, event.durationSec);
+        if (event.type === 'custom') {
+            // custom path will be written to day/month/hour as `custom.<path>`
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            const monthStr = dateStr.substring(0, 7);
+            const hourKey = `${dateStr}-${String(today.getHours()).padStart(2, '0')}`;
+            const analyticsRef = db.collection('exhibitions').doc(exhibitionId).collection('analytics');
+            const batch = db.batch();
+            const p = `custom.${event.path}`;
+            const inc = event.increment || 1;
+            batch.set(analyticsRef.doc(`hour_${hourKey}`), { [p]: firebase.firestore.FieldValue.increment(inc), date: dateStr, hour: String(today.getHours()).padStart(2, '0'), type: 'hour' }, { merge: true });
+            batch.set(analyticsRef.doc(`day_${dateStr}`), { [p]: firebase.firestore.FieldValue.increment(inc), date: dateStr, type: 'day' }, { merge: true });
+            batch.set(analyticsRef.doc(`month_${monthStr}`), { [p]: firebase.firestore.FieldValue.increment(inc), date: monthStr, type: 'month' }, { merge: true });
+            await batch.commit();
+        }
+    } catch (err) {
+        console.error('Error recording analytics event:', err);
+    }
 };
 
 // Cache parsed artwork_data per document id to avoid returning a new object

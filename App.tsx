@@ -4,7 +4,7 @@ import { db } from './firebase';
 import firebase from 'firebase/compat/app';
 import { auth } from './firebase';
 import Pusher from 'pusher-js';
-import { trackVisit } from './services/museumService';
+import { trackVisit, recordAnalytics } from './services/museumService';
 
 import Scene from './components/scene/Scene';
 import Header from './components/layout/Header';
@@ -889,7 +889,11 @@ function MuseumApp({
 
   const handleFocusArtworkInstance = useCallback((instanceId: string | null) => {
     setFocusedArtworkInstanceId(instanceId);
-  }, [setFocusedArtworkInstanceId]);
+    if (instanceId && activeExhibition && activeExhibition.id) {
+      console.debug('[analytics] tracking Focus-Artwork for', activeExhibition.id, instanceId);
+      try { import('./services/umamiService').then(m => m.trackUmamiEvent('Focus-Artwork', { exhibitionId: activeExhibition.id, artworkInstanceId: instanceId })).catch(() => {}); } catch(e) {}
+    }
+  }, [setFocusedArtworkInstanceId, activeExhibition && activeExhibition.id]);
 
   useEffect(() => {
     if (isEditorMode && (activeEditorTab !== 'artworks' && activeEditorTab !== 'admin')) {
@@ -1036,6 +1040,10 @@ function MuseumApp({
     setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
     const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState };
     setLightingOverride(activeZone.id, newConfig);
+    if (activeExhibition && activeExhibition.id) {
+      console.debug('[analytics] recording lighting toggle for', activeExhibition.id, newLightsOnState);
+      try { import('./services/umamiService').then(m => m.trackUmamiEvent('Light-Toggle', { exhibitionId: activeExhibition.id, lightsOn: newLightsOnState })).catch(() => {}); } catch(e) {}
+    }
   }, [lightsOn, lightingConfig, setLightingOverride, activeZone.id, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
 
   // NEW: Handle update for lighting config including useExhibitionBackground
@@ -1670,6 +1678,16 @@ function MuseumApp({
     setHeartEmitterArtworkId(null);
   }, [setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId, setIsZeroGravityMode]); // Removed cameraControlRef and lightingConfig.customCameraPosition from dependencies
 
+  // Record ranking toggle
+  useEffect(() => {
+    if (activeExhibition && activeExhibition.id && typeof isRankingMode === 'boolean') {
+      if (isRankingMode) {
+        console.debug('[analytics] recording ranking for', activeExhibition.id);
+        try { import('./services/umamiService').then(m => m.trackUmamiEvent('Ranking-Mode', { exhibitionId: activeExhibition.id })).catch(() => {}); } catch(e) {}
+      }
+    }
+  }, [isRankingMode, activeExhibition && activeExhibition.id]);
+
   // NEW: handleZeroGravityToggle function
   const handleZeroGravityToggle = useCallback(() => {
     
@@ -1686,6 +1704,16 @@ function MuseumApp({
     // Ensure reset button is disabled when toggling zero-gravity
     setIsResetCameraEnable(false);
   }, [setFocusedArtworkInstanceId, setIsArtworkFocusedForControls, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId, setisRankingMode, cameraControlRef, lightingConfig.customCameraPosition]);
+
+  // Record zero-gravity toggle
+  useEffect(() => {
+    if (activeExhibition && activeExhibition.id && typeof isZeroGravityMode === 'boolean') {
+      if (isZeroGravityMode) {
+        console.debug('[analytics] recording Zero-Gravity for', activeExhibition.id);
+        try { import('./services/umamiService').then(m => m.trackUmamiEvent('Zero-Gravity', { exhibitionId: activeExhibition.id })).catch(() => {}); } catch(e) {}
+      }
+    }
+  }, [isZeroGravityMode, activeExhibition && activeExhibition.id]);
 
 
   useEffect(() => {
@@ -2056,6 +2084,7 @@ function MuseumApp({
         isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
         onZeroGravityToggle={handleZeroGravityToggle} // NEW: Pass onZeroGravityToggle
         hideZeroGravityControl={hideZeroGravityControl}
+        exhibitionId={activeExhibition?.id}
         isSignedIn={isSignedIn}
         isEmbed={!!embedMode}
         isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status

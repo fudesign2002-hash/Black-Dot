@@ -50,11 +50,11 @@ service cloud.firestore {
       // --- 新增：Analytics 流量統計子集合規則 ---
       match /analytics/{docId} {
         allow read: if true;
-        // 允許任何人在符合欄位限制的情況下創建或更新每日/每月統計
-        // 支援更多統計欄位：devices, browsers, resolutions, totalSessionSeconds, sessionCount
+        // 允許在符合欄位限制的情況下創建或更新每日/每月/小時統計
+        // 支援更多統計欄位：devices, browsers, resolutions, totalSessionSeconds, sessionCount, features
         allow create, update: if (
-          request.resource.data.keys().hasOnly(['count', 'date', 'type', 'devices', 'browsers', 'resolutions', 'totalSessionSeconds', 'sessionCount'])
-          || request.resource.data.keys().hasAny(['count','devices','browsers','resolutions','totalSessionSeconds','sessionCount'])
+          request.resource.data.keys().hasOnly(['count', 'date', 'type', 'hour', 'devices', 'browsers', 'resolutions', 'totalSessionSeconds', 'sessionCount', 'features'])
+          || request.resource.data.keys().hasAny(['count','hour','devices','browsers','resolutions','totalSessionSeconds','sessionCount','features'])
         );
       }
     }
