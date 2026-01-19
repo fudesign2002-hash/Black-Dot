@@ -2,6 +2,7 @@ import React from 'react';
 import { HEADER_COLOR_CSS_VAR } from '../../constants/ui';
 import { Loader2, Info } from 'lucide-react';
 import { Exhibition } from '../../types';
+import { trackUmamiEvent } from '../../services/umamiService';
 
 interface CurrentExhibitionInfoProps {
   uiConfig: any;
@@ -15,6 +16,13 @@ interface CurrentExhibitionInfoProps {
 }
 
 const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo(({ uiConfig, isLoading, activeExhibition, isInfoOpen, isSmallScreen, isCurrentExhibitionInfoHidden, onInfoOpen, useExhibitionBackground = false }) => {
+    const handleInfoClick = () => {
+        if (activeExhibition?.id) {
+            trackUmamiEvent('Exhibit-Info', { exhibitionId: activeExhibition.id });
+        }
+        onInfoOpen();
+    };
+
     const getStatusColor = (status: string) => {
         switch(status) {
             case 'now showing': return 'bg-cyan-500 shadow-[0_0_8px_cyan]';
@@ -58,7 +66,7 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                             <h2 className={`text-2xl md:text-5xl font-serif font-medium leading-tight uppercase ${textClass}`}>
                                 {activeExhibition.title}
                             </h2>
-                            <button onClick={onInfoOpen} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
+                            <button onClick={handleInfoClick} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
                                 <Info className="w-4 h-4 text-current" />
                             </button>
                         </div>
@@ -79,7 +87,7 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                     ) : (
                         <>
                             <div className="flex items-center gap-4 mb-2">
-                                <button onClick={onInfoOpen} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
+                                <button onClick={handleInfoClick} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
                                     <Info className="w-5 h-5 text-current" />
                                 </button>
                                 <p className={`text-sm md:text-base font-light tracking-widest ${subtextClass} border-l-2 ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-4`}>

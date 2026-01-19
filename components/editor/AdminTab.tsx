@@ -18,6 +18,7 @@ interface AdminTabProps {
   onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>;
   currentLayout: ExhibitionArtItem[]; // NEW: Add currentLayout
   firebaseArtworks: FirebaseArtwork[]; // NEW: Add firebaseArtworks
+  onlineCount?: number; // NEW: Real-time user count
 }
 
 const DEBOUNCE_DELAY = 700;
@@ -86,7 +87,7 @@ function InputFieldComponent<T extends ExhibitionEditableFieldKeys>({
 // FIX: Correctly type InputField using React.memo with the generic component.
 const InputField: typeof InputFieldComponent = React.memo(InputFieldComponent) as typeof InputFieldComponent;
 
-const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibition, onUpdateExhibition, currentLayout, firebaseArtworks }) => {
+const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibition, onUpdateExhibition, currentLayout, firebaseArtworks, onlineCount = 0 }) => {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false); // NEW: State for analytics dashboard
   // FIX: Type localExhibition with Record<ExhibitionEditableFieldKeys, string> to consistently use strings
   const [localExhibition, setLocalExhibition] = useState<Record<ExhibitionEditableFieldKeys, string>>(() => ({
@@ -410,6 +411,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
         exhibition={activeExhibition}
         currentLayout={currentLayout}
         firebaseArtworks={firebaseArtworks}
+        onlineCount={onlineCount}
       />
     </div>
   );

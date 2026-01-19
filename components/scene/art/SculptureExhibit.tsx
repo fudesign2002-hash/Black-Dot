@@ -165,6 +165,23 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
                   newMaterial = new THREE.MeshStandardMaterial();
               }
 
+              // Optimization: If it's a Tripo material or has many textures, strip less critical ones
+              // to avoid MAX_TEXTURE_IMAGE_UNITS(16) error on some hardware.
+              if (newMaterial instanceof THREE.MeshStandardMaterial || newMaterial instanceof THREE.MeshPhysicalMaterial) {
+                const matName = (newMaterial.name || '').toLowerCase();
+                if (matName.includes('tripo') || matName.includes('material')) {
+                    // Stripping secondary maps that are often redundant in this scene but consume texture slots.
+                    // This prevents crashes on hardware with a 16 texture unit limit.
+                    if (newMaterial.aoMap) { newMaterial.aoMap = null; }
+                    if ((newMaterial as any).displacementMap) { (newMaterial as any).displacementMap = null; }
+                    if ((newMaterial as any).bumpMap) { (newMaterial as any).bumpMap = null; }
+                    if ((newMaterial as any).lightMap) { (newMaterial as any).lightMap = null; }
+                    
+                    // Force the material to recompile without these maps
+                    newMaterial.needsUpdate = true;
+                }
+              }
+
               if (config && (newMaterial instanceof THREE.MeshStandardMaterial || newMaterial instanceof THREE.MeshPhysicalMaterial)) {
                 newMaterial.map = null;
                 // FIX: Convert color and emissive hex strings to THREE.Color instances

@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
   // Pusher sends data as application/x-www-form-urlencoded by default
   // Vercel handles body parsing, but sometimes we need to be careful
-  const { socket_id, channel_name } = req.body;
+  const { socket_id, channel_name } = req.body || {};
 
   if (!socket_id || !channel_name) {
     return res.status(400).json({ error: 'socket_id and channel_name required' });

@@ -1,11 +1,13 @@
 
-import React, { useEffect, useState, useMemo } from 'react'; // MODIFIED: Add useMemo
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { db } from '../../firebase'; // NEW: Import db for real data
-import { X, BarChart2, Users, MousePointer2, TrendingUp, Share2, ExternalLink, Activity, PieChart, Map as MapIcon, ArrowUpRight, ArrowDownRight, Calendar, MapPin, Clock, Ticket, Sparkles, Eye, Trophy, Orbit, ListOrdered, Sun, Image as ImageIcon } from 'lucide-react';
+import Chart from 'chart.js/auto';
+import { X, BarChart2, Users, MousePointer2, TrendingUp, Share2, ExternalLink, Activity, PieChart, Map as MapIcon, ArrowUpRight, ArrowDownRight, Calendar, MapPin, Clock, Ticket, Sparkles, Eye, Trophy, Orbit, ListOrdered, Sun, Image as ImageIcon, Monitor, Smartphone, Globe, Info } from 'lucide-react';
 import { Exhibition, ExhibitionArtItem, FirebaseArtwork } from '../../types'; // NEW: Import types
 import BlackDotLogo from './BlackDotLogo'; // NEW: Import Logo
 import TrafficTrendChart from './TrafficTrendChart';
+import { fetchUmamiProxy } from '../../utils/apiUtils';
+import { countryCodeToFlag, getCountryName } from '../../utils/locationUtils';
 
 interface AnalyticsDashboardProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ interface AnalyticsDashboardProps {
   currentLayout: ExhibitionArtItem[]; 
   firebaseArtworks: FirebaseArtwork[]; 
   standalone?: boolean; // NEW: Support standalone mode
+  onlineCount?: number; // NEW: Pass the real-time pusher count
 }
 
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
@@ -31,121 +34,98 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   currentLayout,
   firebaseArtworks,
   standalone = false,
+  onlineCount = 0,
 }) => {
   const [mounted, setMounted] = useState(false);
   const [timeRange, setTimeRange] = useState<'7D' | '30D' | '90D' | '12M'>('7D');
-  const [realTrafficData, setRealTrafficData] = useState<{label: string, value: number}[]>([]);
+  const [umamiStats, setUmamiStats] = useState<{
+    pageviews: any;
+    visitors: any;
+    visits: any;
+    bounces: any;
+    totaltime: any;
+  } | null>(null);
+  
   const [techStats, setTechStats] = useState<{
-    devices: Record<string, number>;
-    browsers: Record<string, number>;
-    resolutions: Record<string, number>;
-    totalVisits: number;
-    totalSessionSeconds?: number;
-    sessionCount?: number;
-    features?: Record<string, number>;
-  }>({ devices: {}, browsers: {}, resolutions: {}, totalVisits: 0 });
+    devices: any[];
+    browsers: any[];
+    screens: any[];
+  }>({
+    devices: [],
+    browsers: [],
+    screens: []
+  });
+  
+  const [locationStats, setLocationStats] = useState<{
+    countries: any[];
+    regions: any[];
+    cities: any[];
+  }>({
+    countries: [],
+    regions: [],
+    cities: []
+  });
+  
+  const [umamiEvents, setUmamiEvents] = useState<any[]>([]);
 
   const exhibitionId = exhibition.id;
   const exhibitionTitle = exhibition.title || '';
 
-  // NEW: Subscribe to per-doc snapshots (day/month) to enable real-time updates without composite index
+  // NEW: Fetch Umami Analytics data
   useEffect(() => {
     if (!isOpen || !exhibitionId) return;
 
-    const analyticsRef = db.collection('exhibitions').doc(exhibitionId).collection('analytics');
-    const unsubscribers: Array<() => void> = [];
+    const fetchUmamiData = async () => {
+      try {
+        // Fetch summary stats
+        const statsRes = await fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=stats`);
+        if (statsRes.ok) {
+          const stats = await statsRes.json();
+          setUmamiStats(stats);
+        }
 
-    const getPastDates = (days: number) => {
-      const arr: string[] = [];
-      for (let i = days - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        arr.push(d.toISOString().split('T')[0]);
-      }
-      return arr;
-    };
+        // Fetch metrics in parallel
+        const [deviceRes, browserRes, screenRes, eventRes, countryRes, regionRes, cityRes] = await Promise.all([
+          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=device`),
+          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=browser`),
+          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=screen`),
+          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=event`),
+          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=country`),
+          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=region`),
+          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=city`)
+        ]);
 
-    const subscribeToDocs = () => {
-      if (timeRange === '12M') {
-        const months = Array.from({ length: 12 }, (_, i) => {
-          const d = new Date();
-          d.setMonth(d.getMonth() - (11 - i));
-          return d.toISOString().slice(0,7);
-        });
+        const [devices, browsers, screens, events, countries, regions, cities] = await Promise.all([
+          deviceRes.ok ? deviceRes.json() : Promise.resolve([]),
+          browserRes.ok ? browserRes.json() : Promise.resolve([]),
+          screenRes.ok ? screenRes.json() : Promise.resolve([]),
+          eventRes.ok ? eventRes.json() : Promise.resolve([]),
+          countryRes.ok ? countryRes.json() : Promise.resolve([]),
+          regionRes.ok ? regionRes.json() : Promise.resolve([]),
+          cityRes.ok ? cityRes.json() : Promise.resolve([])
+        ]);
 
-        const results: any[] = new Array(months.length).fill(null);
-        months.forEach((m, idx) => {
-          const docRef = analyticsRef.doc(`month_${m}`);
-          const unsub = docRef.onSnapshot(doc => {
-            const data = doc.exists ? doc.data() : null;
-            results[idx] = { label: m.split('-')[1] || m, value: (data && data.count) ? Number(data.count) : 0, devices: data?.devices || {}, browsers: data?.browsers || {}, resolutions: data?.resolutions || {}, totalSessionSeconds: data?.totalSessionSeconds || 0, sessionCount: data?.sessionCount || 0, fullDate: m };
-            const normalized = results.map((r, j) => r || { label: months[j].split('-')[1] || months[j], value: 0, devices: {}, browsers: {}, resolutions: {}, fullDate: months[j] });
-            setRealTrafficData(normalized);
+        setUmamiEvents(events);
+        setLocationStats({ countries, regions, cities });
 
-            // aggregate
-            const aggDevices: Record<string, number> = {};
-            const aggBrowsers: Record<string, number> = {};
-            const aggResolutions: Record<string, number> = {};
-            let total = 0;
-            let totalSessionSeconds = 0;
-            let sessionCount = 0;
-            const aggFeatures: Record<string, number> = {};
-            results.forEach(r => {
-              if (!r) return;
-              const v = Number(r.value) || 0;
-              total += v;
-              totalSessionSeconds += Number(r.totalSessionSeconds || 0);
-              sessionCount += Number(r.sessionCount || 0);
-              Object.entries(r.features || {}).forEach(([k, val]) => aggFeatures[k] = (aggFeatures[k] || 0) + (Number(val) || 0));
-              Object.entries(r.devices || {}).forEach(([k, val]) => aggDevices[k] = (aggDevices[k] || 0) + (Number(val) || 0));
-              Object.entries(r.browsers || {}).forEach(([k, val]) => aggBrowsers[k] = (aggBrowsers[k] || 0) + (Number(val) || 0));
-              Object.entries(r.resolutions || {}).forEach(([k, val]) => aggResolutions[k] = (aggResolutions[k] || 0) + (Number(val) || 0));
-            });
-            setTechStats({ devices: aggDevices, browsers: aggBrowsers, resolutions: aggResolutions, totalVisits: total, totalSessionSeconds, sessionCount, features: aggFeatures });
-          });
-          unsubscribers.push(unsub);
-        });
-      } else {
-        const days = timeRange === '7D' ? 7 : 30;
-        const dates = getPastDates(days);
-        const results: any[] = new Array(dates.length).fill(null);
-        dates.forEach((d, idx) => {
-          const docRef = analyticsRef.doc(`day_${d}`);
-          const unsub = docRef.onSnapshot(doc => {
-            const data = doc.exists ? doc.data() : null;
-            results[idx] = { label: d.split('-').pop() || d, value: (data && data.count) ? Number(data.count) : 0, devices: data?.devices || {}, browsers: data?.browsers || {}, resolutions: data?.resolutions || {}, totalSessionSeconds: data?.totalSessionSeconds || 0, sessionCount: data?.sessionCount || 0, fullDate: d };
-            const normalized = results.map((r, j) => r || { label: dates[j].split('-').pop() || dates[j], value: 0, devices: {}, browsers: {}, resolutions: {}, fullDate: dates[j] });
-            setRealTrafficData(normalized);
-
-            // aggregate
-            const aggDevices: Record<string, number> = {};
-            const aggBrowsers: Record<string, number> = {};
-            const aggResolutions: Record<string, number> = {};
-            let total = 0;
-            let totalSessionSeconds = 0;
-            let sessionCount = 0;
-            results.forEach(r => {
-              if (!r) return;
-              const v = Number(r.value) || 0;
-              total += v;
-              totalSessionSeconds += Number(r.totalSessionSeconds || 0);
-              sessionCount += Number(r.sessionCount || 0);
-              Object.entries(r.devices || {}).forEach(([k, val]) => aggDevices[k] = (aggDevices[k] || 0) + (Number(val) || 0));
-              Object.entries(r.browsers || {}).forEach(([k, val]) => aggBrowsers[k] = (aggBrowsers[k] || 0) + (Number(val) || 0));
-              Object.entries(r.resolutions || {}).forEach(([k, val]) => aggResolutions[k] = (aggResolutions[k] || 0) + (Number(val) || 0));
-            });
-            setTechStats({ devices: aggDevices, browsers: aggBrowsers, resolutions: aggResolutions, totalVisits: total, totalSessionSeconds, sessionCount });
-          });
-          unsubscribers.push(unsub);
-        });
+        // Fallback: If device distribution is empty, try OS distribution
+        if (devices.length === 0) {
+          const osRes = await fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=os`);
+          if (osRes.ok) {
+            const osData = await osRes.json();
+            setTechStats({ devices: osData, browsers, screens });
+          } else {
+            setTechStats({ devices: [], browsers, screens });
+          }
+        } else {
+          setTechStats({ devices, browsers, screens });
+        }
+      } catch (err) {
+        console.error('[Analytics] Failed to fetch Umami data:', err);
       }
     };
 
-    subscribeToDocs();
-
-    return () => {
-      unsubscribers.forEach(u => { try { u(); } catch(e) {} });
-    };
+    fetchUmamiData();
   }, [isOpen, exhibitionId, timeRange]);
 
   useEffect(() => {
@@ -181,94 +161,40 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     }).sort((a, b) => b.views - a.views);
   }, [currentLayout, firebaseArtworks]);
 
-  const formatSeconds = (s: number) => {
-    if (!s || s <= 0) return '0s';
-    const mins = Math.floor(s / 60);
-    const secs = s % 60;
-    return mins > 0 ? `${mins}m ${String(secs).padStart(2, '0')}s` : `${secs}s`;
-  };
-
   // Derived rankings: likes (engagement) and views
   const likesSorted = useMemo(() => {
-    return artworkStats.slice().sort((a, b) => (b.val || 0) - (a.val || 0));
+    return (artworkStats as any[]).slice().sort((a, b) => (b.val || 0) - (a.val || 0));
   }, [artworkStats]);
 
   const viewsSorted = useMemo(() => {
-    return artworkStats.slice().sort((a, b) => (b.views || 0) - (a.views || 0));
+    return (artworkStats as any[]).slice().sort((a, b) => (b.views || 0) - (a.views || 0));
   }, [artworkStats]);
 
-  // Build traffic data array: prefer real data; otherwise zero-filled for the selected range
-  const trafficData = useMemo(() => {
-    if (realTrafficData.length > 0) return realTrafficData;
-
-    const getPastDates = (days: number) => {
-      const arr: string[] = [];
-      for (let i = days - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        arr.push(d.toISOString().split('T')[0]);
-      }
-      return arr;
+  // NEW: Process feature adoption data from events
+  const featureAdoption = useMemo(() => {
+    const getCount = (names: string[]) => {
+      return umamiEvents
+        .filter(e => names.some(n => e.x?.toLowerCase() === n.toLowerCase() || e.x?.toLowerCase() === n.toLowerCase().replace(/ /g, '-')))
+        .reduce((acc, curr) => acc + curr.y, 0);
     };
 
-    if (timeRange === '12M') {
-      const months = Array.from({ length: 12 }, (_, i) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - (11 - i));
-        return d.toISOString().slice(0,7);
-      });
-      return months.map(m => ({ label: m.split('-')[1] || m, value: 0 }));
-    }
+    const rawData = [
+      { id: 'focus', names: ['Focus-Artwork', 'zoom'], label: 'ARTWORK FOCUS / ZOOM' },
+      { id: 'zeroG', names: ['Zero-Gravity', 'Zero-Gravity-Mode'], label: 'ZERO GRAVITY MODE' },
+      { id: 'ranking', names: ['Ranking-Mode', 'vote', 'like_artwork'], label: 'RANKING & VOTING' },
+      { id: 'lighting', names: ['Light-Toggle', 'lighting'], label: 'LIGHTING CONTROLS' },
+      { id: 'info', names: ['Exhibit-Info', 'info_open'], label: 'EXHIBIT INFO VIEW' },
+    ].map(f => ({ ...f, count: getCount(f.names) }));
 
-    const days = timeRange === '7D' ? 7 : 30;
-    const dates = getPastDates(days);
-    return dates.map(d => ({ label: d.split('-').pop() || d, value: 0 }));
-  }, [timeRange, realTrafficData]);
+    const totalEngagementCount = rawData.reduce((acc, curr) => acc + curr.count, 0) || 1;
 
-  // Compute chart points and SVG path (memoized) so we can attach per-point hover handlers
-  const chartPoints = useMemo(() => {
-    if (trafficData.length === 0) return [] as { x: number; y: number; value: number; label: string }[];
-    const safeValues = trafficData.map(d => ({ value: d ? Number((d as any).value) || 0 : 0, label: d ? (d as any).label || '' : '' }));
-    return safeValues.map((d, i) => ({
-      x: (safeValues.length === 1) ? 50 : (i / (safeValues.length - 1)) * 100,
-      y: 90 - (d.value * 0.75),
-      value: d.value,
-      label: d.label
-    }));
-  }, [trafficData]);
-
-  const generateChartPath = (isArea: boolean): string => {
-    if (chartPoints.length === 0) return "";
-    let path = `M ${Number(chartPoints[0].x).toFixed(2)} ${Number(chartPoints[0].y).toFixed(2)}`;
-    for (let i = 1; i < chartPoints.length; i++) {
-      path += ` L ${Number(chartPoints[i].x).toFixed(2)} ${Number(chartPoints[i].y).toFixed(2)}`;
-    }
-    if (isArea) path += ` L 100 100 L 0 100 Z`;
-    return path;
-  };
+    return rawData.map(f => ({
+      ...f,
+      pct: Math.round((f.count / totalEngagementCount) * 100)
+    })).sort((a, b) => b.count - a.count);
+  }, [umamiEvents]);
 
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-
-  const [debugRaw, setDebugRaw] = useState<any | null>(null);
-  const fetchDebugAnalytics = async () => {
-    if (!exhibitionId) return;
-    try {
-      const today = new Date();
-      const dateStr = today.toISOString().split('T')[0];
-      const hourKey = `${dateStr}-${String(today.getHours()).padStart(2, '0')}`;
-      const analyticsRef = db.collection('exhibitions').doc(exhibitionId).collection('analytics');
-      const dayDoc = await analyticsRef.doc(`day_${dateStr}`).get();
-      const hourDoc = await analyticsRef.doc(`hour_${hourKey}`).get();
-      const dayData = dayDoc.exists ? dayDoc.data() : null;
-      const hourData = hourDoc.exists ? hourDoc.data() : null;
-      console.debug('[analytics-debug] day', `day_${dateStr}`, dayData);
-      console.debug('[analytics-debug] hour', `hour_${hourKey}`, hourData);
-      setDebugRaw({ day: dayData, hour: hourData });
-    } catch (err) {
-      console.error('[analytics-debug] fetch error', err);
-      setDebugRaw({ error: String(err) });
-    }
-  };
 
   if (!isOpen || !mounted) return null;
 
@@ -336,13 +262,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               >
                 <Share2 size={14} strokeWidth={1.5} />
               </button>
-              <button
-                onClick={fetchDebugAnalytics}
-                className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
-                title="Fetch analytics docs"
-              >
-                <Activity size={14} strokeWidth={1.5} />
-              </button>
               {!standalone && (
                 <button 
                   onClick={openInNewTab}
@@ -363,12 +282,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               </button>
             )}
           </div>
-          {debugRaw && (
-            <div className="p-3 mt-2 rounded-md bg-neutral-50 dark:bg-neutral-900/40 border ${border} text-xs">
-              <div className="font-bold mb-1">Analytics Debug (raw)</div>
-              <pre className="whitespace-pre-wrap break-words text-[11px]">{JSON.stringify(debugRaw, null, 2)}</pre>
-            </div>
-          )}
         </div>
 
         {/* Scrollable Body - Reduced padding further */}
@@ -411,193 +324,333 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               {/* Primary Supporter removed per request */}
             </div>
 
-            {/* 1. Hero Metrics Grid - Tighter padding */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* 1. Hero Metrics Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <HeroMetric 
+                icon={<Activity />} 
+                label="Online Now" 
+                value={onlineCount.toString()} 
+                trend={"Real-time"} 
+                positive={onlineCount > 0} 
+                uiConfig={uiConfig} 
+              />
               <HeroMetric 
                 icon={<Users />} 
-                label="Unique Visitors" 
-                value={techStats.totalVisits > 0 ? techStats.totalVisits.toLocaleString() : "0"} 
-                trend={techStats.totalVisits > 0 ? "+100%" : "0%"} 
-                positive={techStats.totalVisits > 0} 
+                label="Visitors" 
+                value={umamiStats ? (typeof umamiStats.visitors === 'object' ? (umamiStats.visitors as any).value : umamiStats.visitors).toLocaleString() : "0"} 
+                trend={"+0%"} 
+                positive={true} 
+                uiConfig={uiConfig} 
+              />
+              <HeroMetric 
+                icon={<Activity />} 
+                label="Visits" 
+                value={umamiStats ? (typeof umamiStats.visits === 'object' ? (umamiStats.visits as any).value : (umamiStats.visits || 0)).toLocaleString() : "0"} 
+                trend={"+0%"} 
+                positive={true} 
                 uiConfig={uiConfig} 
               />
               <HeroMetric 
                 icon={<Eye />} 
-                label="Total Page Views" 
-                value={techStats.totalVisits > 0 ? (techStats.totalVisits * 5).toLocaleString() : "0"} 
-                trend={techStats.totalVisits > 0 ? "+8.2%" : "0%"} 
-                positive={techStats.totalVisits > 0} 
+                label="Views" 
+                value={umamiStats ? (typeof umamiStats.pageviews === 'object' ? (umamiStats.pageviews as any).value : umamiStats.pageviews).toLocaleString() : "0"} 
+                trend={"+0%"} 
+                positive={true} 
                 uiConfig={uiConfig} 
               />
               <HeroMetric 
                 icon={<BarChart2 />} 
-                label="Retention Rate" 
-                value={techStats.totalVisits > 0 ? `${Math.round(((techStats.sessionCount || 0) / Math.max(1, techStats.totalVisits)) * 100)}%` : "0%"} 
-                trend={techStats.totalVisits > 0 ? ( ( (techStats.sessionCount || 0) / Math.max(1, techStats.totalVisits) ) > 1 ? "+0%" : "-0%" ) : "0%"} 
-                positive={(techStats.sessionCount || 0) > 0} 
+                label="Bounce rate" 
+                value={umamiStats ? (() => {
+                  const v = (obj: any) => typeof obj === 'object' ? obj.value : (obj || 0);
+                  const bounces = v(umamiStats.bounces);
+                  const visits = v(umamiStats.visits);
+                  const rate = Math.round((bounces / Math.max(1, visits)) * 100);
+                  return `${rate}%`;
+                })() : "0%"} 
+                trend={"0%"} 
+                positive={false} 
                 uiConfig={uiConfig} 
               />
               <HeroMetric 
                 icon={<Clock />} 
-                label="Avg. Session" 
-                value={techStats.sessionCount && techStats.sessionCount > 0 ? formatSeconds(Math.round((techStats.totalSessionSeconds || 0) / techStats.sessionCount)) : '0s'} 
-                trend={"+0%"} 
+                label="Visit duration" 
+                value={umamiStats ? (() => {
+                  const v = (obj: any) => typeof obj === 'object' ? obj.value : (obj || 0);
+                  const totalSeconds = Math.round(v(umamiStats.totaltime) / Math.max(1, v(umamiStats.visits)));
+                  const mins = Math.floor(totalSeconds / 60);
+                  const secs = totalSeconds % 60;
+                  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                })() : '0s'} 
+                trend={"0%"} 
                 positive={true} 
                 uiConfig={uiConfig} 
               />
             </div>
 
-            {/* 2. Main Analytics Section - Better balance */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-              {/* Visitor Traffic Trends removed */}
+            {/* 2. Engagement & Traffic Trends */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+              {/* Feature Adoption / Heatmap */}
+              <div className={`lg:col-span-4 p-6 rounded-2xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} flex flex-col justify-between`}>
+                <div className="space-y-6">
+                  <div className="space-y-0.5">
+                    <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Engagement Heatmap</h3>
+                    <p className={`text-lg font-serif ${text}`}>Feature Adoption</p>
+                  </div>
 
-              {/* Interaction Map Card */}
-              <div className={`p-5 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} flex flex-col h-82`}>
-                <div className="space-y-0.5 mb-5">
-                  <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Engagement Heatmap</h3>
-                  <p className={`text-lg font-serif ${text}`}>Feature Adoption</p>
+                  <div className="space-y-7 py-2">
+                    {featureAdoption.map((feature, i) => (
+                      <div key={feature.id} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                             {feature.id === 'focus' && <ImageIcon size={12} className="opacity-40" />}
+                             {feature.id === 'zeroG' && <Orbit size={12} className="opacity-40" />}
+                             {feature.id === 'ranking' && <ListOrdered size={12} className="opacity-40" />}
+                             {feature.id === 'lighting' && <Sun size={12} className="opacity-40" />}
+                             {feature.id === 'info' && <Info size={12} className="opacity-40" />}
+                             <span className={`text-sm font-bold ${text}`}>{feature.label}</span>
+                           </div>
+                           <div className="flex items-center gap-3">
+                             <span className={`text-[10px] font-bold ${subtext} opacity-40 uppercase tracking-widest`}>{feature.count} CLICKS</span>
+                             <span className="text-sm font-bold text-orange-500">{feature.pct}%</span>
+                           </div>
+                        </div>
+                        <div className={`h-0.5 w-full ${lightsOn ? 'bg-neutral-100' : 'bg-neutral-800/50'} rounded-full overflow-hidden`}>
+                           <div 
+                              className="h-full bg-orange-500 transition-all duration-1000"
+                              style={{ width: `${feature.pct}%` }}
+                           />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                
-                <div className="space-y-3">
-                  {(() => {
-                    const defs = [
-                      { key: 'zoom_focus', label: "Artwork Focus / Zoom", icon: <ImageIcon size={11} />, color: "bg-orange-500", desc: "Deep engagement with art" },
-                      { key: 'zero_gravity', label: "Zero Gravity Mode", icon: <Orbit size={11} />, color: "bg-neutral-400", desc: "Spatial exploration" },
-                      { key: 'ranking', label: "Ranking & Voting", icon: <ListOrdered size={11} />, color: "bg-amber-400", desc: "Community participation" },
-                      { key: 'lighting', label: "Lighting Controls", icon: <Sun size={11} />, color: "bg-neutral-300", desc: "Atmospheric adjustment" }
-                    ];
-                    const features = techStats.features || {};
-                    return defs.map((d, i) => {
-                      const count = Number(features[d.key] || 0);
-                      const pct = techStats.totalVisits > 0 ? Math.round((count / Math.max(1, techStats.totalVisits)) * 100) : 0;
-                      const pctLabel = `${pct}%`;
+              </div>
+
+              {/* Traffic Trend Chart */}
+              <div className="lg:col-span-8 h-full">
+                <TrafficTrendChart exhibitionId={exhibitionId} uiConfig={{ lightsOn, text, subtext, border }} />
+              </div>
+            </div>
+
+            {/* 3. NEW: Technical Specifications Section */}
+            <div className={`p-6 rounded-2xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} space-y-8`}>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Technical Specifications</h3>
+                  <p className={`text-lg font-serif ${text}`}>Audience Technology Breakdown</p>
+                </div>
+                <div className={`px-4 py-2 rounded-full border ${border} ${lightsOn ? 'bg-neutral-50' : 'bg-neutral-900/50'} flex items-center gap-2.5`}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                  <span className={`text-[10px] font-black uppercase tracking-[0.1em] ${text} opacity-70`}>Umami Cloud Stats</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                {/* Device Distribution */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
+                       <Monitor size={12} className="opacity-50" />
+                    </div>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Device Distribution</h4>
+                  </div>
+                  
+                  <div className="flex flex-col gap-6">
+                    <TechDonutChart data={techStats.devices} uiConfig={uiConfig} />
+                    
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      {techStats.devices.map((dev: any, i: number) => {
+                        const total = techStats.devices.reduce((acc, d) => acc + d.y, 0);
+                        const pct = Math.round((dev.y / total) * 100);
+                        const label = dev.x.charAt(0).toUpperCase() + dev.x.slice(1);
+                        const colors = ['bg-orange-500', 'bg-violet-500', 'bg-emerald-500', 'bg-blue-500', 'bg-rose-500'];
+                        return (
+                          <div key={dev.x} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-1.5 h-1.5 rounded-full ${colors[i % colors.length]}`} />
+                              <span className={`text-[10px] font-bold ${text} opacity-70`}>{label}</span>
+                            </div>
+                            <span className={`text-[10px] font-bold ${text}`}>{pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Browser Share */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
+                       <Globe size={12} className="opacity-50" />
+                    </div>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Browser Share</h4>
+                  </div>
+                  <div className="space-y-5">
+                    {techStats.browsers.length > 0 ? techStats.browsers.slice(0, 4).map((br: any, i: number) => {
+                      const total = techStats.browsers.reduce((acc, b) => acc + b.y, 0);
+                      const pct = (br.y / total * 100).toFixed(1);
                       return (
-                        <div key={d.key} className="space-y-1.5 group/item">
-                           <div className="flex items-center justify-between">
-                             <div className="flex items-center gap-2">
-                               <span className={`${text} opacity-40 group-hover/item:text-orange-500 transition-colors scale-90`}>{d.icon}</span>
-                               <span className={`text-[9px] font-bold uppercase tracking-wider ${text}`}>{d.label}</span>
-                             </div>
-                             <span className={`text-[9px] font-bold text-orange-500`}>{pctLabel}</span>
+                        <div key={br.x} className="group">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-sm font-bold ${text}`}>{br.x}</span>
+                            <span className={`text-sm font-bold ${i === 0 ? 'text-violet-500' : 'text-violet-400'}`}>{pct}%</span>
+                          </div>
+                          <div className={`h-1.5 w-full ${lightsOn ? 'bg-neutral-100' : 'bg-neutral-800/50'} rounded-full overflow-hidden`}>
+                             <div 
+                                className={`h-full transition-all duration-1000 ${i === 0 ? 'bg-violet-500' : 'bg-violet-400 opacity-60'}`}
+                                style={{ width: `${pct}%` }}
+                             />
+                          </div>
+                        </div>
+                      )
+                    }) : (
+                      <div className="py-10 text-center opacity-20 italic text-[10px]">No Browser Data</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Common Resolutions */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
+                       <Smartphone size={12} className="opacity-50" />
+                    </div>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Common Resolutions</h4>
+                  </div>
+                  <div className="space-y-2.5">
+                    {techStats.screens.length > 0 ? techStats.screens.slice(0, 5).map((screen: any, i: number) => (
+                      <div key={screen.x} className={`group flex items-center justify-between p-3 rounded-xl border ${border} ${lightsOn ? 'bg-neutral-50/50' : 'bg-neutral-800/20'} transition-all hover:scale-[1.02]`}>
+                        <div className="flex items-center gap-3">
+                           <div className={`w-10 h-10 flex items-center justify-center p-1`}>
+                              {(() => {
+                                const parts = screen.x.split('x');
+                                const w = parseInt(parts[0]) || 1;
+                                const h = parseInt(parts[1]) || 1;
+                                const maxSide = 24;
+                                let displayW, displayH;
+                                if (w >= h) {
+                                  displayW = maxSide;
+                                  displayH = Math.max(4, (h / w) * maxSide);
+                                } else {
+                                  displayH = maxSide;
+                                  displayW = Math.max(4, (w / h) * maxSide);
+                                }
+                                return (
+                                  <div 
+                                    className={`rounded-[2px] border ${border} ${lightsOn ? 'bg-neutral-200' : 'bg-neutral-700'} opacity-60 shadow-sm transition-transform group-hover:scale-110`}
+                                    style={{ width: `${displayW}px`, height: `${displayH}px` }}
+                                  />
+                                );
+                              })()}
                            </div>
-                           <div className="h-0.5 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                              <div className={`h-full ${d.color} rounded-full transition-all duration-1000 group-hover/item:opacity-80`} style={{ width: `${pct}%` }} />
-                           </div>
-                           <p className="text-[7px] font-medium text-neutral-400 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                             {d.desc}
-                           </p>
+                           <span className={`text-xs font-mono font-bold ${text}`}>{screen.x}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-xs font-bold ${text}`}>{screen.y} views</span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="py-10 text-center opacity-20 italic text-[10px]">No Screen Data</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. NEW: Location Section */}
+            <div className={`p-6 rounded-2xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} space-y-8`}>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Geographic Distribution</h3>
+                  <p className={`text-lg font-serif ${text}`}>Visitor Location Breakdown</p>
+                </div>
+                <div className={`px-4 py-2 rounded-full border ${border} ${lightsOn ? 'bg-neutral-50' : 'bg-neutral-900/50'} flex items-center gap-2.5`}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                  <span className={`text-[10px] font-black uppercase tracking-[0.1em] ${text} opacity-70`}>Umami Cloud Stats</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                {/* Countries */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
+                      <Globe size={12} className="opacity-50" />
+                    </div>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Countries</h4>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {locationStats.countries.length > 0 ? locationStats.countries.slice(0, 5).map((country: any, i: number) => {
+                      const total = locationStats.countries.reduce((acc: number, c: any) => acc + c.y, 0);
+                      const pct = ((country.y / total) * 100).toFixed(1);
+                      const flag = countryCodeToFlag(country.x);
+                      const name = getCountryName(country.x);
+                      return (
+                        <div key={country.x} className={`group flex items-center justify-between p-3 rounded-xl border ${border} ${lightsOn ? 'bg-neutral-50/50' : 'bg-neutral-800/20'} transition-all hover:scale-[1.02]`}>
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-xl">{flag}</span>
+                            <span className={`text-xs font-bold ${text}`}>{name}</span>
+                          </div>
+                          <span className={`text-xs font-bold ${text}`}>{pct}%</span>
                         </div>
                       );
-                    });
-                  })()}
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-neutral-500/10">
-                   <div className="flex items-center justify-between">
-                      <p className={`text-[8px] font-bold ${subtext} opacity-50 uppercase tracking-widest`}>Confidence Score</p>
-                      <span className="text-[9px] font-bold text-green-500">98.2%</span>
-                   </div>
-                </div>
-              </div>
-              
-              {/* Artwork Performance moved to bottom for full-width display */}
-
-              {/* Visitor Traffic Trends */}
-              <div className="lg:col-span-2 h-82">
-                <div className="h-82">
-                  <TrafficTrendChart exhibitionId={exhibitionId} uiConfig={{ lightsOn, text, subtext, border }} />
-                </div>
-              </div>
-
-              {/* Technical Audience Breakdown - second row right (span 1) */}
-              <div className={`p-5 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} lg:col-span-3`}>
-                 <div className="flex items-center justify-between mb-6">
-                  <div className="space-y-0.5">
-                     <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Technical Specifications</h3>
-                     <p className={`text-lg font-serif ${text}`}>Audience Technology Breakdown</p>
-                  </div>
-                  <div className={`px-3 py-1 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-lg text-[9px] font-bold ${subtext}`}>
-                    Real-time Firebase Data
+                    }) : (
+                      <div className="py-10 text-center opacity-20 italic text-[10px]">No Country Data</div>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-neutral-400">
-                      <MapPin size={12} />
-                      <span className="text-[9px] font-bold uppercase tracking-widest">Device Distribution</span>
+                {/* Regions */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
+                      <MapPin size={12} className="opacity-50" />
                     </div>
-                    <div className="space-y-3">
-                      {Object.entries(techStats.devices).length > 0 ? Object.entries(techStats.devices).map(([name, count]) => (
-                        <div key={name} className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-bold">
-                            <span className={text}>{name}</span>
-                            <span className="text-orange-500">{((techStats.totalVisits > 0 ? (count / techStats.totalVisits) * 100 : 0).toFixed(1))}%</span>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Regions</h4>
+                  </div>
+                  <div className="space-y-2.5">
+                    {locationStats.regions.length > 0 ? locationStats.regions.slice(0, 5).map((region: any) => {
+                      const total = locationStats.regions.reduce((acc: number, r: any) => acc + r.y, 0);
+                      const pct = ((region.y / total) * 100).toFixed(1);
+                      return (
+                        <div key={region.x} className="group">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-sm font-bold ${text}`}>{region.x || 'Unknown'}</span>
+                            <span className={`text-sm font-bold text-emerald-500`}>{pct}%</span>
                           </div>
-                          <div className="h-1 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-orange-500 rounded-full" style={{ width: `${(techStats.totalVisits > 0 ? (count / techStats.totalVisits) * 100 : 0)}%` }} />
+                          <div className={`h-1.5 w-full ${lightsOn ? 'bg-neutral-100' : 'bg-neutral-800/50'} rounded-full overflow-hidden`}>
+                            <div 
+                              className="h-full transition-all duration-1000 bg-emerald-500"
+                              style={{ width: `${pct}%` }}
+                            />
                           </div>
                         </div>
-                      )) : <p className="text-[10px] text-neutral-500 italic">No device data yet...</p>}
-                    </div>
+                      );
+                    }) : (
+                      <div className="py-10 text-center opacity-20 italic text-[10px]">No Region Data</div>
+                    )}
                   </div>
+                </div>
 
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-neutral-400">
-                      <PieChart size={12} />
-                      <span className="text-[9px] font-bold uppercase tracking-widest">Browser Share</span>
+                {/* Cities */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
+                      <MapIcon size={12} className="opacity-50" />
                     </div>
-                    <div className="space-y-3">
-                      {Object.entries(techStats.browsers).length > 0 ? Object.entries(techStats.browsers).map(([name, count]) => (
-                        <div key={name} className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-bold">
-                            <span className={text}>{name}</span>
-                            <span className="text-violet-500">{((techStats.totalVisits > 0 ? (count / techStats.totalVisits) * 100 : 0).toFixed(1))}%</span>
-                          </div>
-                          <div className="h-1 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-violet-500 rounded-full" style={{ width: `${(techStats.totalVisits > 0 ? (count / techStats.totalVisits) * 100 : 0)}%` }} />
-                          </div>
-                        </div>
-                      )) : <p className="text-[10px] text-neutral-500 italic">No browser data yet...</p>}
-                    </div>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Top Cities</h4>
                   </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-neutral-400">
-                      <Activity size={12} />
-                      <span className="text-[9px] font-bold uppercase tracking-widest">Common Resolutions</span>
-                    </div>
-                    <div className="space-y-2">
-                      {Object.entries(techStats.resolutions).length > 0 ? Object.entries(techStats.resolutions)
-                        .sort((a,b) => b[1] - a[1])
-                        .slice(0, 5)
-                        .map(([name, count]) => {
-                          const parts = name.includes('x') ? name.split('x') : (name.includes('_') ? name.split('_') : [name, '1']);
-                          const rw = parseInt(parts[0], 10) || 1;
-                          const rh = parseInt(parts[1], 10) || 1;
-                          const displayName = name.replace(/_/g, '.');
-                          const containerW = 28; // matches w-7 (50% smaller)
-                          const containerH = 16; // matches h-4 (50% smaller)
-                          const aspect = rh > 0 ? (rw / rh) : 1;
-                          let innerW = containerW;
-                          let innerH = Math.round(innerW / aspect);
-                          if (innerH > containerH) {
-                            innerH = containerH;
-                            innerW = Math.round(innerH * aspect);
-                          }
-                          return (
-                            <div key={name} className="flex items-center justify-between p-2 rounded-lg bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800">
-                              <div className="flex items-center gap-3">
-                                <div className="w-7 h-4 bg-neutral-100 dark:bg-neutral-900/50 rounded-sm flex items-center justify-center">
-                                  <div className="bg-neutral-300 dark:bg-neutral-700 rounded-sm" style={{ width: `${innerW}px`, height: `${innerH}px` }} />
-                                </div>
-                                <span className={`text-[10px] font-mono font-bold ${text}`}>{displayName}</span>
-                              </div>
-                              <span className="text-[10px] font-bold text-neutral-400">{count} views</span>
-                            </div>
-                          );
-                      }) : <p className="text-[10px] text-neutral-500 italic">No resolution data yet...</p>}
-                    </div>
+                  <div className="space-y-2.5">
+                    {locationStats.cities.length > 0 ? locationStats.cities.slice(0, 5).map((city: any) => (
+                      <div key={city.x} className={`group flex items-center justify-between p-3 rounded-xl border ${border} ${lightsOn ? 'bg-neutral-50/50' : 'bg-neutral-800/20'} transition-all hover:scale-[1.02]`}>
+                        <span className={`text-xs font-bold ${text}`}>{city.x || 'Unknown'}</span>
+                        <span className={`text-xs font-bold ${text}`}>{city.y} visitors</span>
+                      </div>
+                    )) : (
+                      <div className="py-10 text-center opacity-20 italic text-[10px]">No City Data</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -759,6 +812,82 @@ const LegendItem: React.FC<{
     <span className={`text-xs font-black opacity-80 ${uiConfig.text}`}>{value}</span>
   </div>
 );
+
+const TechDonutChart: React.FC<{
+  data: { x: string; y: number }[];
+  uiConfig: any;
+}> = ({ data, uiConfig }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || data.length === 0) return;
+
+    if (chartRef.current) {
+      chartRef.current.destroy();
+    }
+
+    const { lightsOn } = uiConfig;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+
+    const colors = [
+      '#f97316', // orange-500
+      '#8b5cf6', // violet-500
+      '#10b981', // emerald-500
+      '#3b82f6', // blue-500
+      '#f43f5e', // rose-500
+    ];
+
+    chartRef.current = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: data.map(d => d.x),
+        datasets: [{
+          data: data.map(d => d.y),
+          backgroundColor: colors,
+          borderColor: lightsOn ? '#fff' : '#121212',
+          borderWidth: 2,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        cutout: '70%',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: lightsOn ? '#fff' : '#1e1e1e',
+            titleColor: lightsOn ? '#000' : '#fff',
+            bodyColor: lightsOn ? '#666' : '#ccc',
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: true
+          }
+        }
+      }
+    });
+
+    return () => {
+      if (chartRef.current) chartRef.current.destroy();
+    };
+  }, [data, uiConfig]);
+
+  if (data.length === 0) return <div className="h-full flex items-center justify-center opacity-20 italic text-[10px]">No Data</div>;
+
+  return (
+    <div className="relative w-full h-[180px]">
+      <canvas ref={canvasRef} />
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <span className={`text-[10px] font-bold uppercase tracking-widest ${uiConfig.subtext} opacity-40`}>Total</span>
+        <span className={`text-xl font-serif ${uiConfig.text}`}>
+          {data.reduce((acc, d) => acc + d.y, 0)}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 export default AnalyticsDashboard;
 

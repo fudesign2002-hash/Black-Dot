@@ -1,11 +1,12 @@
 {
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/(analytics|embed|exhibition)/:path*",
       "destination": "/index.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

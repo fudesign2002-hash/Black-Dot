@@ -9,9 +9,10 @@ interface Props {
   onLogout?: () => void;
   onSignIn?: (teamCuratorUid?: string | null) => void;
   onRequestCloseInfo?: () => void; // optional callback to request closing the InfoPanel
+  onOpenDashboard?: () => void; // optional callback to open the analytics dashboard
 }
 
-export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestCloseInfo }: Props) {
+export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestCloseInfo, onOpenDashboard }: Props) {
   const [open, setOpen] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
@@ -461,6 +462,8 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
             </div>
           </div>
           <div className="border-t border-slate-100 dark:border-slate-700" />
+          {onOpenDashboard && <button onClick={() => { onOpenDashboard(); setOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm">Dashboard</button>}
+          {onOpenDashboard && <div className="border-t border-slate-100 dark:border-slate-700" />}
           <button onClick={handleLogout} className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm">Logout</button>
         </div>
       )}

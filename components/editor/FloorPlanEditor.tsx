@@ -54,6 +54,7 @@ interface FloorPlanEditorProps {
   isSignedIn: boolean; // NEW: Add isSignedIn prop
   activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
   onArtworkLiftedChange?: (isLifted: boolean) => void; // NEW: Callback for artwork lifted state
+  onlineCount?: number; // NEW: Real-time user count
 }
 
 const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
@@ -92,6 +93,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   isSignedIn, // NEW: Destructure isSignedIn
   activeZoneId, // NEW: Destructure activeZoneId
   onArtworkLiftedChange, // NEW: Destructure onArtworkLiftedChange
+  onlineCount = 0,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevIsOpenRef = useRef<boolean>(isOpen);
@@ -367,6 +369,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                 }}
                 currentLayout={currentLayout}
                 firebaseArtworks={firebaseArtworks}
+                onlineCount={onlineCount}
             />
         )}
       </div>

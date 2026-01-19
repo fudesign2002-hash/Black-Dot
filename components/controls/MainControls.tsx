@@ -190,9 +190,6 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                         if (exhibitionId && focusedArtworkInstanceId) {
                           trackUmamiEvent('Artwork-Info', { exhibitionId, artworkInstanceId: focusedArtworkInstanceId });
                         }
-                        if (exhibitionId) {
-                          trackUmamiEvent('Exhibit-Info', { exhibitionId });
-                        }
                       } catch(e) {}
                       onInfoOpen();
                     }}

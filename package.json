@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "pusher-auth": "node server/pusher-auth.mjs",
+    "pusher-auth": "node --env-file=.env.local server/pusher-auth.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

@@ -22,6 +22,7 @@ import AnalyticsDashboard from './components/ui/AnalyticsDashboard'; // NEW: Sta
 import EmbeddedMuseumScene from './components/EmbeddedMuseumScene';
 
 import { useMuseumState } from './hooks/useMuseumState';
+import { getAuthEndpoint } from './utils/apiUtils';
 import { ExhibitionArtItem, SimplifiedLightingConfig, ZoneArtworkItem, Exhibition, FirebaseArtwork, ArtworkData, ArtType, EffectRegistryType } from './types';
 import { VERSION } from './abuild';
 import * as THREE from 'three'; // NEW: Import THREE for dynamic effect bundle
@@ -649,23 +650,22 @@ function MuseumApp({
 
   // Initialize Pusher on component mount (Presence via local auth server)
   useEffect(() => {
-    if (!pusherRef.current) {
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const authEndpoint = isLocalhost 
-        ? 'http://localhost:3002/pusher/auth' 
-        : '/api/pusher-auth';
+    let mounted = true;
 
-      pusherRef.current = new Pusher('262b770d3319b6acc099', {
-        cluster: 'mt1',
-        forceTLS: true,
-        authEndpoint: authEndpoint,
-        auth: {
-          headers: {
-            // Optionally forward user context; our demo server ignores headers
-          }
-        }
-      });
-    }
+    (async () => {
+      if (!pusherRef.current && mounted) {
+        const authEndpoint = await getAuthEndpoint();
+
+        pusherRef.current = new Pusher('262b770d3319b6acc099', {
+          cluster: 'mt1',
+          forceTLS: true,
+          authEndpoint: authEndpoint,
+          auth: { headers: {} }
+        });
+      }
+    })();
+
+    return () => { mounted = false; };
   }, []);
 
   // Subscribe to Pusher Presence Channel based on active exhibition
@@ -675,12 +675,9 @@ function MuseumApp({
     const exhibitId = activeExhibition.id;
     const channelName = `presence-${exhibitId}`;
 
-    console.log(`[Pusher] Subscribing to presence channel: ${channelName}`);
-
     // Unsubscribe from previous channel if exists
     Object.keys(channelSubscriptionsRef.current).forEach(prevChannel => {
       if (prevChannel !== channelName) {
-        console.log(`[Pusher] Unsubscribing from: ${prevChannel}`);
         pusherRef.current?.unsubscribe(prevChannel);
         delete channelSubscriptionsRef.current[prevChannel];
       }
@@ -692,7 +689,6 @@ function MuseumApp({
     // Track visit on subscription success and start session timer
     channel.bind('pusher:subscription_succeeded', (members: any) => {
       const count = members.count;
-      console.log(`[Pusher] Subscription succeeded. Members: ${count}`);
 
       // NEW: Log visit to Firestore for analytics (counts, devices, browsers, resolutions)
       trackVisit(exhibitId);
@@ -709,7 +705,6 @@ function MuseumApp({
 
     // When a member joins
     channel.bind('pusher:member_added', (member: any) => {
-      console.log(`[Pusher] Member added. Total members: ${channel.members.count}`);
       setOnlineUsersPerExhibit(prev => ({
         ...prev,
         [exhibitId]: channel.members.count,
@@ -718,7 +713,6 @@ function MuseumApp({
 
     // When a member leaves
     channel.bind('pusher:member_removed', (member: any) => {
-      console.log(`[Pusher] Member removed. Total members: ${channel.members.count}`);
       setOnlineUsersPerExhibit(prev => ({
         ...prev,
         [exhibitId]: Math.max(1, channel.members.count),
@@ -763,7 +757,6 @@ function MuseumApp({
       endSession();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      console.log(`[Pusher] Unsubscribing from: ${channelName}`);
       pusherRef.current?.unsubscribe(channelName);
       delete channelSubscriptionsRef.current[channelName];
     };
@@ -1897,6 +1890,7 @@ function MuseumApp({
             exhibition={activeExhibition}
             currentLayout={displayLayout}
             firebaseArtworks={firebaseArtworks}
+            onlineCount={currentExhibitOnlineUsers}
           />
         )}
       </div>
@@ -1907,7 +1901,7 @@ function MuseumApp({
     <React.Fragment>
       <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
 
-      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} onRequestCloseInfo={() => { try { setIsInfoOpen(false); } catch (e) {} }} />}
+      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} onRequestCloseInfo={() => { try { setIsInfoOpen(false); } catch (e) {} }} onOpenDashboard={() => setIsAnalyticsOpen(true)} />}
 
       <React.Fragment>
         <Scene
@@ -2122,6 +2116,7 @@ function MuseumApp({
             onUpdateExhibition={handleUpdateExhibition}
             activeExhibition={activeExhibition}
             uiConfig={uiConfig}
+            onlineCount={currentExhibitOnlineUsers}
             onActiveTabChange={handleActiveEditorTabChange}
             onFocusArtwork={handleFocusArtworkInstance}
             onOpenConfirmationDialog={openConfirmationDialog}
@@ -2171,6 +2166,7 @@ function MuseumApp({
         exhibition={activeExhibition}
         currentLayout={displayLayout}
         firebaseArtworks={firebaseArtworks}
+        onlineCount={currentExhibitOnlineUsers}
       />
 
       <ConfirmationDialog

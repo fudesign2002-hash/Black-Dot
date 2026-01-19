@@ -1,37 +1,40 @@
-// Simple Express server: Pusher Presence Channel auth (ESM)
-import express from 'express';
-import cors from 'cors';
-import Pusher from 'pusher';
+// Simple Express server: Pusher Presence Channel auth
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const Pusher = require('pusher');
+
+// Umami Configuration
+const UMAMI_API_KEY = process.env.UMAMI_API_KEY || process.env.UMAMI_API_TOKEN;
+const UMAMI_API_ENDPOINT = process.env.UMAMI_API_CLIENT_ENDPOINT || process.env.UMAMI_BASE_URL || 'https://api.umami.is/v1';
 
 const PORT = process.env.PORT || 3002;
-// Support multiple origins: development and production
-const ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:3004',
-  'https://app.kurodot.io'
-];
+const ORIGIN = process.env.ORIGIN || 'http://localhost:3001';
+
+// If in test mode or SKIP_PORT_CHECK=1 is set, relax origin/port checks
+const SKIP_PORT_CHECK = process.env.SKIP_PORT_CHECK === '1' || process.env.NODE_ENV === 'test';
 
 const app = express();
 app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin
-    if (!origin) return callback(null, true);
-    // allow any localhost
-    if (origin && origin.startsWith('http://localhost:')) return callback(null, true);
-    // allow kurodot.io domains
-    if (origin.includes('kurodot.io')) return callback(null, true);
-    
-    if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
+  origin: SKIP_PORT_CHECK
+    ? true
+    : function (origin, callback) {
+        // allow requests with no origin (e.g., curl, native apps)
+        if (!origin) return callback(null, true);
+        // allow any localhost with any port (e.g., http://localhost:3000..3999)
+        if (origin && origin.startsWith('http://localhost:')) return callback(null, true);
+        // allow explicitly configured ORIGIN
+        if (ORIGIN && origin === ORIGIN) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
+      },
+  credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+if (SKIP_PORT_CHECK) {
+  console.log('[pusher-auth] SKIP_PORT_CHECK enabled: skipping origin/port strict checks');
+}
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
 const pusher = new Pusher({
   appId: '2103284',
@@ -41,14 +44,10 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-// Umami Configuration
-const UMAMI_API_KEY = process.env.UMAMI_API_KEY || process.env.UMAMI_API_TOKEN;
-const UMAMI_API_ENDPOINT = process.env.UMAMI_API_CLIENT_ENDPOINT || process.env.UMAMI_BASE_URL || 'https://api.umami.is/v1';
-
 app.post('/pusher/auth', (req, res) => {
-  console.log('[pusher-auth] Request body:', req.body);
   const { socket_id, channel_name } = req.body || {};
   
+  // Handle probe from App.tsx detection
   if (socket_id === 'probe') {
     return res.status(200).json({ status: 'ok', message: 'Auth endpoint reachable' });
   }
@@ -57,14 +56,15 @@ app.post('/pusher/auth', (req, res) => {
     return res.status(400).json({ error: 'socket_id and channel_name are required' });
   }
   try {
-    // Generate a lightweight visitor identity; in production, use your auth session
+    // In real apps, derive user from session/auth. Here we generate a random visitor id.
     const presenceData = {
       user_id: `visitor_${Math.random().toString(36).slice(2, 10)}`,
-      user_info: { displayName: 'Visitor' },
+      user_info: {
+        displayName: 'Visitor',
+      },
     };
-    // Authorize for presence channels
     const authResponse = pusher.authorizeChannel(socket_id, channel_name, presenceData);
-    res.status(200).json(authResponse);
+    res.json(authResponse);
   } catch (err) {
     console.error('Pusher auth error:', err);
     res.status(500).json({ error: 'Auth failed' });
@@ -79,7 +79,8 @@ app.get('/api/umami-stats', async (req, res) => {
     return res.status(500).json({ error: 'UMAMI_API_KEY not configured on server' });
   }
 
-  // Use the provided websiteId or default to the primary site
+  // CRITICAL FIX: Always default to the primary site ID. 
+  // If we use exhibitionId as a siteId, Umami API will return 404/Empty.
   const siteId = websiteId || '20b3507a-02cd-4fc4-a8e0-2f360e6002d0';
   
   const endAt = end ? Number(end) : Date.now();
@@ -104,6 +105,8 @@ app.get('/api/umami-stats', async (req, res) => {
 
   // Robust URL construction for Umami Cloud (v2/v1)
   const baseUrl = UMAMI_API_ENDPOINT.replace(/\/$/, '');
+  // Umami Cloud API typically uses /api/websites or /websites depending on the version
+  // For v2 Cloud, it's often https://api.umami.is/api/websites/:id/...
   const targetUrl = `${baseUrl}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${params.toString()}`;
 
   try {
@@ -129,6 +132,5 @@ app.get('/api/umami-stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`[pusher-auth] listening on http://localhost:${PORT}`);
-  console.log(`[pusher-auth] allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
+  console.log(`[pusher-auth] listening on http://localhost:${PORT} (allow origin ${ORIGIN})`);
 });
