@@ -79,7 +79,6 @@ app.get('/api/umami-stats', async (req, res) => {
     return res.status(500).json({ error: 'UMAMI_API_KEY not configured on server' });
   }
 
-  // Use the provided websiteId or default to the primary site
   const siteId = websiteId || '20b3507a-02cd-4fc4-a8e0-2f360e6002d0';
   
   const endAt = end ? Number(end) : Date.now();
@@ -91,20 +90,22 @@ app.get('/api/umami-stats', async (req, res) => {
     timezone: timezone
   });
 
-  let endpointPath = 'series';
+  let endpointPath = 'stats'; // Default fallback
+  
   if (requestType === 'stats') {
     endpointPath = 'stats';
-  } else if (requestType === 'series') {
-    endpointPath = 'series';
+  } else if (requestType === 'series' || requestType === 'pageviews') {
+    endpointPath = 'pageviews'; // Umami v2 uses /pageviews for time-series
     params.set('unit', groupBy);
   } else if (requestType === 'metrics') {
     endpointPath = 'metrics';
     params.set('type', metric);
   }
 
-  // Robust URL construction for Umami Cloud (v2/v1)
   const baseUrl = UMAMI_API_ENDPOINT.replace(/\/$/, '');
   const targetUrl = `${baseUrl}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${params.toString()}`;
+
+  console.log(`[umami-proxy] Fetching: ${targetUrl}`);
 
   try {
     const response = await fetch(targetUrl, {
@@ -116,11 +117,40 @@ app.get('/api/umami-stats', async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[Umami Proxy Error] ${response.status}: ${errorText} (URL: ${targetUrl})`);
+      console.error(`[umami-proxy] Error ${response.status}: ${errorText}`);
       return res.status(response.status).json({ error: 'Umami API error', details: errorText });
     }
 
-    const data = await response.json();
+    let data = await response.json();
+    console.log(`[umami-proxy] Success: ${endpointPath}, entries: ${Array.isArray(data) ? data.length : '1 (object)'}`);
+
+
+    // Replicate Vercel logic: Filter events by name if this is an event metrics query
+    if (requestType === 'metrics' && metric === 'event' && Array.isArray(data)) {
+      const allowedEvents = new Set([
+        'Focus-Artwork', 'Ranking-Mode', 'Zero-Gravity', 
+        'Light-Toggle', 'Exhibit-Info', 'Artwork-Info', 'zoom'
+      ]);
+      data = data.filter(item => {
+        const name = item.x || item.event || item.name;
+        return name && allowedEvents.has(name);
+      });
+    }
+
+    // Replicate Vercel logic: Filter by exhibitionId IF it's an event
+    if (exhibitionId && Array.isArray(data) && requestType === 'metrics' && metric === 'event') {
+      data = data.filter(item => {
+        const props = item.props || item.meta;
+        if (props && typeof props === 'object') {
+            return props.exhibitionId === exhibitionId || props.exhibitId === exhibitionId;
+        }
+        // If no props found on individual event metrics, we can't filter by property in the proxy
+        // without a more complex Umami query. For now, keep it to show overall site events
+        // or ensure your Umami events are sent with these props.
+        return true; 
+      });
+    }
+
     res.json(data);
   } catch (err) {
     console.error('Umami proxy error:', err);
