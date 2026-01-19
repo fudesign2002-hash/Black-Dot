@@ -96,29 +96,45 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         ]);
 
         const [devices, browsers, screens, events, countries, regions, cities] = await Promise.all([
-          deviceRes.ok ? deviceRes.json() : Promise.resolve([]),
-          browserRes.ok ? browserRes.json() : Promise.resolve([]),
-          screenRes.ok ? screenRes.json() : Promise.resolve([]),
-          eventRes.ok ? eventRes.json() : Promise.resolve([]),
-          countryRes.ok ? countryRes.json() : Promise.resolve([]),
-          regionRes.ok ? regionRes.json() : Promise.resolve([]),
-          cityRes.ok ? cityRes.json() : Promise.resolve([])
+          deviceRes.ok ? deviceRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+          browserRes.ok ? browserRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+          screenRes.ok ? screenRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+          eventRes.ok ? eventRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+          countryRes.ok ? countryRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+          regionRes.ok ? regionRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+          cityRes.ok ? cityRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([])
         ]);
 
         setUmamiEvents(events);
-        setLocationStats({ countries, regions, cities });
+        setLocationStats({ 
+          countries: Array.isArray(countries) ? countries : [], 
+          regions: Array.isArray(regions) ? regions : [], 
+          cities: Array.isArray(cities) ? cities : [] 
+        });
 
         // Fallback: If device distribution is empty, try OS distribution
-        if (devices.length === 0) {
+        if (Array.isArray(devices) && devices.length === 0) {
           const osRes = await fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=os`);
           if (osRes.ok) {
             const osData = await osRes.json();
-            setTechStats({ devices: osData, browsers, screens });
+            setTechStats({ 
+              devices: Array.isArray(osData) ? osData : [], 
+              browsers: Array.isArray(browsers) ? browsers : [], 
+              screens: Array.isArray(screens) ? screens : [] 
+            });
           } else {
-            setTechStats({ devices: [], browsers, screens });
+            setTechStats({ 
+              devices: [], 
+              browsers: Array.isArray(browsers) ? browsers : [], 
+              screens: Array.isArray(screens) ? screens : [] 
+            });
           }
         } else {
-          setTechStats({ devices, browsers, screens });
+          setTechStats({ 
+            devices: Array.isArray(devices) ? devices : [], 
+            browsers: Array.isArray(browsers) ? browsers : [], 
+            screens: Array.isArray(screens) ? screens : [] 
+          });
         }
       } catch (err) {
         console.error('[Analytics] Failed to fetch Umami data:', err);
@@ -521,7 +537,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Common Resolutions</h4>
                   </div>
                   <div className="space-y-2.5">
-                    {techStats.screens.length > 0 ? techStats.screens.slice(0, 5).map((screen: any, i: number) => (
+                    {Array.isArray(techStats.screens) && techStats.screens.length > 0 ? techStats.screens.slice(0, 5).map((screen: any, i: number) => (
                       <div key={screen.x} className={`group flex items-center justify-between p-3 rounded-xl border ${border} ${lightsOn ? 'bg-neutral-50/50' : 'bg-neutral-800/20'} transition-all hover:scale-[1.02]`}>
                         <div className="flex items-center gap-3">
                            <div className={`w-10 h-10 flex items-center justify-center p-1`}>
@@ -583,7 +599,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Countries</h4>
                   </div>
                   <div className="flex flex-col gap-3">
-                    {locationStats.countries.length > 0 ? locationStats.countries.slice(0, 5).map((country: any, i: number) => {
+                    {Array.isArray(locationStats.countries) && locationStats.countries.length > 0 ? locationStats.countries.slice(0, 5).map((country: any, i: number) => {
                       const total = locationStats.countries.reduce((acc: number, c: any) => acc + c.y, 0);
                       const pct = ((country.y / total) * 100).toFixed(1);
                       const flag = countryCodeToFlag(country.x);
@@ -612,7 +628,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Regions</h4>
                   </div>
                   <div className="space-y-2.5">
-                    {locationStats.regions.length > 0 ? locationStats.regions.slice(0, 5).map((region: any) => {
+                    {Array.isArray(locationStats.regions) && locationStats.regions.length > 0 ? locationStats.regions.slice(0, 5).map((region: any) => {
                       const total = locationStats.regions.reduce((acc: number, r: any) => acc + r.y, 0);
                       const pct = ((region.y / total) * 100).toFixed(1);
                       return (
@@ -644,7 +660,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Top Cities</h4>
                   </div>
                   <div className="space-y-2.5">
-                    {locationStats.cities.length > 0 ? locationStats.cities.slice(0, 5).map((city: any) => (
+                    {Array.isArray(locationStats.cities) && locationStats.cities.length > 0 ? locationStats.cities.slice(0, 5).map((city: any) => (
                       <div key={city.x} className={`group flex items-center justify-between p-3 rounded-xl border ${border} ${lightsOn ? 'bg-neutral-50/50' : 'bg-neutral-800/20'} transition-all hover:scale-[1.02]`}>
                         <span className={`text-xs font-bold ${text}`}>{city.x || 'Unknown'}</span>
                         <span className={`text-xs font-bold ${text}`}>{city.y} visitors</span>
