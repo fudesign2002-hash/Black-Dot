@@ -173,6 +173,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   // NEW: Process feature adoption data from events
   const featureAdoption = useMemo(() => {
     const getCount = (names: string[]) => {
+      if (!Array.isArray(umamiEvents)) return 0;
       return umamiEvents
         .filter(e => names.some(n => e.x?.toLowerCase() === n.toLowerCase() || e.x?.toLowerCase() === n.toLowerCase().replace(/ /g, '-')))
         .reduce((acc, curr) => acc + curr.y, 0);
