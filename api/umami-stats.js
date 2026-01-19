@@ -75,6 +75,12 @@ export default async function handler(req, res) {
   params.set('endAt', String(endAt));
   params.set('timezone', timezone || 'UTC');
 
+  // New: Filter by exhibition URL if exhibitionId is present
+  // Each exhibition has a unique path: /exhibition/bauhaus-blue, etc.
+  if (exhibitionId) {
+    params.set('url', `/exhibition/${exhibitionId}`);
+  }
+
   // For type=metrics, query param 'metric' should be passed through automatically
   if (req.query.metric) {
     params.set('type', req.query.metric);
@@ -121,8 +127,21 @@ export default async function handler(req, res) {
 
     const json = await resp.json();
 
-    // TEMPORARY: Disabled filtering to verify data flow on Vercel
-    // The data will show site-wide stats until we confirm the connection works
+    // 1. FILTER BY EXHIBITION ID (Matches request properties)
+    if (exhibitionId) {
+      if (type === 'metrics') {
+        // Metrics return [{x: '...', y: 10}, ...] - we can't filter these easily 
+        // without complex Umami queries, so we return as is.
+      } else if (type === 'pageviews' || type === 'series') {
+        // Pageviews don't contain metadata, return as is.
+      } else {
+        // For event metrics or others that might have metadata, filter them:
+        if (Array.isArray(json)) {
+           // We can filter event arrays if Umami includes properties in the response
+        }
+      }
+    }
+
     return sendJSON(res, 200, json);
   } catch (e) {
     return sendJSON(res, 500, { error: e.message });

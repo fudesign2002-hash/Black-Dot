@@ -17,42 +17,10 @@ const TrafficTrendChart: React.FC<Props> = ({ exhibitionId, uiConfig }) => {
   const [points, setPoints] = useState<Point[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Disabled Umami API fetch per request. Chart UI remains visible.
   useEffect(() => {
-    let mounted = true;
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const type = granularity === 'hourly' ? 'hour' : 'day';
-        const res = await fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=pageviews&groupBy=${type}`);
-        if (!res.ok) throw new Error('Failed to fetch');
-        const data = await res.json();
-        
-        // Umami v2 returns { pageviews: [{x: '...', y: 10}, ...], sessions: [...] }
-        // or just an array in some versions.
-        let pageviews = [];
-        if (data && data.pageviews) {
-          pageviews = data.pageviews;
-        } else if (Array.isArray(data)) {
-          pageviews = data;
-        }
-        
-        if (mounted) {
-          const formatted = pageviews.map((p: any) => ({
-            label: p.x,
-            value: p.y,
-            key: p.x
-          }));
-          setPoints(formatted);
-        }
-      } catch (err) {
-        console.error('[TrafficTrendChart] Fetch error:', err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchData();
-    return () => { mounted = false; };
+    setPoints([]);
+    setLoading(false);
   }, [exhibitionId, granularity]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);

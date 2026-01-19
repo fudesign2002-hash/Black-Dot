@@ -90,6 +90,11 @@ app.get('/api/umami-stats', async (req, res) => {
     timezone: timezone
   });
 
+  // New: Filter by exhibition URL if exhibitionId is present
+  if (exhibitionId) {
+    params.set('url', `/exhibition/${exhibitionId}`);
+  }
+
   let endpointPath = 'stats'; // Default fallback
   
   if (requestType === 'stats') {

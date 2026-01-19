@@ -154,7 +154,28 @@
   }
 }
 </script>
-  <script defer src="https://cloud.umami.is/script.js" data-website-id="20b3507a-02cd-4fc4-a8e0-2f360e6002d0"></script>
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="20b3507a-02cd-4fc4-a8e0-2f360e6002d0" data-auto-track="false"></script>
+  <script>
+    window.addEventListener('load', function() {
+      // Small delay to ensure Umami is ready
+      setTimeout(function() {
+        if (window.umami) {
+          // If we are currently in an exhibition route, track it with properties
+          const path = window.location.pathname;
+          const match = path.match(/\/(analytics|embed|exhibition)\/([^\/]+)/);
+          const exhibitionId = match ? match[2] : null;
+          
+          window.umami.track((props) => ({
+            ...props,
+            url: path,
+            referrer: document.referrer,
+            title: document.title,
+            exhibitionId: exhibitionId || undefined
+          }));
+        }
+      }, 500);
+    });
+  </script>
 </head>
   <body>
     <div id="root"></div>
