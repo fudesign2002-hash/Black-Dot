@@ -23,3 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 index.css
+.vercel
+.env*.local
