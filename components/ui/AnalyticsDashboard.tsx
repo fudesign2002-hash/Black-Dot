@@ -461,7 +461,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <TechDonutChart data={techStats.devices} uiConfig={uiConfig} />
                     
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      {techStats.devices.map((dev: any, i: number) => {
+                      {Array.isArray(techStats.devices) && techStats.devices.map((dev: any, i: number) => {
                         const total = techStats.devices.reduce((acc, d) => acc + d.y, 0);
                         const pct = Math.round((dev.y / total) * 100);
                         const label = dev.x.charAt(0).toUpperCase() + dev.x.slice(1);
@@ -489,7 +489,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Browser Share</h4>
                   </div>
                   <div className="space-y-5">
-                    {techStats.browsers.length > 0 ? techStats.browsers.slice(0, 4).map((br: any, i: number) => {
+                    {Array.isArray(techStats.browsers) && techStats.browsers.length > 0 ? techStats.browsers.slice(0, 4).map((br: any, i: number) => {
                       const total = techStats.browsers.reduce((acc, b) => acc + b.y, 0);
                       const pct = (br.y / total * 100).toFixed(1);
                       return (
