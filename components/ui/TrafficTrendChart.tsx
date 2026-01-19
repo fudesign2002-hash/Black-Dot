@@ -28,7 +28,13 @@ const TrafficTrendChart: React.FC<Props> = ({ exhibitionId, uiConfig }) => {
         const data = await res.json();
         
         // Umami v2 returns { pageviews: [{x: '...', y: 10}, ...], sessions: [...] }
-        const pageviews = data.pageviews || (Array.isArray(data) ? data : []);
+        // or just an array in some versions.
+        let pageviews = [];
+        if (data && data.pageviews) {
+          pageviews = data.pageviews;
+        } else if (Array.isArray(data)) {
+          pageviews = data;
+        }
         
         if (mounted) {
           const formatted = pageviews.map((p: any) => ({

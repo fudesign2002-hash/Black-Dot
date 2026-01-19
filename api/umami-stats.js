@@ -54,44 +54,20 @@ export default async function handler(req, res) {
   // Choose the type of data to fetch (stats, series, metrics, etc.)
   const { type = 'series' } = req.query || {};
 
-  // Convert start/end to timestamps (ms). Support ISO date strings or ms timestamps.
-  const parseToMs = (v) => {
-    if (v === undefined || v === null) return undefined;
-    const s = String(v).trim();
-    if (s.length === 0) return undefined;
-    // pure number (ms)
-    if (/^\d+$/.test(s)) return Number(s);
-    const parsed = Date.parse(s);
-    return isNaN(parsed) ? undefined : parsed;
-  };
-
-  let startAt = parseToMs(start);
-  let endAt = parseToMs(end);
-  // default: last 7 days if not provided or invalid
-  const nowTs = Date.now();
-  if (!endAt) endAt = nowTs;
-  if (!startAt) startAt = endAt - 7 * 24 * 60 * 60 * 1000;
-
-  const params = new URLSearchParams();
-  if (startAt) params.set('startAt', String(startAt));
-  if (endAt) params.set('endAt', String(endAt));
-  
-  // Umami requires a timezone string; default to UTC if not provided
-  const tz = timezone || 'UTC';
-  if (tz) params.set('timezone', tz);
-
-  // For type=series (time-series data), add unit parameter
-  if (type === 'series' && groupBy) {
-    params.set('unit', groupBy);
-  }
-  
   // For type=metrics, query param 'metric' should be passed through automatically
+  if (req.query.metric) {
+    params.set('type', req.query.metric);
+  }
 
-  // Use Umami Cloud / API client endpoints for website stats/events series
-  // Stats (summary or time-series): GET /websites/:websiteId/stats
-  // Metrics: GET /websites/:websiteId/metrics
-  // Note: stats endpoint returns time-series when startAt/endAt + unit are provided
-  const endpointPath = type === 'metrics' ? 'metrics' : 'stats';
+  // Choose the correct endpointPath based on type
+  let endpointPath = 'stats';
+  if (type === 'metrics') {
+    endpointPath = 'metrics';
+  } else if (type === 'pageviews' || type === 'series') {
+    endpointPath = 'pageviews';
+    if (groupBy) params.set('unit', groupBy);
+  }
+
   const targetUrl = `${UMAMI_API_CLIENT_ENDPOINT.replace(/\/$/, '')}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${params.toString()}`;
   const cacheKey = targetUrl + (exhibitionId ? `|ex:${exhibitionId}` : '');
   const now = Date.now();
@@ -124,23 +100,9 @@ export default async function handler(req, res) {
 
     const json = await resp.json();
 
-    // Only keep canonical event names; ignore any non-matching events
-    const allowedEvents = new Set([
-      'Focus-Artwork',
-      'Ranking-Mode',
-      'Zero-Gravity',
-      'Light-Toggle',
-      'Exhibit-Info',
-      'Artwork-Info'
-    ]);
-
-    const filteredByName = filterToAllowedEvents(json, allowedEvents);
-
-    // Try to filter by exhibitionId if Umami returned event properties
-    const filtered = filterByExhibition(filteredByName, exhibitionId);
-
-    CACHE.set(cacheKey, { ts: now, value: filtered });
-    return sendJSON(res, 200, filtered);
+    // TEMPORARY: Disabled filtering to verify data flow on Vercel
+    // The data will show site-wide stats until we confirm the connection works
+    return sendJSON(res, 200, json);
   } catch (e) {
     return sendJSON(res, 500, { error: e.message });
   }
