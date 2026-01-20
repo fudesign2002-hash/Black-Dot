@@ -141,7 +141,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const hasSmallScreenNav = isSmallScreen && !isArtworkFocusedForControls && !isRankingMode && !isZeroGravityMode && !isEmbed; 
 
   // Calculate if there are any visible buttons on the left or right side of the divider
-  // MODIFIED: Reordered per user request: [Lights][Ranking][ZeroGravity] | [Editor][Reset][Nav][Dashboard]
+  // MODIFIED: Reordered per user request: [Lights][Ranking][ZeroGravity] | [Dashboard][Editor][Reset][Nav]
   const anyLeftButtonsVisible = hasLightsToggle || hasRankingToggle || hasZeroGravityToggle; 
   const anyRightButtonsVisible = hasEditorModeToggle || hasDevToolsToggle || hasResetCamera || hasSmallScreenNav || hasDashboard;
 
@@ -281,20 +281,6 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 </button>
             )}
 
-            {hasDashboard && onOpenDashboard && (
-              <button
-                onClick={() => {
-                  setHeartEmitterArtworkId(null);
-                  onOpenDashboard();
-                }}
-                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`}
-                title="Open Analytics Dashboard"
-                aria-label="Open analytics dashboard"
-              >
-                <ChartColumnIncreasing className="w-4 h-4" />
-              </button>
-            )}
-
             {hasDevToolsToggle && (
                 <button onClick={() => {
                   setHeartEmitterArtworkId(null);
@@ -347,6 +333,20 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                         </button>
                     )}
                 </React.Fragment>
+            )}
+
+            {hasDashboard && onOpenDashboard && (
+              <button
+                onClick={() => {
+                  setHeartEmitterArtworkId(null);
+                  onOpenDashboard();
+                }}
+                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`}
+                title="Open Analytics Dashboard"
+                aria-label="Open analytics dashboard"
+              >
+                <ChartColumnIncreasing className="w-4 h-4" />
+              </button>
             )}
         </div>
     </div>

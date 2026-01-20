@@ -3,41 +3,52 @@ let currentUmamiPath = window.location.pathname;
 export const setUmamiPath = (path: string) => {
   currentUmamiPath = path;
   console.debug('[umami] path updated to:', path);
+  
+  // NEW: Sync the browser's address bar with the virtual path.
+  // This helps Umami's automatic tracker and other events stay on the correct context.
+  try {
+    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+        // Only update if it's different and non-empty
+        if (path && window.location.pathname !== path) {
+            window.history.replaceState(null, '', path + window.location.search);
+        }
+    }
+  } catch (e) {
+    console.warn('[umami] failed to sync history state:', e);
+  }
 };
 
 export const trackUmamiEvent = (eventName: string, props?: Record<string, any>) => {
   try {
     const w = window as any;
-    if (!w) return false;
+    if (!w || !w.umami) return false;
 
-    // Ensure URL is strictly a relative path to match API query expectation
-    // and remove any potential accidental spaces.
     const cleanPath = currentUmamiPath.trim();
-    const enrichedProps = { ...props, url: cleanPath };
+    const eventData = props || {};
     
-    console.log('[Umami-Out] Sending Payload:', { event: eventName, props: enrichedProps });
-    
-    // 🚀 [Umami-Deploy-Check] Path Sent 驗證
-    console.log('🚀 [Umami-Deploy-Check] Path Sent:', window.location.origin + cleanPath);
+    console.log('[Umami-Out] Tracking Event:', eventName, 'Path:', cleanPath);
 
-    // Common APIs used by different Umami builds
-    if (typeof w.umami === 'function') {
-      try { w.umami(eventName, enrichedProps); return true; } catch (e) {}
-    }
-    if (w.umami && typeof w.umami.trackEvent === 'function') {
-      try { w.umami.trackEvent(eventName, enrichedProps); return true; } catch (e) {}
-    }
-    if (w.umami && typeof w.umami.track === 'function') {
+    // Standard Cloud/v2 API using the callback pattern to override URL (Matches ReqBin behavior)
+    if (typeof w.umami.track === 'function') {
       try { 
-        w.umami.track(eventName, enrichedProps); 
+        w.umami.track((baseProps: any) => ({
+          ...baseProps,
+          name: eventName,
+          url: cleanPath,
+          data: eventData
+        }));
         return true; 
-      } catch (e) {}
+      } catch (e) {
+        // Fallback to simple signature if callback fails
+        try { w.umami.track(eventName, eventData); return true; } catch (e2) {}
+      }
     }
-    // Fallback: some self-hosted scripts attach umami as an object with send method
-    if (w.umami && typeof w.umami.send === 'function') {
-      try { w.umami.send(eventName, enrichedProps); return true; } catch (e) {}
+
+    // Legacy or alternative signatures
+    if (typeof w.umami === 'function') {
+      try { w.umami(eventName, eventData); return true; } catch (e) {}
     }
-    console.debug('[umami] no supported API found for event', eventName);
+    
     return false;
   } catch (err) {
     console.error('[umami] error tracking event', err);

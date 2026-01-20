@@ -45,6 +45,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     bounces: any;
     totaltime: any;
   } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [techStats, setTechStats] = useState<{
     devices: any[];
@@ -66,7 +67,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     cities: []
   });
   
-  const [umamiEvents, setUmamiEvents] = useState<any[]>([]);
+  const [umamiEvents, setUmamiEvents] = useState<any[] | null>(null);
 
   const exhibitionId = exhibition.id;
   const exhibitionTitle = exhibition.title || '';
@@ -76,6 +77,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     if (!isOpen || !exhibitionId) return;
 
     const fetchUmamiData = async () => {
+      setIsLoading(true);
+      // Reset previous data so we don't see it while loading
+      setUmamiStats(null);
+      setUmamiEvents(null);
+      setTechStats({ devices: [], browsers: [], screens: [] });
+      setLocationStats({ countries: [], regions: [], cities: [] });
+
       console.group(`📊 [Analytics Dashboard] Loading data for: ${exhibitionTitle}`);
       console.log(`- Exhibition ID: ${exhibitionId}`);
       console.log(`- Filter Path: /exhibition/${exhibitionId}`);
@@ -162,6 +170,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       } catch (err) {
         console.error('[Analytics] Failed to fetch Umami data:', err);
       } finally {
+        setIsLoading(false);
         console.groupEnd();
       }
     };
@@ -214,26 +223,34 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   // NEW: Process feature adoption data from events
   const featureAdoption = useMemo(() => {
     const getCount = (names: string[]) => {
-      if (!Array.isArray(umamiEvents)) return 0;
+      if (!Array.isArray(umamiEvents)) return null;
+      
+      // MODIFIED: Use exact matches from user's sample data: Artwork-Focus, Zero-Gravity, etc.
       return umamiEvents
-        .filter(e => names.some(n => e.x?.toLowerCase() === n.toLowerCase() || e.x?.toLowerCase() === n.toLowerCase().replace(/ /g, '-')))
-        .reduce((acc, curr) => acc + curr.y, 0);
+        .filter(e => {
+          const eventIdentifier = (e.x || e.name || e.event || '').toString();
+          return names.some(n => eventIdentifier === n);
+        })
+        .reduce((acc, curr) => {
+          const val = Number(curr.y || curr.count || curr.value || 0);
+          return acc + (isNaN(val) ? 0 : val);
+        }, 0);
     };
 
     const rawData = [
-      { id: 'focus', names: ['Focus-Artwork', 'zoom'], label: 'ARTWORK FOCUS / ZOOM' },
-      { id: 'zeroG', names: ['Zero-Gravity', 'Zero-Gravity-Mode'], label: 'ZERO GRAVITY MODE' },
-      { id: 'ranking', names: ['Ranking-Mode', 'vote', 'like_artwork'], label: 'RANKING & VOTING' },
-      { id: 'lighting', names: ['Light-Toggle', 'lighting'], label: 'LIGHTING CONTROLS' },
-      { id: 'info', names: ['Exhibit-Info', 'info_open'], label: 'EXHIBIT INFO VIEW' },
+      { id: 'focus', names: ['Artwork-Focus'], label: 'ARTWORK FOCUS / ZOOM' },
+      { id: 'zeroG', names: ['Zero-Gravity'], label: 'ZERO GRAVITY MODE' },
+      { id: 'ranking', names: ['Ranking-Mode', 'like_artwork'], label: 'RANKING & VOTING' },
+      { id: 'lighting', names: ['Light-Toggle'], label: 'LIGHTING CONTROLS' },
+      { id: 'info', names: ['Exhibit-Info', 'Artwork-Info'], label: 'EXHIBIT INFO VIEW' },
     ].map(f => ({ ...f, count: getCount(f.names) }));
 
-    const totalEngagementCount = rawData.reduce((acc, curr) => acc + curr.count, 0) || 1;
+    const totalEngagementCount = rawData.reduce((acc, curr) => acc + (curr.count || 0), 0);
 
     return rawData.map(f => ({
       ...f,
-      pct: Math.round((f.count / totalEngagementCount) * 100)
-    })).sort((a, b) => b.count - a.count);
+      pct: f.count === null ? 0 : (totalEngagementCount === 0 ? 0 : Math.round((f.count / totalEngagementCount) * 100))
+    })).sort((a, b) => (b.count || 0) - (a.count || 0));
   }, [umamiEvents]);
 
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
@@ -371,7 +388,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <HeroMetric 
                 icon={<Activity />} 
                 label="Online Now" 
-                value={onlineCount.toString()} 
+                value={onlineCount > 0 ? onlineCount.toString() : "-"} 
                 trend={"Real-time"} 
                 positive={onlineCount > 0} 
                 uiConfig={uiConfig} 
@@ -379,7 +396,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <HeroMetric 
                 icon={<Users />} 
                 label="Visitors" 
-                value={umamiStats ? (typeof umamiStats.visitors === 'object' ? (umamiStats.visitors as any).value : umamiStats.visitors).toLocaleString() : "0"} 
+                value={umamiStats ? (typeof umamiStats.visitors === 'object' ? (umamiStats.visitors as any).value : umamiStats.visitors || 0).toLocaleString() || "-" : "-"} 
                 trend={"+0%"} 
                 positive={true} 
                 uiConfig={uiConfig} 
@@ -387,7 +404,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <HeroMetric 
                 icon={<Activity />} 
                 label="Visits" 
-                value={umamiStats ? (typeof umamiStats.visits === 'object' ? (umamiStats.visits as any).value : (umamiStats.visits || 0)).toLocaleString() : "0"} 
+                value={umamiStats ? (typeof umamiStats.visits === 'object' ? (umamiStats.visits as any).value : (umamiStats.visits || 0)).toLocaleString() || "-" : "-"} 
                 trend={"+0%"} 
                 positive={true} 
                 uiConfig={uiConfig} 
@@ -395,7 +412,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <HeroMetric 
                 icon={<Eye />} 
                 label="Views" 
-                value={umamiStats ? (typeof umamiStats.pageviews === 'object' ? (umamiStats.pageviews as any).value : umamiStats.pageviews).toLocaleString() : "0"} 
+                value={umamiStats ? (typeof umamiStats.pageviews === 'object' ? (umamiStats.pageviews as any).value : umamiStats.pageviews || 0).toLocaleString() || "-" : "-"} 
                 trend={"+0%"} 
                 positive={true} 
                 uiConfig={uiConfig} 
@@ -407,9 +424,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   const v = (obj: any) => typeof obj === 'object' ? obj.value : (obj || 0);
                   const bounces = v(umamiStats.bounces);
                   const visits = v(umamiStats.visits);
+                  if (visits === 0) return "-";
                   const rate = Math.round((bounces / Math.max(1, visits)) * 100);
                   return `${rate}%`;
-                })() : "0%"} 
+                })() : "-"} 
                 trend={"0%"} 
                 positive={false} 
                 uiConfig={uiConfig} 
@@ -419,11 +437,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 label="Visit duration" 
                 value={umamiStats ? (() => {
                   const v = (obj: any) => typeof obj === 'object' ? obj.value : (obj || 0);
-                  const totalSeconds = Math.round(v(umamiStats.totaltime) / Math.max(1, v(umamiStats.visits)));
+                  const visits = v(umamiStats.visits);
+                  if (visits === 0) return "-";
+                  const totalSeconds = Math.round(v(umamiStats.totaltime) / Math.max(1, visits));
                   const mins = Math.floor(totalSeconds / 60);
                   const secs = totalSeconds % 60;
                   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-                })() : '0s'} 
+                })() : "-"} 
                 trend={"0%"} 
                 positive={true} 
                 uiConfig={uiConfig} 
@@ -453,8 +473,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                              <span className={`text-sm font-bold ${text}`}>{feature.label}</span>
                            </div>
                            <div className="flex items-center gap-3">
-                             <span className={`text-[10px] font-bold ${subtext} opacity-40 uppercase tracking-widest`}>{feature.count} CLICKS</span>
-                             <span className="text-sm font-bold text-orange-500">{feature.pct}%</span>
+                             <span className={`text-[10px] font-bold ${subtext} opacity-40 uppercase tracking-widest`}>{feature.count ? feature.count : '-'} CLICKS</span>
+                             <span className="text-sm font-bold text-orange-500">{feature.count ? `${feature.pct}%` : '-'}</span>
                            </div>
                         </div>
                         <div className={`h-0.5 w-full ${lightsOn ? 'bg-neutral-100' : 'bg-neutral-800/50'} rounded-full overflow-hidden`}>
@@ -499,25 +519,35 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   </div>
                   
                   <div className="flex flex-col gap-6">
-                    <TechDonutChart data={techStats.devices} uiConfig={uiConfig} />
-                    
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      {Array.isArray(techStats.devices) && techStats.devices.map((dev: any, i: number) => {
-                        const total = techStats.devices.reduce((acc, d) => acc + d.y, 0);
-                        const pct = Math.round((dev.y / total) * 100);
-                        const label = dev.x.charAt(0).toUpperCase() + dev.x.slice(1);
-                        const colors = ['bg-orange-500', 'bg-violet-500', 'bg-emerald-500', 'bg-blue-500', 'bg-rose-500'];
-                        return (
-                          <div key={dev.x} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-1.5 h-1.5 rounded-full ${colors[i % colors.length]}`} />
-                              <span className={`text-[10px] font-bold ${text} opacity-70`}>{label}</span>
-                            </div>
-                            <span className={`text-[10px] font-bold ${text}`}>{pct}%</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {isLoading ? (
+                      <div className="h-[140px] flex items-center justify-center">
+                        <div className="w-24 h-24 rounded-full border-2 border-neutral-100 dark:border-neutral-800 animate-pulse flex items-center justify-center">
+                          <span className="text-[10px] opacity-40 italic">Loading...</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <TechDonutChart data={techStats.devices} uiConfig={uiConfig} />
+                        
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                          {Array.isArray(techStats.devices) && techStats.devices.map((dev: any, i: number) => {
+                            const total = techStats.devices.reduce((acc, d) => acc + d.y, 0);
+                            const pct = Math.round((dev.y / total) * 100);
+                            const label = dev.x.charAt(0).toUpperCase() + dev.x.slice(1);
+                            const colors = ['bg-orange-500', 'bg-violet-500', 'bg-emerald-500', 'bg-blue-500', 'bg-rose-500'];
+                            return (
+                              <div key={dev.x} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-1.5 h-1.5 rounded-full ${colors[i % colors.length]}`} />
+                                  <span className={`text-[10px] font-bold ${text} opacity-70`}>{label}</span>
+                                </div>
+                                <span className={`text-[10px] font-bold ${text}`}>{pct}%</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -530,7 +560,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Browser Share</h4>
                   </div>
                   <div className="space-y-5">
-                    {Array.isArray(techStats.browsers) && techStats.browsers.length > 0 ? techStats.browsers.slice(0, 4).map((br: any, i: number) => {
+                    {isLoading ? (
+                      <div className="py-10 text-center opacity-40 italic text-[10px] animate-pulse">Loading browser data...</div>
+                    ) : (Array.isArray(techStats.browsers) && techStats.browsers.length > 0 ? techStats.browsers.slice(0, 4).map((br: any, i: number) => {
                       const total = techStats.browsers.reduce((acc, b) => acc + b.y, 0);
                       const pct = (br.y / total * 100).toFixed(1);
                       return (
@@ -549,7 +581,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       )
                     }) : (
                       <div className="py-10 text-center opacity-20 italic text-[10px]">No Browser Data</div>
-                    )}
+                    ))}
                   </div>
                 </div>
 
@@ -562,7 +594,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Common Resolutions</h4>
                   </div>
                   <div className="space-y-2.5">
-                    {Array.isArray(techStats.screens) && techStats.screens.length > 0 ? techStats.screens.slice(0, 5).map((screen: any, i: number) => (
+                    {isLoading ? (
+                      <div className="py-10 text-center opacity-40 italic text-[10px] animate-pulse">Loading resolution data...</div>
+                    ) : (Array.isArray(techStats.screens) && techStats.screens.length > 0 ? techStats.screens.slice(0, 5).map((screen: any, i: number) => (
                       <div key={screen.x} className={`group flex items-center justify-between p-3 rounded-xl border ${border} ${lightsOn ? 'bg-neutral-50/50' : 'bg-neutral-800/20'} transition-all hover:scale-[1.02]`}>
                         <div className="flex items-center gap-3">
                            <div className={`w-10 h-10 flex items-center justify-center p-1`}>
@@ -595,7 +629,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       </div>
                     )) : (
                       <div className="py-10 text-center opacity-20 italic text-[10px]">No Screen Data</div>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
@@ -624,7 +658,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Countries</h4>
                   </div>
                   <div className="flex flex-col gap-3">
-                    {Array.isArray(locationStats.countries) && locationStats.countries.length > 0 ? locationStats.countries.slice(0, 5).map((country: any, i: number) => {
+                    {isLoading ? (
+                      <div className="py-10 text-center opacity-40 italic text-[10px] animate-pulse">Loading country data...</div>
+                    ) : (Array.isArray(locationStats.countries) && locationStats.countries.length > 0 ? locationStats.countries.slice(0, 5).map((country: any, i: number) => {
                       const total = locationStats.countries.reduce((acc: number, c: any) => acc + c.y, 0);
                       const pct = ((country.y / total) * 100).toFixed(1);
                       const flag = countryCodeToFlag(country.x);
@@ -640,7 +676,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       );
                     }) : (
                       <div className="py-10 text-center opacity-20 italic text-[10px]">No Country Data</div>
-                    )}
+                    ))}
                   </div>
                 </div>
 
@@ -653,7 +689,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Regions</h4>
                   </div>
                   <div className="space-y-2.5">
-                    {Array.isArray(locationStats.regions) && locationStats.regions.length > 0 ? locationStats.regions.slice(0, 5).map((region: any) => {
+                    {isLoading ? (
+                      <div className="py-10 text-center opacity-40 italic text-[10px] animate-pulse">Loading region data...</div>
+                    ) : (Array.isArray(locationStats.regions) && locationStats.regions.length > 0 ? locationStats.regions.slice(0, 5).map((region: any) => {
                       const total = locationStats.regions.reduce((acc: number, r: any) => acc + r.y, 0);
                       const pct = ((region.y / total) * 100).toFixed(1);
                       return (
@@ -672,7 +710,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       );
                     }) : (
                       <div className="py-10 text-center opacity-20 italic text-[10px]">No Region Data</div>
-                    )}
+                    ))}
                   </div>
                 </div>
 
@@ -685,14 +723,16 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Top Cities</h4>
                   </div>
                   <div className="space-y-2.5">
-                    {Array.isArray(locationStats.cities) && locationStats.cities.length > 0 ? locationStats.cities.slice(0, 5).map((city: any) => (
+                    {isLoading ? (
+                      <div className="py-10 text-center opacity-40 italic text-[10px] animate-pulse">Loading city data...</div>
+                    ) : (Array.isArray(locationStats.cities) && locationStats.cities.length > 0 ? locationStats.cities.slice(0, 5).map((city: any) => (
                       <div key={city.x} className={`group flex items-center justify-between p-3 rounded-xl border ${border} ${lightsOn ? 'bg-neutral-50/50' : 'bg-neutral-800/20'} transition-all hover:scale-[1.02]`}>
                         <span className={`text-xs font-bold ${text}`}>{city.x || 'Unknown'}</span>
                         <span className={`text-xs font-bold ${text}`}>{city.y} visitors</span>
                       </div>
                     )) : (
                       <div className="py-10 text-center opacity-20 italic text-[10px]">No City Data</div>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
@@ -727,7 +767,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-bold">{(art.engagement || art.val || 0).toLocaleString()}</div>
+                          <div className="text-sm font-bold">{(art.engagement || art.val) ? (art.engagement || art.val).toLocaleString() : "-"}</div>
                           <div className="text-[10px] text-neutral-400">likes</div>
                         </div>
                       </div>
@@ -754,7 +794,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-bold">{(art.views || 0).toLocaleString()}</div>
+                          <div className="text-sm font-bold">{art.views ? art.views.toLocaleString() : "-"}</div>
                           <div className="text-[10px] text-neutral-400">views</div>
                         </div>
                       </div>

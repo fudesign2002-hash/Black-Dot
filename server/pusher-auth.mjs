@@ -120,7 +120,7 @@ app.get('/api/umami-stats', async (req, res) => {
     // 定義過濾路徑 (預設為 /exhibition/ID)
     let currentPath = `/exhibition/${(exhibitionId || '').trim()}`;
     const testParams = new URLSearchParams(baseParams);
-    testParams.set('url', currentPath);
+    testParams.set('path', currentPath);
 
     const [controlData, testDataInitial] = await Promise.all([
       fetchUmami(endpointPath, controlParams),
@@ -199,7 +199,7 @@ app.get('/api/umami-stats', async (req, res) => {
           if (altPath === exhibitionId.trim()) {
             repairParams.set('query', altPath);
           } else {
-            repairParams.set('url', altPath);
+            repairParams.set('path', altPath);
           }
 
           const repairData = await fetchUmami(endpointPath, repairParams);
@@ -225,7 +225,7 @@ app.get('/api/umami-stats', async (req, res) => {
         if (finalPathUsed === (exhibitionId || '').trim()) {
             finalParams.set('query', finalPathUsed);
         } else {
-            finalParams.set('url', finalPathUsed);
+            finalParams.set('path', finalPathUsed);
         }
         finalTestData = await fetchUmami(endpointPath, finalParams);
     }

@@ -81,13 +81,11 @@ export default async function handler(req, res) {
   // New: Filter by exhibition URL if exhibitionId is present
   // Each exhibition has a unique path: /exhibition/bauhaus-blue, etc.
   if (exhibitionId) {
-    // IMPORTANT: Per user testing in ReqBin, the slash must be encoded as %2F
-    // for the Umami API to correctly register the filter.
-    const path = `/exhibition/${exhibitionId.trim()}`;
-    const encodedPath = path.replace(/\//g, '%2F');
-    params.set('url', encodedPath);
-    console.log('[Umami-Compare] DB Expected Path (Encoded):', encodedPath);
-    console.log(`[umami-proxy] Filtering by Encoded URL: ${encodedPath}`);
+    // REVERTED to match user's ReqBin test: Fetching from Umami Cloud requires 'path' parameter
+    const filterPath = `/exhibition/${exhibitionId.trim()}`;
+    params.set('path', filterPath);
+    
+    console.log('[Umami-API-Filter] Filtered by PATH:', filterPath);
   }
 
   // For type=metrics, query param 'metric' should be passed through automatically

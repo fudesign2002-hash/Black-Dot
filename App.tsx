@@ -134,6 +134,10 @@ function MuseumApp({
   const [focusedArtworkInstanceId, _setFocusedArtworkInstanceId] = useState<string | null>(null);
   const setFocusedArtworkInstanceId = useCallback((value: string | null) => {
     _setFocusedArtworkInstanceId(value);
+    if (value) {
+       // NEW: Global tracker for all artwork focus events (Scene + Editor)
+       try { import('./services/umamiService').then(m => m.trackUmamiEvent('Artwork-Focus', { artworkInstanceId: value })).catch(() => {}); } catch(e) {}
+    }
   }, []);
 
   const [isArtworkFocusedForControls, _setIsArtworkFocusedForControls] = useState(false);
@@ -241,18 +245,13 @@ function MuseumApp({
         const virtualPath = `/exhibition/${exhibitionId}`;
         console.log(`[Umami-Out] Pre-warming Tracking Payload: ${virtualPath}`);
         try {
-          // 強制覆寫所有 Umami 屬性，確保路徑歸一化並包含領先斜線
-          w.umami.track((props: any) => {
-            const finalPayload = {
-              ...props,
-              url: virtualPath,
-              path: virtualPath,
-              title: activeExhibition?.title || 'Exhibition',
-            };
-            console.log('[Umami-Out] FINAL SHIPPED PAYLOAD:', JSON.stringify(finalPayload));
-            return finalPayload;
-          });
-          console.log('[analytics] exhibition pageview sent successfully');
+          // Use the recommended v2 collection method for SPAs with manual tracking
+          w.umami.track((props: any) => ({
+            ...props,
+            url: virtualPath,
+            title: activeExhibition?.title || 'Exhibition',
+          }));
+          console.log('[analytics] exhibition pageview sent successfully:', virtualPath);
         } catch (err) {
           console.error('[analytics] tracking error:', err);
         }
@@ -927,9 +926,6 @@ function MuseumApp({
 
   const handleFocusArtworkInstance = useCallback((instanceId: string | null) => {
     setFocusedArtworkInstanceId(instanceId);
-    if (instanceId) {
-      try { import('./services/umamiService').then(m => m.trackUmamiEvent('Focus-Artwork', { artworkInstanceId: instanceId })).catch(() => {}); } catch(e) {}
-    }
   }, [setFocusedArtworkInstanceId]);
 
   useEffect(() => {
@@ -1526,6 +1522,8 @@ function MuseumApp({
 
         if (totalIncrement > 0) {
             await updateArtworkLikesInFirebase(actualArtworkId, totalIncrement);
+            // NEW: Track like event in Umami
+            try { import('./services/umamiService').then(m => m.trackUmamiEvent('like_artwork', { artworkId: actualArtworkId, count: totalIncrement })).catch(() => {}); } catch(e) {}
         } else {
         }
         delete likeDebounceTimeouts.current[actualArtworkId];

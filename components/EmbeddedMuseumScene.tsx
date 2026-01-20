@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Scene from './scene/Scene';
 import { recordAnalytics } from '../services/museumService';
-import { trackUmamiEvent } from '../services/umamiService';
+import { trackUmamiEvent, setUmamiPath } from '../services/umamiService';
 import TransitionOverlay from './ui/TransitionOverlay';
 import SideNavigation from './layout/SideNavigation';
 import Header from './layout/Header';
@@ -74,6 +74,13 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
     }
   }, [exhibitionIdParam, isLoading, exhibitions, handleNavigate]);
 
+  // Update global tracking path for Umami events
+  useEffect(() => {
+    if (activeExhibition?.id) {
+      setUmamiPath(`/exhibition/${activeExhibition.id}`);
+    }
+  }, [activeExhibition?.id]);
+
   const lightsOn = lightingConfig?.lightsOn ?? true;
   const uiConfig = useMemo(
     () => ({
@@ -94,7 +101,8 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
   const handleSelectArtwork = useCallback((id: string | null) => {
     setFocusedArtworkInstanceId(id);
     if (id) {
-      trackUmamiEvent('Focus-Artwork', { artworkInstanceId: id });
+      // MODIFIED: Rename event to 'Artwork-Focus' per user request
+      trackUmamiEvent('Artwork-Focus', { artworkInstanceId: id });
     }
   }, []);
 
