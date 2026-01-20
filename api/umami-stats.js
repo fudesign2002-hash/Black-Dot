@@ -113,6 +113,7 @@ export default async function handler(req, res) {
   try {
     const headers = { 'Content-Type': 'application/json' };
     if (UMAMI_API_KEY) headers['x-umami-api-key'] = UMAMI_API_KEY;
+    if (timezone) headers['x-umami-timezone'] = timezone;
 
     const resp = await fetch(targetUrl, { headers });
 

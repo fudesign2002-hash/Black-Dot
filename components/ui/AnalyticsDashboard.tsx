@@ -85,18 +85,24 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       setTechStats({ devices: [], browsers: [], screens: [] });
       setLocationStats({ countries: [], regions: [], cities: [] });
 
+      // Get user timezone and calculate start of current day (local midnight)
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startOfTodayMs = today.getTime();
+
       const timeRangeMs = {
-        '24H': 24 * 60 * 60 * 1000,
-        '7D': 7 * 24 * 60 * 60 * 1000,
-        '30D': 30 * 24 * 60 * 60 * 1000,
-        '90D': 90 * 24 * 60 * 60 * 1000,
-        '12M': 365 * 24 * 60 * 60 * 1000,
-      }[timeRange as string] || 7 * 24 * 60 * 60 * 1000;
+        '24H': 0, // startAt will be midnight today
+        '7D': 6 * 24 * 60 * 60 * 1000,
+        '30D': 29 * 24 * 60 * 60 * 1000,
+        '90D': 89 * 24 * 60 * 60 * 1000,
+        '12M': 364 * 24 * 60 * 60 * 1000,
+      }[timeRange as string] || 0;
 
       const now = Date.now();
-      const startTimestamp = now - timeRangeMs;
-      // Re-enable exhibitionId filtering
-      const commonParams = `&exhibitionId=${exhibitionId}&start=${startTimestamp}&end=${now}&_t=${now}`;
+      const startTimestamp = startOfTodayMs - timeRangeMs;
+      // Pass timezone to the proxy
+      const commonParams = `&exhibitionId=${exhibitionId}&start=${startTimestamp}&end=${now}&timezone=${encodeURIComponent(userTimezone)}&_t=${now}`;
 
       try {
         // Fetch summary stats
