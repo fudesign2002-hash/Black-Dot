@@ -308,9 +308,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-lg border ${border}">
+            <div className={`flex items-center gap-2 px-3 py-1.5 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-lg border ${border}`}>
               <span className={`text-[9px] font-bold ${subtext} opacity-50 uppercase tracking-widest`}>ID:</span>
-              <span className={`text-[9px] font-mono font-bold ${text}`}>{exhibitionId.slice(0, 12).toUpperCase()}</span>
+              <span className={`text-[9px] font-mono font-bold ${text}`}>{exhibitionId.toUpperCase()}</span>
             </div>
 
             <div className="flex items-center gap-1.5 p-1 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-full border ${border}">
@@ -820,10 +820,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                      <p className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-40`}>Support Entity</p>
                      <p className={`text-xs font-semibold ${text}`}>{exhibition.supportedBy || ''}</p>
                    </div>
-                   <div className="space-y-0.5">
-                       <p className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-40`}>Access Rights</p>
-                       <p className={`text-xs font-semibold ${text}`}>Permanent Global License</p>
-                   </div>
                    <button 
                       onClick={handleShare}
                       className="w-full py-2.5 bg-neutral-900 dark:bg-white dark:text-neutral-900 text-white rounded-lg flex items-center justify-center gap-2 group hover:bg-neutral-800 transition-all font-bold tracking-[0.2em] uppercase text-[8px]"
@@ -838,7 +834,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <BlackDotLogo treatAsCompact={true} className={`${text} w-4 h-4`} />
               <div className="h-2 w-px bg-neutral-500" />
               <p className={`text-[8px] font-bold uppercase tracking-[0.4em] ${subtext}`}>
-                Black Dot Professional Analytics System
+                Kurodot.io Analytics
               </p>
             </div>
           </div>
