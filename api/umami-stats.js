@@ -82,12 +82,17 @@ export default async function handler(req, res) {
   // Each exhibition has a unique path: /exhibition/bauhaus-blue, etc.
   if (exhibitionId) {
     // 確保路徑格式一致：開頭有斜線，結尾沒斜線
-    let filterPath = `/exhibition/${exhibitionId.trim()}`;
+    const cleanId = exhibitionId.trim();
+    let filterPath = `/exhibition/${cleanId}`;
     filterPath = filterPath.replace(/\/$/, ""); 
     
+    // 經測試，Umami API 有時對於 url 參數需要精確匹配。
+    // 我們同時設定 url 和 query 參數，query 通常能作為更寬容的過濾器。
     params.set('url', filterPath);
-    console.log('[Umami-Compare] DB Expected Path:', filterPath);
-    console.log(`[umami-proxy] Filtering by URL: ${filterPath}`);
+    params.set('query', filterPath); // 增加 query 參數作為備援
+    
+    console.log(`[Umami-Compare] Filtering for ID: ${cleanId}`);
+    console.log(`[Umami-Compare] Assigned Path: ${filterPath}`);
   }
 
   // For type=metrics, query param 'metric' should be passed through automatically
@@ -127,6 +132,11 @@ export default async function handler(req, res) {
     }
 
     let json = await resp.json();
+    
+    // 自檢邏輯：在日誌中顯示數據對比
+    if (type === 'stats' && exhibitionId) {
+      console.log(`📊 [Umami-API-Result] Result for ${exhibitionId}: ${json.pageviews?.value} Views`);
+    }
 
     return sendJSON(res, 200, json);
   } catch (e) {
