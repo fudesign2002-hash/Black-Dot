@@ -13,18 +13,12 @@ export const trackUmamiEvent = (eventName: string, props?: Record<string, any>) 
     // Ensure URL is strictly a relative path to match API query expectation
     // and remove any potential accidental spaces.
     const cleanPath = currentUmamiPath.trim();
-    // 強制覆寫 URL 屬性，確保不包含 window.location.origin，僅保留相對路徑
-    // 這能確保與後端 API 查詢的 /exhibition/bauhaus... 格式完全對齊
-    const enrichedProps = { 
-      ...props, 
-      url: cleanPath,
-      path: cleanPath 
-    };
+    const enrichedProps = { ...props, url: cleanPath };
     
     console.log('[Umami-Out] Sending Payload:', { event: eventName, props: enrichedProps });
     
     // 🚀 [Umami-Deploy-Check] Path Sent 驗證
-    console.log('🚀 [Umami-Deploy-Check] Path Sent (Relative):', cleanPath);
+    console.log('🚀 [Umami-Deploy-Check] Path Sent:', window.location.origin + cleanPath);
 
     // Common APIs used by different Umami builds
     if (typeof w.umami === 'function') {

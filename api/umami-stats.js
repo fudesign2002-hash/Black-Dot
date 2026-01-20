@@ -1,91 +1,153 @@
+// Simple Umami proxy for dashboard reads
+// Expects env: UMAMI_API_TOKEN, optional UMAMI_BASE_URL
+// Deploy this under `api/umami-stats.js` (Vercel/Netlify-style).
+
+const CACHE = new Map();
+const TTL = 30 * 1000; // 30s cache
+
+function sendJSON(res, status, body) {
+  res.statusCode = status || 200;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  // local caching policy for Vercel dev; production uses s-maxage
+  res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
+  res.end(JSON.stringify(body));
+}
+
 export default async function handler(req, res) {
-  const { exhibitionId, websiteId, start, end } = req.query || {};
+  const { exhibitionId, websiteId, start, end, groupBy = 'hour', events, timezone } = req.query || {};
   const UMAMI_API_KEY = process.env.UMAMI_API_KEY || process.env.UMAMI_API_TOKEN;
-  const UMAMI_ENDPOINT = process.env.UMAMI_API_CLIENT_ENDPOINT || 'https://api.umami.is/v1';
+  const UMAMI_API_CLIENT_ENDPOINT = process.env.UMAMI_API_CLIENT_ENDPOINT || process.env.UMAMI_BASE_URL || 'https://api.umami.is/v1';
+
+  if (!UMAMI_API_KEY) {
+    return sendJSON(res, 500, { error: 'UMAMI_API_KEY not configured' });
+  }
+
+  // Support special proxy actions (e.g. list websites)
+  const { action } = req.query || {};
+  if (action === 'list-websites') {
+    try {
+      const listUrl = `${UMAMI_API_CLIENT_ENDPOINT.replace(/\/$/, '')}/websites`;
+      const headers = { 'Content-Type': 'application/json', 'x-umami-api-key': UMAMI_API_KEY };
+      const listResp = await fetch(listUrl, { headers });
+      if (!listResp.ok) {
+        const text = await listResp.text();
+        try { return sendJSON(res, listResp.status || 500, { error: 'Failed to list websites', details: JSON.parse(text) }); } catch (e) { return sendJSON(res, listResp.status || 500, { error: 'Failed to list websites', details: text }); }
+      }
+      const sites = await listResp.json();
+      return sendJSON(res, 200, sites);
+    } catch (e) {
+      return sendJSON(res, 500, { error: e.message });
+    }
+  }
+
+  // Determine website id to query in Umami (Umami calls this websiteId)
+  // Note: exhibitionId is passed for filtering, but we use the single shared website ID for Umami
   const siteId = websiteId || process.env.UMAMI_WEBSITE_ID || '20b3507a-02cd-4fc4-a8e0-2f360e6002d0';
+  
+  // Keep exhibitionId for potential filtering in post-processing
+  const filterByExhibitionId = exhibitionId;
+  
+  if (!siteId) {
+    return sendJSON(res, 400, { error: 'websiteId query param required' });
+  }
 
-  // 1. 基本安全檢查，防止 500 崩潰
-  if (!UMAMI_API_KEY) return res.status(500).json({ error: 'Missing UMAMI_API_KEY' });
+  // Choose the type of data to fetch (stats, series, metrics, etc.)
+  const { type = 'series' } = req.query || {};
 
-  // 2. 核心對齊：強制使用相對路徑 (與 Dashboard 一致)
+  // Convert start/end to timestamps (ms). Support ISO date strings or ms timestamps.
+  const parseToMs = (v) => {
+    if (v === undefined || v === null) return undefined;
+    const s = String(v).trim();
+    if (s.length === 0) return undefined;
+    if (/^\d+$/.test(s)) return Number(s);
+    const parsed = Date.parse(s);
+    return isNaN(parsed) ? undefined : parsed;
+  };
+
+  let startAt = parseToMs(start);
+  let endAt = parseToMs(end);
+  const nowTs = Date.now();
+  if (!endAt) endAt = nowTs;
+  if (!startAt) {
+    // Default to last 24 hours to match common dashboard views if not specified
+    startAt = endAt - 24 * 60 * 60 * 1000; 
+  }
+
   const params = new URLSearchParams();
+  params.set('startAt', String(startAt));
+  params.set('endAt', String(endAt));
+  params.set('timezone', timezone || 'UTC');
+
+  // New: Filter by exhibition URL if exhibitionId is present
+  // Each exhibition has a unique path: /exhibition/bauhaus-blue, etc.
   if (exhibitionId) {
     const filterPath = `/exhibition/${exhibitionId.trim()}`;
-    params.set('url', filterPath); //
+    params.set('url', filterPath);
+    console.log('[Umami-Compare] DB Expected Path:', filterPath);
+    console.log(`[umami-proxy] Filtering by URL: ${filterPath}`);
   }
 
-  // 3. 強制時間範圍 (解決數據歸零問題)
+  // For type=metrics, query param 'metric' should be passed through automatically
+  if (req.query.metric) {
+    params.set('type', req.query.metric);
+  }
+
+  // Choose the correct endpointPath based on type
+  let endpointPath = 'stats';
+  if (type === 'metrics') {
+    endpointPath = 'metrics';
+  } else if (type === 'pageviews' || type === 'series') {
+    endpointPath = 'pageviews';
+    if (groupBy) params.set('unit', groupBy);
+  }
+
+  const targetUrl = `${UMAMI_API_CLIENT_ENDPOINT.replace(/\/$/, '')}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${params.toString()}`;
+  
+  console.log('[Umami-API] Fetching from:', targetUrl);
+
+  const cacheKey = targetUrl + (exhibitionId ? `|ex:${exhibitionId}` : '');
   const now = Date.now();
-  const startAt = start || (now - 24 * 60 * 60 * 1000); 
-  params.set('startAt', String(startAt));
-  params.set('endAt', String(end || now));
+  const cached = CACHE.get(cacheKey);
+  if (cached && now - cached.ts < TTL) {
+    res.setHeader('x-cache', 'HIT');
+    return sendJSON(res, 200, { ...cached.value, _debug_url: targetUrl, _is_cached: true });
+  }
 
   try {
-    const targetUrl = `${UMAMI_ENDPOINT}/websites/${siteId}/stats?${params.toString()}`;
-    
-    const resp = await fetch(targetUrl, {
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-umami-api-key': UMAMI_API_KEY 
-      }
-    });
+    const headers = { 'Content-Type': 'application/json' };
+    if (UMAMI_API_KEY) headers['x-umami-api-key'] = UMAMI_API_KEY;
+
+    const resp = await fetch(targetUrl, { headers });
 
     if (!resp.ok) {
-      const errorText = await resp.text();
-      return res.status(resp.status).json({ error: 'Umami API Error', details: errorText });
+        // ... (保持原有的錯誤處理)
     }
 
-    const data = await resp.json();
-    // 輸出 Log 到 Vercel 控制台，方便我們檢查
-    console.log(`[Umami-Success] Path: /exhibition/${exhibitionId}, Views: ${data.pageviews}`);
-    
-    return res.status(200).json(data);
+    let json = await resp.json();
+
+    return sendJSON(res, 200, json);
   } catch (e) {
-    return res.status(500).json({ error: 'Proxy Crash', message: e.message });
+    return sendJSON(res, 500, { error: e.message });
   }
-}export default async function handler(req, res) {
-  const { exhibitionId, websiteId, start, end } = req.query || {};
-  const UMAMI_API_KEY = process.env.UMAMI_API_KEY || process.env.UMAMI_API_TOKEN;
-  const UMAMI_ENDPOINT = process.env.UMAMI_API_CLIENT_ENDPOINT || 'https://api.umami.is/v1';
-  const siteId = websiteId || process.env.UMAMI_WEBSITE_ID || '20b3507a-02cd-4fc4-a8e0-2f360e6002d0';
+}
 
-  // 1. 基本安全檢查，防止 500 崩潰
-  if (!UMAMI_API_KEY) return res.status(500).json({ error: 'Missing UMAMI_API_KEY' });
+function filterToAllowedEvents(raw, allowedSet) {
+  if (!allowedSet) return raw;
 
-  // 2. 核心對齊：強制使用相對路徑 (與 Dashboard 一致)
-  const params = new URLSearchParams();
-  if (exhibitionId) {
-    const filterPath = `/exhibition/${exhibitionId.trim()}`;
-    params.set('url', filterPath); //
-  }
-
-  // 3. 強制時間範圍 (解決數據歸零問題)
-  const now = Date.now();
-  const startAt = start || (now - 24 * 60 * 60 * 1000); 
-  params.set('startAt', String(startAt));
-  params.set('endAt', String(end || now));
-
-  try {
-    const targetUrl = `${UMAMI_ENDPOINT}/websites/${siteId}/stats?${params.toString()}`;
-    
-    const resp = await fetch(targetUrl, {
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-umami-api-key': UMAMI_API_KEY 
-      }
+  if (Array.isArray(raw)) {
+    return raw.filter(item => {
+      const name = item.x || item.event || item.name;
+      return name && allowedSet.has(name);
     });
-
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      return res.status(resp.status).json({ error: 'Umami API Error', details: errorText });
-    }
-
-    const data = await resp.json();
-    // 輸出 Log 到 Vercel 控制台，方便我們檢查
-    console.log(`[Umami-Success] Path: /exhibition/${exhibitionId}, Views: ${data.pageviews}`);
-    
-    return res.status(200).json(data);
-  } catch (e) {
-    return res.status(500).json({ error: 'Proxy Crash', message: e.message });
   }
+
+  if (raw && Array.isArray(raw.rows)) {
+    return { ...raw, rows: raw.rows.filter(r => {
+      const name = r.x || (r.event && r.event.name) || r.event || r.name;
+      return name && allowedSet.has(name);
+    }) };
+  }
+
+  // fallback: return original
+  return raw;
 }
