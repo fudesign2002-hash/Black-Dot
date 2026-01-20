@@ -152,13 +152,7 @@ function MuseumApp({
 
   const lightingUpdateTimeoutRef = useRef<number | null>(null);
 
-  const [onlineUsersPerZone, setOnlineUsersPerZone] = useState<Record<string, number>>({});
   const [onlineUsersPerExhibit, setOnlineUsersPerExhibit] = useState<Record<string, number>>({});
-  // Presence tracking refs
-  const presenceHeartbeatRef = useRef<number | null>(null);
-  const presenceUnsubRef = useRef<(() => void) | null>(null);
-  const presenceDocUidRef = useRef<string | null>(null);
-  const [zoneCapacity, setZoneCapacity] = useState(100);
 
   const cameraControlRef = useRef<{ 
     moveCameraToArtwork: (artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => void;
@@ -597,91 +591,6 @@ function MuseumApp({
 
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
-
-  // Real-time online users per zone via Firestore presence heartbeat
-  useEffect(() => {
-    // Cleanup previous listeners/intervals
-    if (presenceHeartbeatRef.current !== null) {
-      window.clearInterval(presenceHeartbeatRef.current);
-      presenceHeartbeatRef.current = null;
-    }
-    if (presenceUnsubRef.current) {
-      try { presenceUnsubRef.current(); } catch (e) {}
-      presenceUnsubRef.current = null;
-    }
-
-    if (activeZone && activeZone.id) {
-      // Use exhibition's exhibit_capacity instead of zone's zone_capacity
-      const capacity = activeExhibition?.exhibit_capacity || 100;
-      setZoneCapacity(capacity);
-
-      // Resolve a stable uid for presence (signed-in uid or local anonymous id)
-      let uid = user?.uid || null;
-      if (!uid) {
-        try {
-          const existing = window.localStorage.getItem('anonPresenceUid');
-          if (existing) {
-            uid = existing;
-          } else {
-            uid = `anon_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-            window.localStorage.setItem('anonPresenceUid', uid);
-          }
-        } catch (e) {
-          uid = `anon_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-        }
-      }
-      presenceDocUidRef.current = uid;
-
-      // Presence doc per user: stores current zone and lastSeenMs
-      const docRef = db.collection('presence').doc(uid);
-      const updatePresence = async () => {
-        try {
-          await docRef.set({
-            uid,
-            zoneId: activeZone.id,
-            lastSeenMs: Date.now(),
-          }, { merge: true });
-        } catch (err) { /* silent */ }
-      };
-      // Initial write and start heartbeat (every 15s)
-      void updatePresence();
-      presenceHeartbeatRef.current = window.setInterval(updatePresence, 15000);
-
-      // Subscribe to recent presence in this zone (last 30s)
-      try {
-        presenceUnsubRef.current = db
-          .collection('presence')
-          .where('zoneId', '==', activeZone.id)
-          .onSnapshot((snap) => {
-            const nowMs = Date.now();
-            let count = 0;
-            snap.forEach(doc => {
-              const d = doc.data() as any;
-              if (typeof d.lastSeenMs === 'number' && (nowMs - d.lastSeenMs) <= 30000) {
-                count += 1;
-              }
-            });
-            setOnlineUsersPerZone(prev => ({ ...prev, [activeZone.id]: count }));
-          }, () => {
-            // On error, don't crash UI; keep previous count
-          });
-      } catch (e) {
-        // Fallback: keep previous count
-      }
-    }
-
-    // Cleanup on zone change/unmount
-    return () => {
-      if (presenceHeartbeatRef.current !== null) {
-        window.clearInterval(presenceHeartbeatRef.current);
-        presenceHeartbeatRef.current = null;
-      }
-      if (presenceUnsubRef.current) {
-        try { presenceUnsubRef.current(); } catch (e) {}
-        presenceUnsubRef.current = null;
-      }
-    };
-  }, [activeZone?.id, user?.uid]);
 
   // Pusher instance and subscription refs
   const pusherRef = useRef<Pusher | null>(null);
@@ -1826,9 +1735,8 @@ function MuseumApp({
 
   const hasMotionArtwork = useMemo(() => currentLayout.some(art => art.isMotionVideo), [currentLayout]);
 
-  const currentActiveZoneOnlineUsers = useMemo(() => {
-    return activeZone && activeZone.id ? (onlineUsersPerZone[activeZone.id] ?? 0) : 0;
-  }, [activeZone, onlineUsersPerZone]);
+  const [testOnlineCount, setTestOnlineCount] = useState<number | null>(null); // NEW: State for testing threshold level
+  const effectiveOnlineCount = testOnlineCount !== null ? testOnlineCount : currentExhibitOnlineUsers;
 
   // NEW: Calculate threshold level based on capacity percentage
   const getThresholdLevel = (percentage: number): number => {
@@ -1842,9 +1750,10 @@ function MuseumApp({
   };
 
   const currentThresholdLevel = useMemo(() => {
-    const capacityPercentage = (currentActiveZoneOnlineUsers / zoneCapacity) * 100;
+    const capacity = activeExhibition?.exhibit_capacity || 100;
+    const capacityPercentage = (effectiveOnlineCount / capacity) * 100;
     return getThresholdLevel(capacityPercentage);
-  }, [currentActiveZoneOnlineUsers, zoneCapacity]);
+  }, [effectiveOnlineCount, activeExhibition?.exhibit_capacity]);
 
   // NEW: Show celebration gif when reaching max threshold
   useEffect(() => {
@@ -1863,12 +1772,6 @@ function MuseumApp({
       return () => clearTimeout(timer);
     }
   }, [showCelebration]);
-
-  const handleSetOnlineUsersForActiveZone = useCallback((newCount: number) => {
-    if (activeZone && activeZone.id) {
-      setOnlineUsersPerZone(prev => ({ ...prev, [activeZone.id]: newCount }));
-    }
-  }, [activeZone]);
 
   const handleToggleSnapshot = useCallback((enabled: boolean) => { // NEW: Callback for toggling snapshots
     setIsSnapshotEnabledGlobally(enabled);
@@ -1995,11 +1898,12 @@ function MuseumApp({
         onlineUsers={currentExhibitOnlineUsers}
         hideUserCount={hideUserCount}
         hideLogo={hideLogo}
-        zoneCapacity={zoneCapacity}
+        zoneCapacity={activeExhibition?.exhibit_capacity || 100}
         isEmbed={!!embedMode}
         useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
         activeExhibition={activeExhibition}
         showCelebration={showCelebration}
+        testOnlineCount={testOnlineCount}
       />
 
       {!hideExhibitInfo && (
@@ -2204,13 +2108,13 @@ function MuseumApp({
         isEditorMode={isEditorMode}
         activeEditorTab={activeEditorTab}
         selectedArtworkTitle={selectedArtworkTitle}
-        onlineUsers={currentExhibitOnlineUsers}
-        setOnlineUsers={handleSetOnlineUsersForActiveZone}
+        onlineUsers={effectiveOnlineCount}
+        setOnlineUsers={setTestOnlineCount}
         isDebugMode={isDebugMode}
         setIsDebugMode={setIsDebugMode}
         isSnapshotEnabled={isSnapshotEnabledGlobally} // NEW: Pass isSnapshotEnabledGlobally
         onToggleSnapshot={handleToggleSnapshot} // NEW: Pass handleToggleSnapshot
-        zoneCapacity={zoneCapacity}
+        zoneCapacity={activeExhibition?.exhibit_capacity || 100}
         effectRegistryError={effectRegistryError} // NEW: Pass effect registry error
       />
       

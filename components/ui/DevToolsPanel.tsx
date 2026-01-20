@@ -21,7 +21,7 @@ interface DevToolsPanelProps {
   activeEditorTab: 'lighting' | 'scene' | 'layout' | 'artworks' | 'admin';
   selectedArtworkTitle: string;
   onlineUsers: number;
-  setOnlineUsers: (users: number) => void;
+  setOnlineUsers: (users: number | null) => void;
   zoneCapacity: number;
   isDebugMode: boolean; // NEW: Add isDebugMode prop
   setIsDebugMode: (debug: boolean) => void; // NEW: Add setIsDebugMode prop
@@ -105,8 +105,6 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
 
 
   if (!isOpen) return null;
-
-  const onlineUserOptions = [20, 50, 100, 150, 200, 250, 400, 500, 800, 1000, 1600, 2500, 3000, 5000];
 
   return (
     <div 
@@ -196,26 +194,19 @@ const DevToolsPanel: React.FC<DevToolsPanelProps> = React.memo(({
                 <span className={`${uiConfig.text} font-bold`}>{onlineUsers} / {zoneCapacity}</span>
               </div>
               <div className="flex justify-between items-center">
-                <label htmlFor="online-users-select" className={`${uiConfig.subtext}`}>Set for test:</label>
+                <label className={`${uiConfig.subtext}`}>Set for test:</label>
                 <div className="flex gap-1 flex-wrap justify-end max-w-[150px]">
-                  <select
-                    id="online-users-select"
-                    value={onlineUserOptions.includes(onlineUsers) ? onlineUsers : ''}
-                    onChange={(e) => setOnlineUsers(Number(e.target.value))}
-                    className={`px-1 py-0.5 rounded-md text-[10px] ${uiConfig.input} w-full mb-1`}
+                  <button
+                    onClick={() => setOnlineUsers(null)}
+                    className={`px-1.5 py-0.5 rounded border text-[10px] ${uiConfig.border} ${uiConfig.text} hover:bg-black/5`}
                   >
-                    <option value="" disabled>Custom: {onlineUsers}</option>
-                    {onlineUserOptions.map(option => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                    Reset
+                  </button>
                   {[401, 801, 1601, 3001].map(num => (
                     <button
                       key={num}
                       onClick={() => setOnlineUsers(num)}
-                      className={`px-1.5 py-0.5 rounded border ${onlineUsers === num ? 'bg-cyan-500 text-white border-cyan-500' : `${uiConfig.border} ${uiConfig.text} hover:bg-black/5`}`}
+                      className={`px-1.5 py-0.5 rounded border text-[10px] ${onlineUsers === num ? 'bg-cyan-500 text-white border-cyan-500' : `${uiConfig.border} ${uiConfig.text} hover:bg-black/5`}`}
                     >
                       {num}
                     </button>

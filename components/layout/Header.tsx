@@ -18,16 +18,17 @@ interface HeaderProps {
   useExhibitionBackground?: boolean;
   activeExhibition?: any;
   showCelebration?: boolean; // NEW: Add showCelebration prop
+  testOnlineCount?: number | null; // NEW: Add testOnlineCount prop
 }
 
-const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, hideUserCount, hideLogo, zoneCapacity, isEmbed = false, useExhibitionBackground = false, activeExhibition = null, showCelebration = false }) => {
+const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, hideUserCount, hideLogo, zoneCapacity, isEmbed = false, useExhibitionBackground = false, activeExhibition = null, showCelebration = false, testOnlineCount = null }) => {
   const treatAsCompact = isSmallScreen || isEmbed;
   const handleLogoClick = () => {
     setIsHeaderExpanded(!isHeaderExpanded);
   };
 
   // Non-animated counters: use values directly
-  const displayOnlineUsers = onlineUsers;
+  const displayOnlineUsers = testOnlineCount !== null ? testOnlineCount : onlineUsers;
   const displayZoneCapacity = zoneCapacity;
 
   const capacityPercentage = (displayOnlineUsers / displayZoneCapacity) * 100;
@@ -197,33 +198,31 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
         </div>
       )}
         
-      {/* Online Users Display - Desktop: bottom right | Mobile: hidden */}
-      {/* Celebration gif for Desktop: fixed above counter */}
-      {showCelebration && !treatAsCompact && (
-        <div
-          style={{
-            position: 'fixed',
-            width: '75px',
-            height: '75px',
-            bottom: '50px',
-            right: '40px',
-            pointerEvents: 'none',
-            zIndex: 999,
-          }}
-        >
-          <img
-            src="/9ca21edc-3316-4352-8634-01d19941c646.gif"
-            alt="celebration"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-            }}
-          />
-        </div>
-      )}
       {!hideUserCount && !treatAsCompact && (
         <div className="fixed bottom-10 right-10 z-40 select-none" style={headerColorStyle}>
+          {/* Celebration gif for Desktop: fixed above counter */}
+          {showCelebration && (
+            <div
+              style={{
+                position: 'absolute',
+                width: '75px',
+                height: '75px',
+                bottom: '40px',
+                right: '0px',
+                pointerEvents: 'none',
+              }}
+            >
+              <img
+                src="/9ca21edc-3316-4352-8634-01d19941c646.gif"
+                alt="celebration"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+          )}
           <div className="relative flex items-center gap-4 leading-none">
             <div className="relative">
               <Users 
