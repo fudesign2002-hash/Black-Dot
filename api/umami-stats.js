@@ -73,14 +73,26 @@ export default async function handler(req, res) {
     startAt = endAt - 7 * 24 * 60 * 60 * 1000; 
   }
 
-  const baseParams = new URLSearchParams();
-  baseParams.set('startAt', String(startAt));
-  baseParams.set('endAt', String(endAt));
-  baseParams.set('timezone', timezone || 'UTC');
+  const params = new URLSearchParams();
+  params.set('timezone', timezone || 'UTC');
+
+  // 1. 核心過濾邏輯：根據證實，路徑必須是精確的相對路徑
+  if (exhibitionId) {
+    const filterPath = `/exhibition/${exhibitionId.trim()}`;
+    params.set('url', filterPath);
+    console.log(`[Umami-Proxy] Requesting Path: ${filterPath}`);
+  }
+
+  // 2. 修正時間戳 (避免數據歸零)
+  // 確保 startAt 與 endAt 是數值格式，且範圍足夠覆蓋數據產生的時間
+  const now = Date.now();
+  const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+  params.set('startAt', String(startAt || twentyFourHoursAgo));
+  params.set('endAt', String(endAt || now));
 
   // For type=metrics, query param 'metric' should be passed through automatically
   if (req.query.metric) {
-    baseParams.set('type', req.query.metric);
+    params.set('type', req.query.metric);
   }
 
   // Choose the correct endpointPath based on type
@@ -89,70 +101,38 @@ export default async function handler(req, res) {
     endpointPath = 'metrics';
   } else if (type === 'pageviews' || type === 'series') {
     endpointPath = 'pageviews';
-    if (groupBy) baseParams.set('unit', groupBy);
+    if (groupBy) params.set('unit', groupBy);
   }
 
   const baseUrl = UMAMI_API_CLIENT_ENDPOINT.replace(/\/$/, '');
-  const headers = { 'Content-Type': 'application/json', 'x-umami-api-key': UMAMI_API_KEY };
-
-  let json = null;
-  let finalTargetUrl = '';
-
+  
+  // 3. 執行請求與錯誤處理 (解決 500 Internal Server Error)
   try {
-    if (exhibitionId) {
-      const cleanId = exhibitionId.trim();
-      // 路徑三選一測試邏輯
-      const formats = [
-        `/exhibition/${cleanId}`,                     // 格式 A: 相對路徑
-        `app.kurodot.io/exhibition/${cleanId}`,        // 格式 B: 帶網域名稱
-        `http://app.kurodot.io/exhibition/${cleanId}`  // 格式 C: 全網址
-      ];
+    const targetUrl = `${baseUrl}/websites/${siteId}/${endpointPath}?${params.toString()}`;
+    console.log('[Umami-API] Fetching from:', targetUrl);
 
-      console.log(`🧪 [Umami-Path-Test] Starting multi-format test for ID: ${cleanId}`);
+    const resp = await fetch(targetUrl, { 
+      headers: { 'x-umami-api-key': UMAMI_API_KEY } 
+    });
 
-      for (const format of formats) {
-        const testParams = new URLSearchParams(baseParams);
-        testParams.set('url', format);
-        const testUrl = `${baseUrl}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${testParams.toString()}`;
-        
-        const resp = await fetch(testUrl, { headers });
-        if (resp.ok) {
-          const result = await resp.json();
-          // 提取數值判定 (處理 stats 物件或 metrics 陣列)
-          const val = result.pageviews ? Number(result.pageviews.value || 0) : (Array.isArray(result) ? result.reduce((a, b) => a + (b.y || 0), 0) : 0);
-          
-          console.log(`   - Trying format [${format}]: ${val} Views`);
-          
-          // 成功標準：找到能回傳數字（非 0）且非全站總數的格式
-          if (val > 0 && val < 200) { // 假設全站目前是 270+，過濾後應低於 200
-            console.log(`✅ [Umami-Path-Test] SUCCESS! Found correct format: "${format}"`);
-            json = result;
-            finalTargetUrl = testUrl;
-            break;
-          }
-          // 暫存最後一個嘗試，以防萬一都沒抓到
-          json = result;
-          finalTargetUrl = testUrl;
-        }
-      }
-    } else {
-      // 無過濾條件的普通請求
-      finalTargetUrl = `${baseUrl}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${baseParams.toString()}`;
-      const resp = await fetch(finalTargetUrl, { headers });
-      if (resp.ok) json = await resp.json();
+    if (!resp.ok) {
+        const errorDetail = await resp.text();
+        console.error('[Umami-API-Error]', errorDetail);
+        return res.status(resp.status).json({ error: 'Umami API Rejected', details: errorDetail });
     }
 
-    if (!json) return sendJSON(res, 500, { error: 'Failed to fetch from Umami' });
-
-    // 自檢日誌
-    if (type === 'stats' && exhibitionId) {
-      const finalVal = json.pageviews?.value || 0;
-      console.log(`📊 [Umami-API-Result] Final Pageviews for ${exhibitionId}: ${finalVal}`);
+    const data = await resp.json();
+    
+    // 最終驗證輸出
+    if (type === 'stats') {
+        const views = data.pageviews?.value || 0;
+        console.log(`[Umami-Success] Path: ${exhibitionId}, Views: ${views}`);
     }
-
-    return sendJSON(res, 200, json);
+    
+    return res.status(200).json(data);
   } catch (e) {
-    return sendJSON(res, 500, { error: e.message });
+    console.error('[Umami-Proxy-Crash]', e);
+    return res.status(500).json({ error: 'Proxy Crash', message: e.message });
   }
 }
 }
