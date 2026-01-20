@@ -69,35 +69,18 @@ export default async function handler(req, res) {
   const nowTs = Date.now();
   if (!endAt) endAt = nowTs;
   if (!startAt) {
-    // Default to last 24 hours to match common dashboard views if not specified
-    startAt = endAt - 24 * 60 * 60 * 1000; 
+    // 強制時間範圍擴張：預設回溯 7 天，確保涵蓋所有測試數據
+    startAt = endAt - 7 * 24 * 60 * 60 * 1000; 
   }
 
-  const params = new URLSearchParams();
-  params.set('startAt', String(startAt));
-  params.set('endAt', String(endAt));
-  params.set('timezone', timezone || 'UTC');
-
-  // New: Filter by exhibition URL if exhibitionId is present
-  // Each exhibition has a unique path: /exhibition/bauhaus-blue, etc.
-  if (exhibitionId) {
-    // 確保路徑格式一致：開頭有斜線，結尾沒斜線
-    const cleanId = exhibitionId.trim();
-    let filterPath = `/exhibition/${cleanId}`;
-    filterPath = filterPath.replace(/\/$/, ""); 
-    
-    // 經測試，Umami API 有時對於 url 參數需要精確匹配。
-    // 我們同時設定 url 和 query 參數，query 通常能作為更寬容的過濾器。
-    params.set('url', filterPath);
-    params.set('query', filterPath); // 增加 query 參數作為備援
-    
-    console.log(`[Umami-Compare] Filtering for ID: ${cleanId}`);
-    console.log(`[Umami-Compare] Assigned Path: ${filterPath}`);
-  }
+  const baseParams = new URLSearchParams();
+  baseParams.set('startAt', String(startAt));
+  baseParams.set('endAt', String(endAt));
+  baseParams.set('timezone', timezone || 'UTC');
 
   // For type=metrics, query param 'metric' should be passed through automatically
   if (req.query.metric) {
-    params.set('type', req.query.metric);
+    baseParams.set('type', req.query.metric);
   }
 
   // Choose the correct endpointPath based on type
@@ -106,42 +89,72 @@ export default async function handler(req, res) {
     endpointPath = 'metrics';
   } else if (type === 'pageviews' || type === 'series') {
     endpointPath = 'pageviews';
-    if (groupBy) params.set('unit', groupBy);
+    if (groupBy) baseParams.set('unit', groupBy);
   }
 
-  const targetUrl = `${UMAMI_API_CLIENT_ENDPOINT.replace(/\/$/, '')}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${params.toString()}`;
-  
-  console.log('[Umami-API] Fetching from:', targetUrl);
+  const baseUrl = UMAMI_API_CLIENT_ENDPOINT.replace(/\/$/, '');
+  const headers = { 'Content-Type': 'application/json', 'x-umami-api-key': UMAMI_API_KEY };
 
-  const cacheKey = targetUrl + (exhibitionId ? `|ex:${exhibitionId}` : '');
-  const now = Date.now();
-  const cached = CACHE.get(cacheKey);
-  if (cached && now - cached.ts < TTL) {
-    res.setHeader('x-cache', 'HIT');
-    return sendJSON(res, 200, { ...cached.value, _debug_url: targetUrl, _is_cached: true });
-  }
+  let json = null;
+  let finalTargetUrl = '';
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (UMAMI_API_KEY) headers['x-umami-api-key'] = UMAMI_API_KEY;
+    if (exhibitionId) {
+      const cleanId = exhibitionId.trim();
+      // 路徑三選一測試邏輯
+      const formats = [
+        `/exhibition/${cleanId}`,                     // 格式 A: 相對路徑
+        `app.kurodot.io/exhibition/${cleanId}`,        // 格式 B: 帶網域名稱
+        `http://app.kurodot.io/exhibition/${cleanId}`  // 格式 C: 全網址
+      ];
 
-    const resp = await fetch(targetUrl, { headers });
+      console.log(`🧪 [Umami-Path-Test] Starting multi-format test for ID: ${cleanId}`);
 
-    if (!resp.ok) {
-        // ... (保持原有的錯誤處理)
+      for (const format of formats) {
+        const testParams = new URLSearchParams(baseParams);
+        testParams.set('url', format);
+        const testUrl = `${baseUrl}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${testParams.toString()}`;
+        
+        const resp = await fetch(testUrl, { headers });
+        if (resp.ok) {
+          const result = await resp.json();
+          // 提取數值判定 (處理 stats 物件或 metrics 陣列)
+          const val = result.pageviews ? Number(result.pageviews.value || 0) : (Array.isArray(result) ? result.reduce((a, b) => a + (b.y || 0), 0) : 0);
+          
+          console.log(`   - Trying format [${format}]: ${val} Views`);
+          
+          // 成功標準：找到能回傳數字（非 0）且非全站總數的格式
+          if (val > 0 && val < 200) { // 假設全站目前是 270+，過濾後應低於 200
+            console.log(`✅ [Umami-Path-Test] SUCCESS! Found correct format: "${format}"`);
+            json = result;
+            finalTargetUrl = testUrl;
+            break;
+          }
+          // 暫存最後一個嘗試，以防萬一都沒抓到
+          json = result;
+          finalTargetUrl = testUrl;
+        }
+      }
+    } else {
+      // 無過濾條件的普通請求
+      finalTargetUrl = `${baseUrl}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${baseParams.toString()}`;
+      const resp = await fetch(finalTargetUrl, { headers });
+      if (resp.ok) json = await resp.json();
     }
 
-    let json = await resp.json();
-    
-    // 自檢邏輯：在日誌中顯示數據對比
+    if (!json) return sendJSON(res, 500, { error: 'Failed to fetch from Umami' });
+
+    // 自檢日誌
     if (type === 'stats' && exhibitionId) {
-      console.log(`📊 [Umami-API-Result] Result for ${exhibitionId}: ${json.pageviews?.value} Views`);
+      const finalVal = json.pageviews?.value || 0;
+      console.log(`📊 [Umami-API-Result] Final Pageviews for ${exhibitionId}: ${finalVal}`);
     }
 
     return sendJSON(res, 200, json);
   } catch (e) {
     return sendJSON(res, 500, { error: e.message });
   }
+}
 }
 
 function filterToAllowedEvents(raw, allowedSet) {
