@@ -3,7 +3,7 @@
 // Deploy this under `api/umami-stats.js` (Vercel/Netlify-style).
 
 const CACHE = new Map();
-const TTL = 30 * 1000; // 30s cache
+const TTL = 0; // 暫時設為 0，避免抓到舊的全站數據
 
 function sendJSON(res, status, body) {
   res.statusCode = status || 200;
@@ -81,7 +81,10 @@ export default async function handler(req, res) {
   // New: Filter by exhibition URL if exhibitionId is present
   // Each exhibition has a unique path: /exhibition/bauhaus-blue, etc.
   if (exhibitionId) {
-    const filterPath = `/exhibition/${exhibitionId.trim()}`;
+    // 確保路徑格式一致：開頭有斜線，結尾沒斜線
+    let filterPath = `/exhibition/${exhibitionId.trim()}`;
+    filterPath = filterPath.replace(/\/$/, ""); 
+    
     params.set('url', filterPath);
     console.log('[Umami-Compare] DB Expected Path:', filterPath);
     console.log(`[umami-proxy] Filtering by URL: ${filterPath}`);
