@@ -91,10 +91,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
       const now = Date.now();
       const startTimestamp = now - timeRangeMs;
-      // Remove exhibitionId from fetch params for now to avoid filtering issues while keeping it in tracking
-      const commonParams = `&start=${startTimestamp}&end=${now}&_t=${now}`;
+      // Re-enable exhibitionId filtering
+      const commonParams = `&exhibitionId=${exhibitionId}&start=${startTimestamp}&end=${now}&_t=${now}`;
 
-      console.log('[Umami-In] Requesting Global Stats (Filter disabled)');
+      console.log(`[Umami-In] Requesting filtered stats for: ${exhibitionId}`);
 
       try {
         // Fetch summary stats

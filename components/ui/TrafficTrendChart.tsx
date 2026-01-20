@@ -42,8 +42,8 @@ const TrafficTrendChart: React.FC<Props> = ({ exhibitionId, uiConfig }) => {
         if (granularity === 'weekly') start = now - (28 * 24 * 60 * 60 * 1000); // 4 Weeks
         if (granularity === 'monthly') start = now - (365 * 24 * 60 * 60 * 1000); // 12 Months
 
-        // 先移除 exhibitionId 過濾，只抓取網站總量數據
-        const qs = `?type=series&groupBy=${unit}&start=${start}&end=${now}`;
+        // Re-enable exhibitionId filtering
+        const qs = `?type=series&exhibitionId=${exhibitionId}&groupBy=${unit}&start=${start}&end=${now}`;
         const res = await fetchUmamiProxy(qs);
         
         if (!res.ok) throw new Error('Fetch failed');
