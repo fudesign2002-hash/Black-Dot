@@ -8,10 +8,17 @@ interface Props {
   className?: string;
 }
 
-export default function BlackDotLogo({ treatAsCompact = false, logoRotationStyle = 'rotate(0deg)', onClick, ariaLabel = 'Black Dot logo', className = '' }: Props) {
+export default function BlackDotLogo({ treatAsCompact = false, logoRotationStyle = 'none', onClick, ariaLabel = 'Black Dot logo', className = '' }: Props) {
+  const size = treatAsCompact ? 24 : 40;
   const classes = `stroke-current transition-transform duration-500 ease-out shrink-0 pointer-events-auto cursor-pointer ${className}`;
+  
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none"
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width={size} 
+      height={size} 
+      viewBox="0 0 40 40" 
+      fill="none"
       className={classes}
       style={{ transform: logoRotationStyle }}
       onClick={onClick}

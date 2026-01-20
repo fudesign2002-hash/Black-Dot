@@ -4,7 +4,6 @@ import { db } from './firebase';
 import firebase from 'firebase/compat/app';
 import { auth } from './firebase';
 import Pusher from 'pusher-js';
-import { trackVisit, recordAnalytics } from './services/museumService';
 
 import Scene from './components/scene/Scene';
 import Header from './components/layout/Header';
@@ -243,7 +242,6 @@ function MuseumApp({
       if (w.umami) {
         // PRE-WARM: Ensure path starts with leading slash and is absolutely matched to DB expectation
         const virtualPath = `/exhibition/${exhibitionId}`;
-        console.log(`[Umami-Out] Pre-warming Tracking Payload: ${virtualPath}`);
         try {
           // Use the recommended v2 collection method for SPAs with manual tracking
           w.umami.track((props: any) => ({
@@ -251,7 +249,6 @@ function MuseumApp({
             url: virtualPath,
             title: activeExhibition?.title || 'Exhibition',
           }));
-          console.log('[analytics] exhibition pageview sent successfully:', virtualPath);
         } catch (err) {
           console.error('[analytics] tracking error:', err);
         }
@@ -734,9 +731,6 @@ function MuseumApp({
     channel.bind('pusher:subscription_succeeded', (members: any) => {
       const count = members.count;
 
-      // NEW: Log visit to Firestore for analytics (counts, devices, browsers, resolutions)
-      trackVisit(exhibitId);
-
       // Start session timer for duration tracking
       sessionStartRef.current = Date.now();
 
@@ -763,27 +757,12 @@ function MuseumApp({
       }));
     });
 
-    // Session end handler: calculate duration and update analytics
+    // Session end handler
     const endSession = async () => {
       try {
         if (!sessionStartRef.current) return;
-        const durationSec = Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000));
+        // Logic for duration tracking can be handled by Umami if needed
         sessionStartRef.current = null;
-
-        const today = new Date();
-        const dateStr = today.toISOString().split('T')[0];
-        const monthStr = dateStr.substring(0, 7);
-
-        const analyticsRef = db.collection('exhibitions').doc(exhibitId).collection('analytics');
-        await analyticsRef.doc(`day_${dateStr}`).set({
-          totalSessionSeconds: firebase.firestore.FieldValue.increment(durationSec),
-          sessionCount: firebase.firestore.FieldValue.increment(1)
-        }, { merge: true });
-
-        await analyticsRef.doc(`month_${monthStr}`).set({
-          totalSessionSeconds: firebase.firestore.FieldValue.increment(durationSec),
-          sessionCount: firebase.firestore.FieldValue.increment(1)
-        }, { merge: true });
       } catch (err) {
         console.error('Error ending session:', err);
       }

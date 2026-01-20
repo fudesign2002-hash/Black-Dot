@@ -470,7 +470,7 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl box-border overflow-hidden">
             <div className="flex flex-col items-center gap-4">
               {/* Logo box */}
-              <div className="w-20 h-20 rounded-lg flex items-center justify-center bg-white">
+              <div className="w-20 h-20 flex items-center justify-center">
                 <BlackDotLogo treatAsCompact={false} logoRotationStyle="none" onClick={() => {}} ariaLabel="Black Dot logo" />
               </div>
 

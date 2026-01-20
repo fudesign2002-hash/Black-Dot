@@ -42,8 +42,8 @@ const pusher = new Pusher({
 });
 
 // Umami Configuration
-const UMAMI_API_KEY = process.env.UMAMI_API_KEY || process.env.UMAMI_API_TOKEN;
-const UMAMI_API_ENDPOINT = process.env.UMAMI_API_CLIENT_ENDPOINT || process.env.UMAMI_BASE_URL || 'https://api.umami.is/v1';
+const UMAMI_API_KEY = (process.env.UMAMI_API_KEY || process.env.UMAMI_API_TOKEN || '').trim();
+const UMAMI_API_ENDPOINT = (process.env.UMAMI_API_CLIENT_ENDPOINT || process.env.UMAMI_BASE_URL || 'https://api.umami.is/v1').trim();
 
 app.post('/pusher/auth', (req, res) => {
   console.log('[pusher-auth] Request body:', req.body);
@@ -88,9 +88,20 @@ app.get('/api/umami-stats', async (req, res) => {
 
   // Helper to fetch from Umami
   const fetchUmami = async (path, queryParams) => {
-    const url = `${baseUrl}/websites/${encodeURIComponent(siteId)}/${path}?${queryParams.toString()}`;
-    const resp = await fetch(url, { headers });
-    return resp.ok ? resp.json() : null;
+    // Sanitize values to ensure no non-ASCII characters reach fetch headers or URL
+    const safeApiKey = UMAMI_API_KEY.replace(/[^\x00-\x7F]/g, '');
+    const safeBaseUrl = baseUrl.replace(/[^\x00-\x7F]/g, '');
+    const cleanHeaders = { 'Accept': 'application/json', 'x-umami-api-key': safeApiKey };
+    
+    const url = `${safeBaseUrl}/websites/${encodeURIComponent(siteId)}/${path}?${queryParams.toString()}`;
+    
+    try {
+      const resp = await fetch(url, { headers: cleanHeaders });
+      return resp.ok ? resp.json() : null;
+    } catch (fetchErr) {
+      console.error(`[Umami Proxy] Fetch execution error:`, fetchErr.message);
+      return null;
+    }
   };
 
   try {

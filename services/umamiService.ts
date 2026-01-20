@@ -2,7 +2,6 @@ let currentUmamiPath = window.location.pathname;
 
 export const setUmamiPath = (path: string) => {
   currentUmamiPath = path;
-  console.debug('[umami] path updated to:', path);
   
   // NEW: Sync the browser's address bar with the virtual path.
   // This helps Umami's automatic tracker and other events stay on the correct context.
@@ -26,8 +25,6 @@ export const trackUmamiEvent = (eventName: string, props?: Record<string, any>) 
     const cleanPath = currentUmamiPath.trim();
     const eventData = props || {};
     
-    console.log('[Umami-Out] Tracking Event:', eventName, 'Path:', cleanPath);
-
     // Standard Cloud/v2 API using the callback pattern to override URL (Matches ReqBin behavior)
     if (typeof w.umami.track === 'function') {
       try { 

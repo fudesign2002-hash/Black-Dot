@@ -135,9 +135,11 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
                       <p className="text-[0.5rem] tracking-[0.4em] uppercase font-bold font-sans mb-0.5" style={{ color: '#94a3b8' }}>
                         Powered By
                       </p>
-                      <h1 className="text-[1.2rem] font-normal font-sans tracking-[-0.05em] leading-none m-0" style={{ color: headerColorValue || '#000000' }}>
-                        kurodot<span style={{ color: '#9ca3af' }}>.io</span>
-                      </h1>
+                      <a href="https://www.kurodot.io" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+                        <h1 className="text-[1.2rem] font-normal font-sans tracking-[-0.05em] leading-none m-0" style={{ color: headerColorValue || '#000000' }}>
+                          kurodot<span style={{ color: '#9ca3af' }}>.io</span>
+                        </h1>
+                      </a>
                   </div>
                 </div>
               </div>

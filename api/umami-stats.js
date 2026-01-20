@@ -84,8 +84,6 @@ export default async function handler(req, res) {
     // REVERTED to match user's ReqBin test: Fetching from Umami Cloud requires 'path' parameter
     const filterPath = `/exhibition/${exhibitionId.trim()}`;
     params.set('path', filterPath);
-    
-    console.log('[Umami-API-Filter] Filtered by PATH:', filterPath);
   }
 
   // For type=metrics, query param 'metric' should be passed through automatically
@@ -103,8 +101,6 @@ export default async function handler(req, res) {
   }
 
   const targetUrl = `${UMAMI_API_CLIENT_ENDPOINT.replace(/\/$/, '')}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${params.toString()}`;
-  
-  console.log('[Umami-API] Fetching from:', targetUrl);
 
   const cacheKey = targetUrl + (exhibitionId ? `|ex:${exhibitionId}` : '');
   const now = Date.now();
@@ -121,7 +117,10 @@ export default async function handler(req, res) {
     const resp = await fetch(targetUrl, { headers });
 
     if (!resp.ok) {
-        // ... (保持原有的錯誤處理)
+      const text = await resp.text();
+      let details;
+      try { details = JSON.parse(text); } catch (e) { details = text; }
+      return sendJSON(res, resp.status || 500, { error: 'Umami API error', details });
     }
 
     let json = await resp.json();

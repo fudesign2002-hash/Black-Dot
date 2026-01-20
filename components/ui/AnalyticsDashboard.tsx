@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Chart from 'chart.js/auto';
-import { X, BarChart2, Users, MousePointer2, TrendingUp, Share2, ExternalLink, Activity, PieChart, Map as MapIcon, ArrowUpRight, ArrowDownRight, Calendar, MapPin, Clock, Ticket, Sparkles, Eye, Trophy, Orbit, ListOrdered, Sun, Image as ImageIcon, Monitor, Smartphone, Globe, Info } from 'lucide-react';
+import { X, BarChart2, Users, MousePointer2, TrendingUp, Copy, Check, ExternalLink, Activity, PieChart, Map as MapIcon, ArrowUpRight, ArrowDownRight, Calendar, MapPin, Clock, Ticket, Sparkles, Eye, Trophy, Orbit, ListOrdered, Sun, Image as ImageIcon, Monitor, Smartphone, Globe, Info } from 'lucide-react';
 import { Exhibition, ExhibitionArtItem, FirebaseArtwork } from '../../types'; // NEW: Import types
 import BlackDotLogo from './BlackDotLogo'; // NEW: Import Logo
 import TrafficTrendChart from './TrafficTrendChart';
@@ -68,6 +68,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   });
   
   const [umamiEvents, setUmamiEvents] = useState<any[] | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const exhibitionId = exhibition.id;
   const exhibitionTitle = exhibition.title || '';
@@ -84,11 +85,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       setTechStats({ devices: [], browsers: [], screens: [] });
       setLocationStats({ countries: [], regions: [], cities: [] });
 
-      console.group(`📊 [Analytics Dashboard] Loading data for: ${exhibitionTitle}`);
-      console.log(`- Exhibition ID: ${exhibitionId}`);
-      console.log(`- Filter Path: /exhibition/${exhibitionId}`);
-      console.log(`- Time Range: ${timeRange}`);
-
       const timeRangeMs = {
         '24H': 24 * 60 * 60 * 1000,
         '7D': 7 * 24 * 60 * 60 * 1000,
@@ -102,14 +98,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       // Re-enable exhibitionId filtering
       const commonParams = `&exhibitionId=${exhibitionId}&start=${startTimestamp}&end=${now}&_t=${now}`;
 
-      console.log(`[Umami-In] Requesting filtered stats for: ${exhibitionId}`);
-
       try {
         // Fetch summary stats
         const statsRes = await fetchUmamiProxy(`?type=stats${commonParams}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
-          console.log('✅ Received Stats:', stats);
           setUmamiStats(stats);
         }
 
@@ -133,8 +126,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           regionRes.ok ? regionRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
           cityRes.ok ? cityRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([])
         ]);
-
-        console.log('✅ Received Metrics:', { devices, browsers, screens, events, countries });
 
         setUmamiEvents(events);
         setLocationStats({ 
@@ -171,7 +162,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         console.error('[Analytics] Failed to fetch Umami data:', err);
       } finally {
         setIsLoading(false);
-        console.groupEnd();
       }
     };
 
@@ -262,7 +252,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const handleShare = () => {
     const shareUrl = `${window.location.origin}/analytics/${exhibitionId}`;
     navigator.clipboard.writeText(shareUrl);
-    alert('Dashboard link copied to clipboard!');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
  
 
@@ -291,7 +282,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         {/* Header - Compact */}
         <div className={`px-6 py-4 border-b ${border} flex flex-col md:flex-row md:items-center justify-between gap-3 sticky top-0 z-20 ${lightsOn ? 'bg-[#fcfcfc]/90' : 'bg-[#121212]/90'} backdrop-blur-md`}>
           <div className="flex items-center gap-5">
-            <div className={`w-10 h-10 rounded-full border ${border} flex items-center justify-center p-2`}>
+            <div className="w-10 h-10 flex items-center justify-center">
               <BlackDotLogo treatAsCompact={true} className={`${text}`} />
             </div>
             <div className="space-y-0.5">
@@ -317,9 +308,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <button 
                 onClick={handleShare}
                 className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
-                title="Share link"
+                title={copied ? "Copied!" : "Copy link"}
               >
-                <Share2 size={14} strokeWidth={1.5} />
+                {copied ? <Check size={14} strokeWidth={1.5} className="text-green-500" /> : <Copy size={14} strokeWidth={1.5} />}
               </button>
               {!standalone && (
                 <button 
@@ -824,8 +815,17 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       onClick={handleShare}
                       className="w-full py-2.5 bg-neutral-900 dark:bg-white dark:text-neutral-900 text-white rounded-lg flex items-center justify-center gap-2 group hover:bg-neutral-800 transition-all font-bold tracking-[0.2em] uppercase text-[8px]"
                     >
-                      <Share2 size={10} />
-                      Share Access
+                      {copied ? (
+                        <>
+                          <Check size={10} className="text-green-400" />
+                          Link Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={10} />
+                          Copy Link
+                        </>
+                      )}
                     </button>
                 </div>
               </div>
@@ -833,9 +833,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className="flex items-center gap-3 justify-center pt-4 pb-2 opacity-30">
               <BlackDotLogo treatAsCompact={true} className={`${text} w-4 h-4`} />
               <div className="h-2 w-px bg-neutral-500" />
-              <p className={`text-[8px] font-bold uppercase tracking-[0.4em] ${subtext}`}>
-                Kurodot.io Analytics
-              </p>
+              <a href="https://www.kurodot.io" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity">
+                <p className={`text-[8px] font-bold uppercase tracking-[0.4em] ${subtext}`}>
+                  Kurodot.io Analytics
+                </p>
+              </a>
             </div>
           </div>
         </div>
