@@ -17,9 +17,7 @@ interface CurrentExhibitionInfoProps {
 
 const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo(({ uiConfig, isLoading, activeExhibition, isInfoOpen, isSmallScreen, isCurrentExhibitionInfoHidden, onInfoOpen, useExhibitionBackground = false }) => {
     const handleInfoClick = () => {
-        if (activeExhibition?.id) {
-            trackUmamiEvent('Exhibit-Info', { exhibitionId: activeExhibition.id });
-        }
+        trackUmamiEvent('Exhibit-Info');
         onInfoOpen();
     };
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { trackUmamiEvent } from '../../services/umamiService';
-import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Cpu, ChevronLeft, ChevronRight, Users, Heart, Info, X, ChevronDown, Share2, ListOrdered, Orbit } from 'lucide-react'; // NEW: Import Orbit icon for Zero Gravity
+import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Cpu, ChevronLeft, ChevronRight, Users, Heart, Info, X, ChevronDown, Share2, ListOrdered, Orbit, ChartColumnIncreasing } from 'lucide-react'; // NEW: Import Orbit and ChartColumnIncreasing icon
 import { Exhibition } from '../../types';
 // REMOVED: import { EffectRegistry } from '../../effect_bundle'; // NEW: Import EffectRegistry
 
@@ -39,6 +39,7 @@ interface MainControlsProps {
   onZeroGravityToggle: () => void; // NEW: Add onZeroGravityToggle prop
   hideZeroGravityControl?: boolean; // NEW: Add hideZeroGravityControl prop
   isSignedIn?: boolean; // NEW: whether current user is signed in
+  onOpenDashboard?: () => void; // NEW: callback to open analytics dashboard
   isCameraAtDefaultPosition: boolean; // NEW: Add isCameraAtDefaultPosition prop
   isResetCameraEnable?: boolean; // NEW: Global reset-enable flag
   setHeartEmitterArtworkId: (id: string | null) => void;
@@ -85,6 +86,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   onZeroGravityToggle, // NEW: Destructure onZeroGravityToggle
   hideZeroGravityControl, // NEW: Destructure hideZeroGravityControl
   isSignedIn, // NEW: Destructure isSignedIn
+  onOpenDashboard, // NEW: Destructure onOpenDashboard
   isCameraAtDefaultPosition, // NEW: Destructure isCameraAtDefaultPosition
   isResetCameraEnable, // NEW: Destructure isResetCameraEnable
   isEmbed = false,
@@ -134,13 +136,14 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
   const hasRankingToggle = !isZeroGravityMode && !hideRankingControl; 
   const hasZeroGravityToggle = !isRankingMode && !hideZeroGravityControl; 
+  const hasDashboard = !!isSignedIn && !!onOpenDashboard; // NEW: check if dashboard button should show
   // MODIFIED: Keep small screen navigation visible in editor mode
   const hasSmallScreenNav = isSmallScreen && !isArtworkFocusedForControls && !isRankingMode && !isZeroGravityMode && !isEmbed; 
 
   // Calculate if there are any visible buttons on the left or right side of the divider
-  // MODIFIED: Reordered per user request: [Lights][Ranking][ZeroGravity] | [Editor][Reset][Nav]
+  // MODIFIED: Reordered per user request: [Lights][Ranking][ZeroGravity] | [Editor][Reset][Nav][Dashboard]
   const anyLeftButtonsVisible = hasLightsToggle || hasRankingToggle || hasZeroGravityToggle; 
-  const anyRightButtonsVisible = hasEditorModeToggle || hasDevToolsToggle || hasResetCamera || hasSmallScreenNav;
+  const anyRightButtonsVisible = hasEditorModeToggle || hasDevToolsToggle || hasResetCamera || hasSmallScreenNav || hasDashboard;
 
   const shouldShowDivider = anyLeftButtonsVisible && anyRightButtonsVisible;
 
@@ -187,8 +190,8 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                       e.stopPropagation();
                       setHeartEmitterArtworkId(null);
                       try {
-                        if (exhibitionId && focusedArtworkInstanceId) {
-                          trackUmamiEvent('Artwork-Info', { exhibitionId, artworkInstanceId: focusedArtworkInstanceId });
+                        if (focusedArtworkInstanceId) {
+                          trackUmamiEvent('Artwork-Info', { artworkInstanceId: focusedArtworkInstanceId });
                         }
                       } catch(e) {}
                       onInfoOpen();
@@ -330,6 +333,20 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                         </button>
                     )}
                 </React.Fragment>
+            )}
+
+            {isSignedIn && onOpenDashboard && (
+              <button
+                onClick={() => {
+                  setHeartEmitterArtworkId(null);
+                  onOpenDashboard();
+                }}
+                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`}
+                title="Open Analytics Dashboard"
+                aria-label="Open analytics dashboard"
+              >
+                <ChartColumnIncreasing className="w-4 h-4" />
+              </button>
             )}
         </div>
     </div>

@@ -37,7 +37,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   onlineCount = 0,
 }) => {
   const [mounted, setMounted] = useState(false);
-  const [timeRange, setTimeRange] = useState<'7D' | '30D' | '90D' | '12M'>('7D');
+  const [timeRange, setTimeRange] = useState<'24H' | '7D' | '30D' | '90D' | '12M'>('24H');
   const [umamiStats, setUmamiStats] = useState<{
     pageviews: any;
     visitors: any;
@@ -76,23 +76,44 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     if (!isOpen || !exhibitionId) return;
 
     const fetchUmamiData = async () => {
+      console.group(`📊 [Analytics Dashboard] Loading data for: ${exhibitionTitle}`);
+      console.log(`- Exhibition ID: ${exhibitionId}`);
+      console.log(`- Filter Path: /exhibition/${exhibitionId}`);
+      console.log(`- Time Range: ${timeRange}`);
+
+      const timeRangeMs = {
+        '24H': 24 * 60 * 60 * 1000,
+        '7D': 7 * 24 * 60 * 60 * 1000,
+        '30D': 30 * 24 * 60 * 60 * 1000,
+        '90D': 90 * 24 * 60 * 60 * 1000,
+        '12M': 365 * 24 * 60 * 60 * 1000,
+      }[timeRange as string] || 7 * 24 * 60 * 60 * 1000;
+
+      const now = Date.now();
+      const startTimestamp = now - timeRangeMs;
+      const targetPath = `/exhibition/${exhibitionId}`;
+      const commonParams = `&exhibitionId=${encodeURIComponent(exhibitionId)}&start=${startTimestamp}&end=${now}&_t=${now}`;
+
+      console.log('[Umami-In] Requesting Stats for URL:', targetPath);
+
       try {
         // Fetch summary stats
-        const statsRes = await fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=stats`);
+        const statsRes = await fetchUmamiProxy(`?type=stats${commonParams}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
+          console.log('✅ Received Stats:', stats);
           setUmamiStats(stats);
         }
 
         // Fetch metrics in parallel
         const [deviceRes, browserRes, screenRes, eventRes, countryRes, regionRes, cityRes] = await Promise.all([
-          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=device`),
-          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=browser`),
-          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=screen`),
-          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=event`),
-          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=country`),
-          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=region`),
-          fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=city`)
+          fetchUmamiProxy(`?type=metrics&metric=device${commonParams}`),
+          fetchUmamiProxy(`?type=metrics&metric=browser${commonParams}`),
+          fetchUmamiProxy(`?type=metrics&metric=screen${commonParams}`),
+          fetchUmamiProxy(`?type=metrics&metric=event${commonParams}`),
+          fetchUmamiProxy(`?type=metrics&metric=country${commonParams}`),
+          fetchUmamiProxy(`?type=metrics&metric=region${commonParams}`),
+          fetchUmamiProxy(`?type=metrics&metric=city${commonParams}`)
         ]);
 
         const [devices, browsers, screens, events, countries, regions, cities] = await Promise.all([
@@ -104,6 +125,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           regionRes.ok ? regionRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
           cityRes.ok ? cityRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([])
         ]);
+
+        console.log('✅ Received Metrics:', { devices, browsers, screens, events, countries });
 
         setUmamiEvents(events);
         setLocationStats({ 

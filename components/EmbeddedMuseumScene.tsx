@@ -93,33 +93,30 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
 
   const handleSelectArtwork = useCallback((id: string | null) => {
     setFocusedArtworkInstanceId(id);
-    if (id && activeExhibition && activeExhibition.id) {
-      console.debug('[analytics][embed] tracking Focus-Artwork for', activeExhibition.id, id);
-      trackUmamiEvent('Focus-Artwork', { exhibitionId: activeExhibition.id, artworkInstanceId: id });
+    if (id) {
+      trackUmamiEvent('Focus-Artwork', { artworkInstanceId: id });
     }
-  }, [activeExhibition && activeExhibition.id]);
+  }, []);
 
   const handleRankingToggle = useCallback(() => {
     setIsRankingMode(prev => {
       const next = !prev;
-      if (next && activeExhibition && activeExhibition.id) {
-      console.debug('[analytics][embed] recording Ranking-Mode for', activeExhibition.id);
-        trackUmamiEvent('Ranking-Mode', { exhibitionId: activeExhibition.id });
+      if (next) {
+        trackUmamiEvent('Ranking-Mode');
       }
       return next;
     });
-  }, [activeExhibition && activeExhibition.id]);
+  }, []);
 
   const handleZeroGravityToggle = useCallback(() => {
     setIsZeroGravityMode(prev => {
       const next = !prev;
-        if (next && activeExhibition && activeExhibition.id) {
-        console.debug('[analytics][embed] recording Zero-Gravity for', activeExhibition.id);
-          trackUmamiEvent('Zero-Gravity', { exhibitionId: activeExhibition.id });
+      if (next) {
+        trackUmamiEvent('Zero-Gravity');
       }
       return next;
     });
-  }, [activeExhibition && activeExhibition.id]);
+  }, []);
 
   const nextItem = useMemo(() => (exhibitions.length ? exhibitions[(currentIndex + 1) % exhibitions.length] : null), [exhibitions, currentIndex]);
   const prevItem = useMemo(() => (exhibitions.length ? exhibitions[(currentIndex - 1 + exhibitions.length) % exhibitions.length] : null), [exhibitions, currentIndex]);
@@ -210,10 +207,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         isInfoOpen={isInfoOpen}
         lightsOn={lightsOn}
         onLightToggle={() => {
-          if (activeExhibition && activeExhibition.id) {
-            console.debug('[analytics][embed] tracking lighting toggle for', activeExhibition.id);
-            trackUmamiEvent('Light-Toggle', { exhibitionId: activeExhibition.id });
-          }
+          trackUmamiEvent('Light-Toggle');
         }}
         hideLightsControl={hideLightsControl}
         isEditorMode={false}

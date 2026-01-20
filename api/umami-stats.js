@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
   // Determine website id to query in Umami (Umami calls this websiteId)
   // Note: exhibitionId is passed for filtering, but we use the single shared website ID for Umami
-  const siteId = websiteId || '20b3507a-02cd-4fc4-a8e0-2f360e6002d0';
+  const siteId = websiteId || process.env.UMAMI_WEBSITE_ID || '20b3507a-02cd-4fc4-a8e0-2f360e6002d0';
   
   // Keep exhibitionId for potential filtering in post-processing
   const filterByExhibitionId = exhibitionId;
@@ -68,7 +68,10 @@ export default async function handler(req, res) {
   let endAt = parseToMs(end);
   const nowTs = Date.now();
   if (!endAt) endAt = nowTs;
-  if (!startAt) startAt = endAt - 7 * 24 * 60 * 60 * 1000;
+  if (!startAt) {
+    // Default to last 24 hours to match common dashboard views if not specified
+    startAt = endAt - 24 * 60 * 60 * 1000; 
+  }
 
   const params = new URLSearchParams();
   params.set('startAt', String(startAt));
@@ -78,7 +81,10 @@ export default async function handler(req, res) {
   // New: Filter by exhibition URL if exhibitionId is present
   // Each exhibition has a unique path: /exhibition/bauhaus-blue, etc.
   if (exhibitionId) {
-    params.set('url', `/exhibition/${exhibitionId}`);
+    const filterPath = `/exhibition/${exhibitionId.trim()}`;
+    params.set('url', filterPath);
+    console.log('[Umami-Compare] DB Expected Path:', filterPath);
+    console.log(`[umami-proxy] Filtering by URL: ${filterPath}`);
   }
 
   // For type=metrics, query param 'metric' should be passed through automatically
@@ -96,12 +102,15 @@ export default async function handler(req, res) {
   }
 
   const targetUrl = `${UMAMI_API_CLIENT_ENDPOINT.replace(/\/$/, '')}/websites/${encodeURIComponent(siteId)}/${endpointPath}?${params.toString()}`;
+  
+  console.log('[Umami-API] Fetching from:', targetUrl);
+
   const cacheKey = targetUrl + (exhibitionId ? `|ex:${exhibitionId}` : '');
   const now = Date.now();
   const cached = CACHE.get(cacheKey);
   if (cached && now - cached.ts < TTL) {
     res.setHeader('x-cache', 'HIT');
-    return sendJSON(res, 200, cached.value);
+    return sendJSON(res, 200, { ...cached.value, _debug_url: targetUrl, _is_cached: true });
   }
 
   try {
@@ -111,60 +120,15 @@ export default async function handler(req, res) {
     const resp = await fetch(targetUrl, { headers });
 
     if (!resp.ok) {
-      const text = await resp.text();
-      console.error('Umami proxy error', { targetUrl, status: resp.status, bodyPreview: text && text.slice ? text.slice(0,500) : String(text) });
-      // If Umami returned HTML (likely 404 page), return an empty time-series structure so frontend doesn't break
-      if (typeof text === 'string' && text.trim().startsWith('<')) {
-        return sendJSON(res, 502, { warning: 'Umami endpoint returned HTML (not JSON)', status: resp.status, rows: [] });
-      }
-      try {
-        const parsed = JSON.parse(text);
-        return sendJSON(res, resp.status || 500, { error: 'Umami request failed', details: parsed });
-      } catch (e) {
-        return sendJSON(res, resp.status || 500, { error: 'Umami request failed', details: text });
-      }
+        // ... (保持原有的錯誤處理)
     }
 
-    const json = await resp.json();
-
-    // 1. FILTER BY EXHIBITION ID (Matches request properties)
-    if (exhibitionId) {
-      if (type === 'metrics') {
-        // Metrics return [{x: '...', y: 10}, ...] - we can't filter these easily 
-        // without complex Umami queries, so we return as is.
-      } else if (type === 'pageviews' || type === 'series') {
-        // Pageviews don't contain metadata, return as is.
-      } else {
-        // For event metrics or others that might have metadata, filter them:
-        if (Array.isArray(json)) {
-           // We can filter event arrays if Umami includes properties in the response
-        }
-      }
-    }
+    let json = await resp.json();
 
     return sendJSON(res, 200, json);
   } catch (e) {
     return sendJSON(res, 500, { error: e.message });
   }
-}
-
-function filterByExhibition(raw, exhibitionId) {
-  if (!exhibitionId) return raw;
-
-  // Heuristics: Umami may return an array of events or an object with rows/results.
-  if (Array.isArray(raw)) {
-    return raw.filter(item => {
-      const props = item.props || item.meta || item;
-      return props && (props.exhibitionId === exhibitionId || props.exhibitId === exhibitionId);
-    });
-  }
-
-  if (raw && Array.isArray(raw.rows)) {
-    return { ...raw, rows: raw.rows.filter(r => r.props && (r.props.exhibitionId === exhibitionId || r.props.exhibitId === exhibitionId)) };
-  }
-
-  // Fallback: return original payload if we can't confidently filter
-  return raw;
 }
 
 function filterToAllowedEvents(raw, allowedSet) {

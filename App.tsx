@@ -24,6 +24,7 @@ import EmbeddedMuseumScene from './components/EmbeddedMuseumScene';
 import { useMuseumState } from './hooks/useMuseumState';
 import { getAuthEndpoint } from './utils/apiUtils';
 import { ExhibitionArtItem, SimplifiedLightingConfig, ZoneArtworkItem, Exhibition, FirebaseArtwork, ArtworkData, ArtType, EffectRegistryType } from './types';
+import { setUmamiPath } from './services/umamiService';
 import { VERSION } from './abuild';
 import * as THREE from 'three'; // NEW: Import THREE for dynamic effect bundle
 // Hotspot functions removed from services/firebaseService
@@ -221,6 +222,50 @@ function MuseumApp({
   } = useMuseumState(isSnapshotEnabledGlobally, ownerOverrideUid || user?.uid, isIdentityResolved); // Pass isIdentityResolved to hook
 
   const isLoading = isDataLoading || !isIdentityResolved; // Compound loading state for UI logic
+
+  // NEW: Global Umami tracking for exhibition transitions
+  useEffect(() => {
+    const exhibitionId = activeExhibition?.id;
+    if (!exhibitionId) return;
+
+    // Update global tracking path for events
+    const virtualPath = `/exhibition/${exhibitionId}`;
+    setUmamiPath(virtualPath);
+
+    // Use a small delay or check interval to ensure Umami script is fully loaded and initialized
+    let retryCount = 0;
+    const checkAndTrack = () => {
+      const w = window as any;
+      if (w.umami) {
+        // PRE-WARM: Ensure path starts with leading slash and is absolutely matched to DB expectation
+        const virtualPath = `/exhibition/${exhibitionId}`;
+        console.log(`[Umami-Out] Pre-warming Tracking Payload: ${virtualPath}`);
+        try {
+          // 強制覆寫所有 Umami 屬性，確保路徑歸一化並包含領先斜線
+          w.umami.track((props: any) => {
+            const finalPayload = {
+              ...props,
+              url: virtualPath,
+              path: virtualPath,
+              title: activeExhibition?.title || 'Exhibition',
+            };
+            console.log('[Umami-Out] FINAL SHIPPED PAYLOAD:', JSON.stringify(finalPayload));
+            return finalPayload;
+          });
+          console.log('[analytics] exhibition pageview sent successfully');
+        } catch (err) {
+          console.error('[analytics] tracking error:', err);
+        }
+      } else if (retryCount < 10) {
+        retryCount++;
+        setTimeout(checkAndTrack, 500); // Retry every 500ms for up to 5 seconds
+      } else {
+        console.warn('[analytics] Umami script failed to load after 5 seconds');
+      }
+    };
+
+    checkAndTrack();
+  }, [activeExhibition?.id]);
 
   // If embed or path provides an initial exhibition id, navigate to it when data is ready
   useEffect(() => {
@@ -882,11 +927,10 @@ function MuseumApp({
 
   const handleFocusArtworkInstance = useCallback((instanceId: string | null) => {
     setFocusedArtworkInstanceId(instanceId);
-    if (instanceId && activeExhibition && activeExhibition.id) {
-      console.debug('[analytics] tracking Focus-Artwork for', activeExhibition.id, instanceId);
-      try { import('./services/umamiService').then(m => m.trackUmamiEvent('Focus-Artwork', { exhibitionId: activeExhibition.id, artworkInstanceId: instanceId })).catch(() => {}); } catch(e) {}
+    if (instanceId) {
+      try { import('./services/umamiService').then(m => m.trackUmamiEvent('Focus-Artwork', { artworkInstanceId: instanceId })).catch(() => {}); } catch(e) {}
     }
-  }, [setFocusedArtworkInstanceId, activeExhibition && activeExhibition.id]);
+  }, [setFocusedArtworkInstanceId]);
 
   useEffect(() => {
     if (isEditorMode && (activeEditorTab !== 'artworks' && activeEditorTab !== 'admin')) {
@@ -1033,10 +1077,7 @@ function MuseumApp({
     setIsZeroGravityMode(false); // NEW: Deactivate zero gravity on light toggle
     const newConfig: SimplifiedLightingConfig = { ...lightingConfig, lightsOn: newLightsOnState };
     setLightingOverride(activeZone.id, newConfig);
-    if (activeExhibition && activeExhibition.id) {
-      console.debug('[analytics] recording lighting toggle for', activeExhibition.id, newLightsOnState);
-      try { import('./services/umamiService').then(m => m.trackUmamiEvent('Light-Toggle', { exhibitionId: activeExhibition.id, lightsOn: newLightsOnState })).catch(() => {}); } catch(e) {}
-    }
+    try { import('./services/umamiService').then(m => m.trackUmamiEvent('Light-Toggle', { lightsOn: newLightsOnState })).catch(() => {}); } catch(e) {}
   }, [lightsOn, lightingConfig, setLightingOverride, activeZone.id, setHeartEmitterArtworkId, setisRankingMode, setIsZeroGravityMode]);
 
   // NEW: Handle update for lighting config including useExhibitionBackground
@@ -1673,13 +1714,10 @@ function MuseumApp({
 
   // Record ranking toggle
   useEffect(() => {
-    if (activeExhibition && activeExhibition.id && typeof isRankingMode === 'boolean') {
-      if (isRankingMode) {
-        console.debug('[analytics] recording ranking for', activeExhibition.id);
-        try { import('./services/umamiService').then(m => m.trackUmamiEvent('Ranking-Mode', { exhibitionId: activeExhibition.id })).catch(() => {}); } catch(e) {}
-      }
+    if (typeof isRankingMode === 'boolean' && isRankingMode) {
+      try { import('./services/umamiService').then(m => m.trackUmamiEvent('Ranking-Mode')).catch(() => {}); } catch(e) {}
     }
-  }, [isRankingMode, activeExhibition && activeExhibition.id]);
+  }, [isRankingMode]);
 
   // NEW: handleZeroGravityToggle function
   const handleZeroGravityToggle = useCallback(() => {
@@ -1700,13 +1738,10 @@ function MuseumApp({
 
   // Record zero-gravity toggle
   useEffect(() => {
-    if (activeExhibition && activeExhibition.id && typeof isZeroGravityMode === 'boolean') {
-      if (isZeroGravityMode) {
-        console.debug('[analytics] recording Zero-Gravity for', activeExhibition.id);
-        try { import('./services/umamiService').then(m => m.trackUmamiEvent('Zero-Gravity', { exhibitionId: activeExhibition.id })).catch(() => {}); } catch(e) {}
-      }
+    if (typeof isZeroGravityMode === 'boolean' && isZeroGravityMode) {
+      try { import('./services/umamiService').then(m => m.trackUmamiEvent('Zero-Gravity')).catch(() => {}); } catch(e) {}
     }
-  }, [isZeroGravityMode, activeExhibition && activeExhibition.id]);
+  }, [isZeroGravityMode]);
 
 
   useEffect(() => {
@@ -1901,7 +1936,7 @@ function MuseumApp({
     <React.Fragment>
       <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
 
-      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} onRequestCloseInfo={() => { try { setIsInfoOpen(false); } catch (e) {} }} onOpenDashboard={() => setIsAnalyticsOpen(true)} />}
+      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} onRequestCloseInfo={() => { try { setIsInfoOpen(false); } catch (e) {} }} />}
 
       <React.Fragment>
         <Scene
@@ -2080,6 +2115,7 @@ function MuseumApp({
         hideZeroGravityControl={hideZeroGravityControl}
         exhibitionId={activeExhibition?.id}
         isSignedIn={isSignedIn}
+        onOpenDashboard={() => setIsAnalyticsOpen(true)}
         isEmbed={!!embedMode}
         isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status
         // NEW: global flag to control reset button visibility

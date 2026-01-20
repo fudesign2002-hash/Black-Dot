@@ -167,10 +167,10 @@
           
           window.umami.track((props) => ({
             ...props,
-            url: path,
+            url: exhibitionId ? `/exhibition/${exhibitionId}` : path,
+            path: exhibitionId ? `/exhibition/${exhibitionId}` : path,
             referrer: document.referrer,
-            title: document.title,
-            exhibitionId: exhibitionId || undefined
+            title: document.title
           }));
         }
       }, 500);
