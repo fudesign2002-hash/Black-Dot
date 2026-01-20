@@ -136,7 +136,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
   const hasRankingToggle = !isZeroGravityMode && !hideRankingControl; 
   const hasZeroGravityToggle = !isRankingMode && !hideZeroGravityControl; 
-  const hasDashboard = !!isSignedIn && !!onOpenDashboard; // NEW: check if dashboard button should show
+  const hasDashboard = !!isSignedIn && !!onOpenDashboard && !isRankingMode && !isZeroGravityMode; // NEW: check if dashboard button should show
   // MODIFIED: Keep small screen navigation visible in editor mode
   const hasSmallScreenNav = isSmallScreen && !isArtworkFocusedForControls && !isRankingMode && !isZeroGravityMode && !isEmbed; 
 
@@ -281,6 +281,20 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                 </button>
             )}
 
+            {hasDashboard && onOpenDashboard && (
+              <button
+                onClick={() => {
+                  setHeartEmitterArtworkId(null);
+                  onOpenDashboard();
+                }}
+                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`}
+                title="Open Analytics Dashboard"
+                aria-label="Open analytics dashboard"
+              >
+                <ChartColumnIncreasing className="w-4 h-4" />
+              </button>
+            )}
+
             {hasDevToolsToggle && (
                 <button onClick={() => {
                   setHeartEmitterArtworkId(null);
@@ -333,20 +347,6 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                         </button>
                     )}
                 </React.Fragment>
-            )}
-
-            {isSignedIn && onOpenDashboard && (
-              <button
-                onClick={() => {
-                  setHeartEmitterArtworkId(null);
-                  onOpenDashboard();
-                }}
-                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass}`}
-                title="Open Analytics Dashboard"
-                aria-label="Open analytics dashboard"
-              >
-                <ChartColumnIncreasing className="w-4 h-4" />
-              </button>
             )}
         </div>
     </div>

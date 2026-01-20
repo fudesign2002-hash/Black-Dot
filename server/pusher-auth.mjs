@@ -137,11 +137,21 @@ app.get('/api/umami-stats', async (req, res) => {
 
     // 自動修補與診斷邏輯
     if (exhibitionId && controlData) {
-      // 提取核心數值進行比較 (處理 Stats 物件或 Metrics 陣列)
+      // 提取核心數值進行比較 (處理 Stats 物件, Pageviews 陣列或 Metrics 陣列)
       const getVal = (data) => {
         if (!data) return 0;
-        if (data.pageviews) return Number(data.pageviews.value || 0); // Stats 格式
-        if (Array.isArray(data)) return data.reduce((sum, item) => sum + Number(item.y || 0), 0); // Metrics 格式
+        // 1. Stats 格式: { pageviews: { value: 10 }, ... }
+        if (data.pageviews && typeof data.pageviews === 'object' && !Array.isArray(data.pageviews)) {
+          return Number(data.pageviews.value || 0);
+        }
+        // 2. Pageviews 趨勢格式: { pageviews: [{x, y}, ...], ... }
+        if (data.pageviews && Array.isArray(data.pageviews)) {
+          return data.pageviews.reduce((sum, item) => sum + Number(item.y || 0), 0);
+        }
+        // 3. Metrics 格式: [{x, y}, ...]
+        if (Array.isArray(data)) {
+          return data.reduce((sum, item) => sum + Number(item.y || 0), 0);
+        }
         return 0;
       };
 

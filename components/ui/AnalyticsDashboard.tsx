@@ -91,10 +91,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
       const now = Date.now();
       const startTimestamp = now - timeRangeMs;
-      const targetPath = `/exhibition/${exhibitionId}`;
-      const commonParams = `&exhibitionId=${encodeURIComponent(exhibitionId)}&start=${startTimestamp}&end=${now}&_t=${now}`;
+      // Remove exhibitionId from fetch params for now to avoid filtering issues while keeping it in tracking
+      const commonParams = `&start=${startTimestamp}&end=${now}&_t=${now}`;
 
-      console.log('[Umami-In] Requesting Stats for URL:', targetPath);
+      console.log('[Umami-In] Requesting Global Stats (Filter disabled)');
 
       try {
         // Fetch summary stats
@@ -137,7 +137,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
         // Fallback: If device distribution is empty, try OS distribution
         if (Array.isArray(devices) && devices.length === 0) {
-          const osRes = await fetchUmamiProxy(`?exhibitionId=${encodeURIComponent(exhibitionId)}&type=metrics&metric=os`);
+          const osRes = await fetchUmamiProxy(`?type=metrics&metric=os${commonParams}`);
           if (osRes.ok) {
             const osData = await osRes.json();
             setTechStats({ 
@@ -161,11 +161,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         }
       } catch (err) {
         console.error('[Analytics] Failed to fetch Umami data:', err);
+      } finally {
+        console.groupEnd();
       }
     };
 
     fetchUmamiData();
-  }, [isOpen, exhibitionId, timeRange]);
+  }, [isOpen, exhibitionId, timeRange, exhibitionTitle]);
 
   useEffect(() => {
     setMounted(true);
@@ -912,7 +914,7 @@ const TechDonutChart: React.FC<{
     return () => {
       if (chartRef.current) chartRef.current.destroy();
     };
-  }, [data, uiConfig]);
+  }, [data, uiConfig.lightsOn]);
 
   if (data.length === 0) return <div className="h-full flex items-center justify-center opacity-20 italic text-[10px]">No Data</div>;
 
