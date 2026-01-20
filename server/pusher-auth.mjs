@@ -34,10 +34,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID || '2103284',
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY || process.env.PUSHER_KEY || '262b770d3319b6acc099',
-  secret: process.env.PUSHER_SECRET || '36e9968adcbf037be74e',
-  cluster: process.env.PUSHER_CLUSTER || 'mt1',
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.NEXT_PUBLIC_PUSHER_KEY || process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
   useTLS: true,
 });
 
