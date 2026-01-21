@@ -329,6 +329,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       customCameraPosition: config.customCameraPosition ? [...config.customCameraPosition] as [number, number, number] : config.customCameraPosition,
       customCameraTarget: config.customCameraTarget ? [...config.customCameraTarget] as [number, number, number] : config.customCameraTarget,
     };
+    const isEmbed = (typeof window !== 'undefined' && (window.location.search.includes('embed=true') || window.self !== window.top));
     if (!isEmbed) {
       console.groupCollapsed('%c[useMuseumState] setLightingOverride', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
       console.log('zoneId:', zoneId, 'customCameraPosition:', cloned.customCameraPosition);
