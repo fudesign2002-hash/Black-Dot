@@ -308,28 +308,31 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
 
             {hasSmallScreenNav && (
                 <React.Fragment>
-                    {!isFirstItem && prevItem && (
+                    {/* Only show mobile nav arrows, not button bar arrows, on small screens */}
+                    {isSmallScreen && !isFirstItem && prevItem && (
                         <button
                           onClick={() => {
                             setHeartEmitterArtworkId(null);
                             onPrev();
                           }}
-                          className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass} ${nextPrevAnimationClasses}`}
+                          style={{ position: 'fixed', left: -50, top: '55%', transform: 'translateY(-50%)', zIndex: 50, background: 'none', boxShadow: 'none', border: 'none', padding: 0, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          className={`mobile-nav-arrow-left`}
                           title={"Previous Exhibition"}
                         >
-                            <ChevronLeft className="w-4 h-4" />
+                            <ChevronLeft className="w-5 h-5 text-black" />
                         </button>
                     )}
-                    {!isLastItem && nextItem && (
+                    {isSmallScreen && !isLastItem && nextItem && (
                         <button
                           onClick={() => {
                             setHeartEmitterArtworkId(null);
                             onNext();
                           }}
-                          className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${uiConfig.glass} ${nextPrevAnimationClasses}`}
+                          style={{ position: 'fixed', right: -50, top: '55%', transform: 'translateY(-50%)', zIndex: 50, background: 'none', boxShadow: 'none', border: 'none', padding: 0, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          className={`mobile-nav-arrow-right`}
                           title={"Next Exhibition"}
                         >
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronRight className="w-5 h-5 text-black" />
                         </button>
                     )}
                 </React.Fragment>

@@ -170,14 +170,18 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
               if (newMaterial instanceof THREE.MeshStandardMaterial || newMaterial instanceof THREE.MeshPhysicalMaterial) {
                 const matName = (newMaterial.name || '').toLowerCase();
                 if (matName.includes('tripo') || matName.includes('material')) {
-                    // Stripping secondary maps that are often redundant in this scene but consume texture slots.
-                    // This prevents crashes on hardware with a 16 texture unit limit.
-                    if (newMaterial.aoMap) { newMaterial.aoMap = null; }
-                    if ((newMaterial as any).displacementMap) { (newMaterial as any).displacementMap = null; }
-                    if ((newMaterial as any).bumpMap) { (newMaterial as any).bumpMap = null; }
-                    if ((newMaterial as any).lightMap) { (newMaterial as any).lightMap = null; }
-                    
-                    // Force the material to recompile without these maps
+                    // Remove ALL possible texture slots for this material type
+                    const textureProps = [
+                      'map', 'aoMap', 'displacementMap', 'bumpMap', 'lightMap', 'metalnessMap', 'roughnessMap', 'alphaMap', 'envMap',
+                      'clearcoatMap', 'clearcoatRoughnessMap', 'thicknessMap', 'transmissionMap', 'specularMap', 'gradientMap',
+                      'sheenColorMap', 'sheenRoughnessMap', 'iridescenceMap', 'iridescenceThicknessMap', 'normalMap', 'emissiveMap',
+                      'envMapIntensity', 'reflectivity', 'refractionRatio', 'wireframe', 'combine', 'flatShading', 'vertexColors', 'fog',
+                    ];
+                    textureProps.forEach(prop => {
+                      if (prop in newMaterial) {
+                        (newMaterial as any)[prop] = null;
+                      }
+                    });
                     newMaterial.needsUpdate = true;
                 }
               }
