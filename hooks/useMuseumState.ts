@@ -83,8 +83,11 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
 
     const unsubscribes: (() => void)[] = []; // NEW: Array to hold unsubscribe functions
 
-    console.groupCollapsed('%c[useMuseumState] subscribe', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
-    console.log('enableSnapshots:', enableSnapshots, 'ownerUid:', ownerUid || null, 'authResolved:', authResolved);
+    const isEmbed = (typeof window !== 'undefined' && (window.location.search.includes('embed=true') || window.self !== window.top));
+    if (!isEmbed) {
+      console.groupCollapsed('%c[useMuseumState] subscribe', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+      console.log('enableSnapshots:', enableSnapshots, 'ownerUid:', ownerUid || null, 'authResolved:', authResolved);
+    }
     if (enableSnapshots) { // NEW: Conditionally subscribe to snapshots
       // For owner views we show exhibitions that belong to the owner and are public
       const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
@@ -141,7 +144,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
         setIsLoading(false);
         loadedFlags = { exhibitions: true, zones: true, artworks: true }; // Mark as loaded even if no data
     }
-    console.groupEnd();
+    if (!isEmbed) console.groupEnd();
     return () => {
         // Unsubscribe all listeners when component unmounts or `enableSnapshots`/`ownerUid` changes
         unsubscribes.forEach(unsubscribe => unsubscribe());
@@ -326,9 +329,11 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       customCameraPosition: config.customCameraPosition ? [...config.customCameraPosition] as [number, number, number] : config.customCameraPosition,
       customCameraTarget: config.customCameraTarget ? [...config.customCameraTarget] as [number, number, number] : config.customCameraTarget,
     };
-    console.groupCollapsed('%c[useMuseumState] setLightingOverride', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
-    console.log('zoneId:', zoneId, 'customCameraPosition:', cloned.customCameraPosition);
-    console.groupEnd();
+    if (!isEmbed) {
+      console.groupCollapsed('%c[useMuseumState] setLightingOverride', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+      console.log('zoneId:', zoneId, 'customCameraPosition:', cloned.customCameraPosition);
+      console.groupEnd();
+    }
     setLightingOverrides(prev => ({
         ...prev,
         [zoneId]: cloned,

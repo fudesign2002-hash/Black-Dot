@@ -378,22 +378,22 @@ function MuseumApp({
       const isGuest = !user || user.isAnonymous;
       const labelStyle = isGuest ? 'background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px' : 'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px';
       const label = isGuest ? '%cGuest' : `%cSigned: ${user?.displayName || user?.email || user?.uid}`;
-      console.groupCollapsed(label, labelStyle);
+      if (!embedMode) console.groupCollapsed(label, labelStyle);
       if (user && !user.isAnonymous) {
-        console.log('uid:', user.uid);
-        console.log('email:', user.email);
-        console.log('displayName:', user.displayName);
-        console.log('photoURL:', user.photoURL);
+        if (!embedMode) console.log('uid:', user.uid);
+        if (!embedMode) console.log('email:', user.email);
+        if (!embedMode) console.log('displayName:', user.displayName);
+        if (!embedMode) console.log('photoURL:', user.photoURL);
         try {
-          console.log('providerData[0].photoURL:', (user.providerData || [])[0] && (user.providerData || [])[0].photoURL);
+          if (!embedMode) console.log('providerData[0].photoURL:', (user.providerData || [])[0] && (user.providerData || [])[0].photoURL);
         } catch (err) {
           // ignore structure issues
         }
-        console.log('provider:', (user.providerData || []).map(p => p.providerId).join(', ') || 'none');
+        if (!embedMode) console.log('provider:', (user.providerData || []).map(p => p.providerId).join(', ') || 'none');
       } else {
-        console.log('guest session');
+        if (!embedMode) console.log('guest session');
       }
-      console.groupEnd();
+      if (!embedMode) console.groupEnd();
     } catch (e) {
       // swallow
     }
@@ -427,17 +427,17 @@ function MuseumApp({
         if (prevVisibleIdsRef.current === ids) return;
         prevVisibleIdsRef.current = ids;
 
-        console.groupCollapsed(header, headerStyle);
+        if (!embedMode) console.groupCollapsed(header, headerStyle);
         if (snap.empty) {
-          console.log('(no exhibitions visible)');
+          if (!embedMode) console.log('(no exhibitions visible)');
         } else {
           snap.docs.forEach(doc => {
             const data: any = doc.data();
             const title = data.title || data.name || `(id:${doc.id})`;
-            console.log('-', title);
+            if (!embedMode) console.log('-', title);
           });
         }
-        console.groupEnd();
+        if (!embedMode) console.groupEnd();
       } catch (e) {
         // swallow; diagnostics only
       }
@@ -512,14 +512,14 @@ function MuseumApp({
 
       const header = (labels.length > 0 ? labels.join(' ') + ` %c@ ${ts}` : `%cMode change @ ${ts}`);
       const headerStyles = labels.length > 0 ? [...styles, tsStyle] : [tsStyle];
-      console.groupCollapsed(header, ...headerStyles);
-      console.log('FocusedArtworkInstanceId:', focusedArtworkInstanceId);
-      console.log('isArtworkFocusedForControls:', isArtworkFocusedForControls);
-      console.log('isEditorMode:', isEditorMode);
-      console.log('isRankingMode:', isRankingMode);
-      console.log('isZeroGravityMode:', isZeroGravityMode);
-      console.log('lightsOn:', !!lightingConfig?.lightsOn);
-      console.groupEnd();
+      if (!embedMode) console.groupCollapsed(header, ...headerStyles);
+      if (!embedMode) console.log('FocusedArtworkInstanceId:', focusedArtworkInstanceId);
+      if (!embedMode) console.log('isArtworkFocusedForControls:', isArtworkFocusedForControls);
+      if (!embedMode) console.log('isEditorMode:', isEditorMode);
+      if (!embedMode) console.log('isRankingMode:', isRankingMode);
+      if (!embedMode) console.log('isZeroGravityMode:', isZeroGravityMode);
+      if (!embedMode) console.log('lightsOn:', !!lightingConfig?.lightsOn);
+      if (!embedMode) console.groupEnd();
     } catch (e) {
       // swallow any console errors in weird environments
     }

@@ -72,7 +72,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
     if (typeof window !== 'undefined' && (window as any).__SHOW_CAMERA_DEBUG) {
       const pos = camera.position;
       const tgt = controls?.target || { x: 0, y: 0, z: 0 };
-      console.log(`[DEBUG] CamPos: [${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}] | CamTgt: [${tgt.x.toFixed(2)}, ${tgt.y.toFixed(2)}, ${tgt.z.toFixed(2)}]`);
+      if (!(props.isEmbed ?? false)) console.log(`[DEBUG] CamPos: [${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}] | CamTgt: [${tgt.x.toFixed(2)}, ${tgt.y.toFixed(2)}, ${tgt.z.toFixed(2)}]`);
     }
   });
 
@@ -688,6 +688,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
           toPosition={moveToConfig.toPosition}
           toTarget={moveToConfig.toTarget}
           duration={moveToConfig.duration}
+          isEmbed={props.isEmbed}
           onComplete={() => {
             // finished move
             pendingTargetPositionRef.current = null;
@@ -718,7 +719,8 @@ export const NewCameraMoveTo: React.FC<{
   toTarget: [number, number, number];
   duration?: number; // ms
   onComplete?: () => void;
-}> = ({ fromPosition, fromTarget, toPosition, toTarget, duration = 500, onComplete }) => {
+  isEmbed?: boolean;
+}> = ({ fromPosition, fromTarget, toPosition, toTarget, duration = 500, onComplete, isEmbed = false }) => {
   const { camera, controls } = useThree() as any;
   const start = useRef<number | null>(null);
   const isDone = useRef(false);
@@ -736,9 +738,9 @@ export const NewCameraMoveTo: React.FC<{
       controls.minDistance = 10;
     }
 
-    console.groupCollapsed('%c[NewCameraMoveTo] start', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
-    console.log('fromPosition:', fromPosition, 'toPosition:', toPosition, 'duration:', duration);
-    console.groupEnd();
+    if (!isEmbed) console.groupCollapsed('%c[NewCameraMoveTo] start', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+    if (!isEmbed) console.log('fromPosition:', fromPosition, 'toPosition:', toPosition, 'duration:', duration);
+    if (!isEmbed) console.groupEnd();
     // initialize camera and controls to from values immediately
     camera.position.copy(vStart.current);
     if (controls) {
@@ -766,10 +768,10 @@ export const NewCameraMoveTo: React.FC<{
 
     if (t === 1) {
       isDone.current = true;
-      console.groupCollapsed('%c[NewCameraMoveTo] complete', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
-      console.log('final camera.position:', [camera.position.x, camera.position.y, camera.position.z]);
-      if (controls) console.log('final controls.target:', [controls.target.x, controls.target.y, controls.target.z]);
-      console.groupEnd();
+      if (!isEmbed) console.groupCollapsed('%c[NewCameraMoveTo] complete', 'color:#fff; background:#0ea5e9; padding:2px 6px; border-radius:3px');
+      if (!isEmbed) console.log('final camera.position:', [camera.position.x, camera.position.y, camera.position.z]);
+      if (controls && !isEmbed) console.log('final controls.target:', [controls.target.x, controls.target.y, controls.target.z]);
+      if (!isEmbed) console.groupEnd();
       if (onComplete) onComplete();
     }
   });
