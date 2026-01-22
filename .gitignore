@@ -25,3 +25,6 @@ dist-ssr
 index.css
 .vercel
 .env*.local
+test.html
+tailwindcss
+src/input.css

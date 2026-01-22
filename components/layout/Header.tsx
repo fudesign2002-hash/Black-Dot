@@ -27,8 +27,44 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
     setIsHeaderExpanded(!isHeaderExpanded);
   };
 
-  // Non-animated counters: use values directly
-  const displayOnlineUsers = testOnlineCount !== null ? testOnlineCount : onlineUsers;
+  const targetOnlineUsers = testOnlineCount !== null ? testOnlineCount : onlineUsers;
+  const [displayOnlineUsers, setDisplayOnlineUsers] = useState(targetOnlineUsers);
+
+  useEffect(() => {
+    if (displayOnlineUsers === targetOnlineUsers) return;
+
+    const startValue = displayOnlineUsers;
+    const endValue = targetOnlineUsers;
+    const diff = endValue - startValue;
+    
+    // Responsive duration: faster for small changes, slower for big jumps
+    const duration = Math.max(400, Math.min(Math.abs(diff) * 50, 1200)); 
+    const startTime = performance.now();
+
+    let frameId: number;
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Ease out cubic for better feel
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      const nextValue = Math.round(startValue + diff * easedProgress);
+      
+      // Use functional update to ensure we don't need displayOnlineUsers in deps
+      setDisplayOnlineUsers(nextValue);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(animate);
+      } else {
+        setDisplayOnlineUsers(endValue);
+      }
+    };
+
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, [targetOnlineUsers]);
+
   const displayZoneCapacity = zoneCapacity;
 
   const capacityPercentage = (displayOnlineUsers / displayZoneCapacity) * 100;
