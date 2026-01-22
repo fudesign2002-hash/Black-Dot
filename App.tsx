@@ -2071,6 +2071,7 @@ function MuseumApp({
             isSignedIn={!!user} // NEW: Pass isSignedIn based on user authentication
             activeZoneId={activeZone.id} // NEW: Pass activeZoneId for zone-specific artwork settings
             onArtworkLiftedChange={setIsArtworkLifted} // NEW: Pass callback to update artwork lifted state
+            ownerId={ownerOverrideUid || user?.uid}
           />
         </Suspense>
       )}

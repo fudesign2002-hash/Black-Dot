@@ -90,8 +90,8 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       console.log('enableSnapshots:', enableSnapshots, 'ownerUid:', ownerUid || null, 'authResolved:', authResolved);
     }
     if (enableSnapshots) { // NEW: Conditionally subscribe to snapshots
-      // For owner views we show exhibitions that belong to the owner and are public
-      const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid).where('isPublic', '==', true) : db.collection('exhibitions');
+      // For owner views we show exhibitions that belong to the owner
+      const exhibitionsColRef = ownerUid ? db.collection('exhibitions').where('ownerId', '==', ownerUid) : db.collection('exhibitions');
       const zonesColRef = db.collection('zones');
       const artworksColRef = db.collection('artworks');
 

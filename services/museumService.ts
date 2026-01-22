@@ -105,6 +105,7 @@ export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocu
                         artwork_viewed: typeof data.artwork_viewed === 'number' ? data.artwork_viewed : 0,
                         artwork_shared: typeof data.artwork_shared === 'number' ? data.artwork_shared : undefined,
                         artwork_gravity: typeof data.artwork_gravity === 'number' ? data.artwork_gravity : 0,
+                        ownerId: data.ownerId || data.ownerUid || data.uid || data.userId || data.owner || undefined, // NEW: Map various owner/uid fields from Firestore
                 };
     });
 
@@ -374,6 +375,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             exhibit_capacity: typeof data.exhibit_capacity === 'number' ? data.exhibit_capacity : 100, // NEW: Add exhibit_capacity with default 100
             exhibit_linktype: data.exhibit_linktype || 'tickets', // NEW: Add exhibit_linktype with default 'tickets'
             exhibit_dashboard_public: typeof data.exhibit_dashboard_public === 'boolean' ? data.exhibit_dashboard_public : false, // NEW: Add exhibit_dashboard_public
+            ownerId: data.ownerId || data.ownerUid || data.uid || data.userId || data.owner || undefined, // NEW: Map various owner/uid fields from Firestore
         };
         return exhibition;
     });

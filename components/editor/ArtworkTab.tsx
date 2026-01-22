@@ -27,6 +27,7 @@ interface ArtworkTabProps {
   onSelectArtwork: (id: string | null) => void;
   onAddArtworkToLayout: (artwork: FirebaseArtwork) => Promise<boolean>;
   isSignedIn?: boolean; // NEW: Add isSignedIn prop
+  ownerId?: string | null; // NEW: Curator identification for filtering
 }
 
 const MATERIAL_PRESETS: MaterialPreset[] = [
@@ -90,6 +91,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
   onSelectArtwork, 
   onAddArtworkToLayout,
   isSignedIn = false, // NEW: Destructure isSignedIn
+  ownerId = null, // NEW: Destructure ownerId
 }) => {
   const [editingUrlArtworkId, setEditingUrlArtworkId] = useState<string | null>(null);
   const [currentEditValue, setCurrentEditValue] = useState<string>('');
@@ -103,12 +105,49 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
   const [glbPreviewRotation, setGlbPreviewRotation] = useState<[number, number, number]>([0, 0, 0]);
   const [selectedMaterialPresetId, setSelectedMaterialPresetId] = useState<string | null>(null);
   const [addArtworkSearchQuery, setAddArtworkSearchQuery] = useState('');
+  const [addArtworkArtistFilter, setAddArtworkArtistFilter] = useState('All'); // NEW: Filter by artist
   const [isAddArtworkSectionOpen, setIsAddArtworkSectionOpen] = useState(false);
   const [addArtworkStatus, setAddArtworkStatus] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [localScale, setLocalScale] = useState(1.0); // NEW: State for local scale
 
   const { lightsOn, text, subtext, border, input } = uiConfig;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
+
+  // NEW: Get unique artists from all available artworks (those not yet in layout)
+  const uniqueArtists = useMemo(() => {
+    const artworkIdsInLayout = new Set(currentLayout.map(item => item.artworkId));
+    const artists = new Set<string>();
+    
+    firebaseArtworks.forEach(art => {
+      const isAvailable = !artworkIdsInLayout.has(art.id) && 
+        (art.artwork_type === 'painting' || art.artwork_type === 'photography' || art.artwork_type === 'motion' || art.artwork_type === 'sculpture');
+      
+      // Allow if:
+      // 1. No owner requirement (not signed in)
+      // 2. Matches requested owner UID
+      // 3. Has no owner at all (consider public/system artworks)
+      // 4. Is a system/OOTB artwork (available to all)
+      const isOwnedByCurator = !ownerId || art.ownerId === ownerId || !art.ownerId || art.artist?.toUpperCase() === 'OOTB';
+
+      if (isAvailable && isOwnedByCurator) {
+        const artistName = art.artist?.trim();
+        if (artistName) {
+          if (artistName.toUpperCase() === 'OOTB') {
+            artists.add('System');
+          } else {
+            artists.add(artistName);
+          }
+        }
+      }
+    });
+    
+    const sortedArtists = Array.from(artists).sort();
+    const finalArtists = ['All', ...sortedArtists.filter(a => a !== 'System')];
+    if (artists.has('System')) {
+      finalArtists.push('System');
+    }
+    return finalArtists;
+  }, [firebaseArtworks, currentLayout, ownerId]);
 
   const relevantArtworks = useMemo(() => {
     const artworkIdsInLayout = new Set(currentLayout.map(item => item.artworkId));
@@ -125,9 +164,13 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
       (art.artwork_type === 'painting' || art.artwork_type === 'photography' || art.artwork_type === 'motion' || art.artwork_type === 'sculpture') &&
       (art.title.toLowerCase().includes(addArtworkSearchQuery.toLowerCase()) ||
        (art.artist?.toLowerCase().includes(addArtworkSearchQuery.toLowerCase())) ||
-       (art.artwork_type.toLowerCase().includes(addArtworkSearchQuery.toLowerCase())))
+       (art.artwork_type.toLowerCase().includes(addArtworkSearchQuery.toLowerCase()))) &&
+      (addArtworkArtistFilter === 'All' || 
+       (addArtworkArtistFilter === 'System' && art.artist?.toUpperCase() === 'OOTB') ||
+       art.artist === addArtworkArtistFilter) &&
+      (!ownerId || art.ownerId === ownerId || !art.ownerId || art.artist?.toUpperCase() === 'OOTB') // NEW: Ownership, public, or system check
     );
-  }, [firebaseArtworks, currentLayout, addArtworkSearchQuery]);
+  }, [firebaseArtworks, currentLayout, addArtworkSearchQuery, addArtworkArtistFilter, ownerId]);
 
 
   const handleUpdateStatus = useCallback((artworkId: string, status: 'idle' | 'saving' | 'saved' | 'error', duration: number = 2000) => {
@@ -619,14 +662,39 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
                   className={`w-full pl-10 pr-4 py-2 rounded-md text-xs ${input}`}
                 />
               </div>
+
+              {/* NEW: Artist Filter Tabs */}
+              {uniqueArtists.length > 2 && (
+                <div className="mb-4 text-center">
+                  <div className="flex flex-wrap items-center justify-start gap-2">
+                    {uniqueArtists.map(artist => (
+                      <button
+                        key={artist}
+                        onClick={() => setAddArtworkArtistFilter(artist)}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all border ${
+                          addArtworkArtistFilter === artist
+                            ? (lightsOn ? 'bg-neutral-900 border-neutral-900 text-white' : 'bg-white border-white text-neutral-900')
+                            : (lightsOn ? 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-300' : 'bg-neutral-800 border-neutral-700 text-neutral-400 hover:border-neutral-600')
+                        }`}
+                      >
+                        {artist}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2 scrollbar-hide">
                 {availableArtworksToAdd.length > 0 ? (
                   availableArtworksToAdd.map(artwork => (
                     <div key={artwork.id} className={`flex items-center gap-3 p-3 rounded-md ${lightsOn ? 'bg-neutral-50' : 'bg-neutral-700'}`}>
                       <div className="flex-1">
                         <p className={`font-medium ${text} text-sm`}>{artwork.title}</p>
-                        <p className={`text-xs ${subtext}`}>Type: {artwork.artwork_type.replace(/_/g, ' ')}</p>
-                        {artwork.fileSizeMB && <p className={`text-xs ${subtext}`}>Size: {artwork.fileSizeMB.toFixed(2)} MB</p>}
+                        <div className="flex flex-wrap gap-x-2">
+                          {artwork.artist && <p className={`text-xs ${subtext} font-bold`}>{artwork.artist}</p>}
+                          <p className={`text-xs ${subtext} opacity-60`}>Type: {artwork.artwork_type.replace(/_/g, ' ')}</p>
+                          {artwork.fileSizeMB && <p className={`text-xs ${subtext} opacity-60`}>Size: {artwork.fileSizeMB.toFixed(2)} MB</p>}
+                        </div>
                       </div>
                       <button
                         onClick={async () => {

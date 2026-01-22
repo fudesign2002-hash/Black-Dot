@@ -105,11 +105,11 @@ export interface Exhibition {
   supportedBy?: string;
   exhibit_poster?: string;
   exhibit_background?: string; // NEW: Add exhibit_background property
-  exhibit_liked?: number; // NEW: Add exhibit_liked
   exhibit_viewed?: number; // NEW: Add exhibit_viewed
   exhibit_capacity?: number; // NEW: Add exhibit_capacity
   exhibit_linktype?: 'tickets' | 'learn_more' | 'instagram' | 'website'; // NEW: Add exhibit_linktype
   exhibit_dashboard_public?: boolean; // NEW: Add toggle for public dashboard access
+  ownerId?: string; // NEW: Add ownerId to track exhibition ownership
 }
 
 export interface ZoneArtworkItem {
@@ -146,6 +146,7 @@ export interface FirebaseArtwork {
   artwork_shared?: number;
   artwork_gravity?: number; // NEW: Add artwork_gravity for zero gravity mode
   artwork_viewed?: number;
+  ownerId?: string; // NEW: Add ownerId to track artwork ownership
 }
 
 export interface SimplifiedLightingPreset {

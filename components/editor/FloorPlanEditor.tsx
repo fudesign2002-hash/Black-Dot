@@ -55,6 +55,7 @@ interface FloorPlanEditorProps {
   activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
   onArtworkLiftedChange?: (isLifted: boolean) => void; // NEW: Callback for artwork lifted state
   onlineCount?: number; // NEW: Real-time user count
+  ownerId?: string | null; // NEW: Map identification for filtering
 }
 
 const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
@@ -94,6 +95,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   activeZoneId, // NEW: Destructure activeZoneId
   onArtworkLiftedChange, // NEW: Destructure onArtworkLiftedChange
   onlineCount = 0,
+  ownerId = null,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevIsOpenRef = useRef<boolean>(isOpen);
@@ -108,8 +110,19 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   const [panelOffset, setPanelOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStateRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number } | null>(null);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   const { lightsOn } = uiConfig;
+
+  // NEW: Detect small screen
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsSmallScreen(window.innerWidth < 768);
+    };
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const triggerSaveNotification = useCallback(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -247,36 +260,44 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
         
         <div className={`p-3 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/50' : 'bg-neutral-800/50'}`}>
             <div className="flex items-center gap-2">
+                {/* LIGHTING */}
                 <button
                     onClick={() => handleTabClick('lighting')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'lighting' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Sun className="w-4 h-4" /> Lighting
+                    <Sun className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'lighting') && 'Lighting'}
                 </button>
+                
+                {/* LAYOUT */}
                 <button
                     onClick={() => handleTabClick('layout')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'layout' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Map className="w-4 h-4" /> Layout
+                    <Map className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'layout') && 'Layout'}
                 </button>
-                {/* NEW: Scene Tab Button */}
+                
+                {/* SCENE */}
                 <button
                     onClick={() => handleTabClick('scene')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'scene' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Camera className="w-4 h-4" /> Scene
+                    <Camera className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'scene') && 'Scene'}
                 </button>
+                
+                {/* ARTWORKS */}
                 <button
                     onClick={() => handleTabClick('artworks')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'artworks' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Brush className="w-4 h-4" /> Artworks
+                    <Brush className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'artworks') && 'Artworks'}
                 </button>
+                
+                {/* ADMIN */}
                 <button
                     onClick={() => handleTabClick('admin')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'admin' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <SquarePen className="w-4 h-4" />
+                    <SquarePen className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'admin') && 'Admin'}
                 </button>
             </div>
         </div>
@@ -358,6 +379,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
               return success;
             }}
             isSignedIn={isSignedIn}
+            ownerId={ownerId}
           />
         ) : (
             <AdminTab
