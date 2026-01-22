@@ -310,24 +310,26 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <span className={`text-[9px] font-mono font-bold ${text}`}>{exhibitionId.toUpperCase()}</span>
             </div>
 
-            <div className="flex items-center gap-1.5 p-1 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-full border ${border}">
-              <button 
-                onClick={handleShare}
-                className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
-                title={copied ? "Copied!" : "Copy link"}
-              >
-                {copied ? <Check size={14} strokeWidth={1.5} className="text-green-500" /> : <Copy size={14} strokeWidth={1.5} />}
-              </button>
-              {!standalone && (
+            {exhibition.exhibit_dashboard_public && (
+              <div className="flex items-center gap-1.5 p-1 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-full border ${border}">
                 <button 
-                  onClick={openInNewTab}
+                  onClick={handleShare}
                   className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
-                  title="Expand"
+                  title={copied ? "Copied!" : "Copy link"}
                 >
-                  <ExternalLink size={14} strokeWidth={1.5} />
+                  {copied ? <Check size={14} strokeWidth={1.5} className="text-green-500" /> : <Copy size={14} strokeWidth={1.5} />}
                 </button>
-              )}
-            </div>
+                {!standalone && (
+                  <button 
+                    onClick={openInNewTab}
+                    className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
+                    title="Expand"
+                  >
+                    <ExternalLink size={14} strokeWidth={1.5} />
+                  </button>
+                )}
+              </div>
+            )}
             
             {!standalone && (
               <button 
@@ -817,22 +819,24 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                      <p className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-40`}>Support Entity</p>
                      <p className={`text-xs font-semibold ${text}`}>{exhibition.supportedBy || ''}</p>
                    </div>
-                   <button 
-                      onClick={handleShare}
-                      className="w-full py-2.5 bg-neutral-900 dark:bg-white dark:text-neutral-900 text-white rounded-lg flex items-center justify-center gap-2 group hover:bg-neutral-800 transition-all font-bold tracking-[0.2em] uppercase text-[8px]"
-                    >
-                      {copied ? (
-                        <>
-                          <Check size={10} className="text-green-400" />
-                          Link Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={10} />
-                          Copy Link
-                        </>
-                      )}
-                    </button>
+                   {exhibition.exhibit_dashboard_public && (
+                     <button 
+                        onClick={handleShare}
+                        className="w-full py-2.5 bg-neutral-900 dark:bg-white dark:text-neutral-900 text-white rounded-lg flex items-center justify-center gap-2 group hover:bg-neutral-800 transition-all font-bold tracking-[0.2em] uppercase text-[8px]"
+                      >
+                        {copied ? (
+                          <>
+                            <Check size={10} className="text-green-400" />
+                            Link Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={10} />
+                            Copy Link
+                          </>
+                        )}
+                      </button>
+                   )}
                 </div>
               </div>
             </div>

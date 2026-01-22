@@ -373,6 +373,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             exhibit_viewed: typeof data.exhibit_viewed === 'number' ? data.exhibit_viewed : 0, // NEW: Add exhibit_viewed
             exhibit_capacity: typeof data.exhibit_capacity === 'number' ? data.exhibit_capacity : 100, // NEW: Add exhibit_capacity with default 100
             exhibit_linktype: data.exhibit_linktype || 'tickets', // NEW: Add exhibit_linktype with default 'tickets'
+            exhibit_dashboard_public: typeof data.exhibit_dashboard_public === 'boolean' ? data.exhibit_dashboard_public : false, // NEW: Add exhibit_dashboard_public
         };
         return exhibition;
     });

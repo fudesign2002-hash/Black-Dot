@@ -4,6 +4,7 @@ import { db } from './firebase';
 import firebase from 'firebase/compat/app';
 import { auth } from './firebase';
 import Pusher from 'pusher-js';
+import { Lock } from 'lucide-react'; // NEW: Import Lock icon
 
 import Scene from './components/scene/Scene';
 import Header from './components/layout/Header';
@@ -1782,15 +1783,34 @@ function MuseumApp({
 
   // NEW: Standalone Analytics Mode
   if (isAnalyticsStandalone) {
+    const isPublicDashboard = activeExhibition?.exhibit_dashboard_public === true;
+    const canAccess = isSignedIn || isPublicDashboard;
+
     return (
       <div className={`fixed inset-0 h-screen overflow-hidden ${uiConfig.lightsOn ? 'bg-neutral-50' : 'bg-neutral-950'} z-[100]`}>
-        {isLoading ? (
+        {isDataLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-4">
                <div className="w-10 h-10 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
                <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${uiConfig.subtext} font-sans`}>
                  Loading Insight Dashboard...
                </p>
+            </div>
+          </div>
+        ) : !canAccess ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="bg-white/5 p-8 rounded-2xl border border-white/10 backdrop-blur-xl max-w-sm w-full text-center">
+              <Lock className="w-12 h-12 text-orange-500 mx-auto mb-4" />
+              <h2 className={`text-xl font-bold mb-2 ${uiConfig.text}`}>Private Dashboard</h2>
+              <p className={`text-sm ${uiConfig.subtext} mb-6`}>
+                This exhibition's dashboard is private. Please contact the curator for access.
+              </p>
+              <button 
+                onClick={() => window.location.href = '/'}
+                className="w-full py-3 bg-white text-black text-xs font-bold rounded-xl hover:bg-neutral-200 transition-colors"
+              >
+                Return to Gallery
+              </button>
             </div>
           </div>
         ) : (
@@ -1995,6 +2015,7 @@ function MuseumApp({
         onZeroGravityToggle={handleZeroGravityToggle} // NEW: Pass onZeroGravityToggle
         hideZeroGravityControl={hideZeroGravityControl}
         exhibitionId={activeExhibition?.id}
+        exhibit_dashboard_public={activeExhibition?.exhibit_dashboard_public === true}
         isSignedIn={isSignedIn}
         onOpenDashboard={() => setIsAnalyticsOpen(true)}
         isEmbed={!!embedMode}

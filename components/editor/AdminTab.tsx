@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition, ExhibitionArtItem, FirebaseArtwork } from '../../types'; // MODIFIED: Add ExhibitionArtItem and FirebaseArtwork
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2, ExternalLink, BookOpen, Instagram, Globe } from 'lucide-react'; // MODIFIED: Add BarChart2, ExternalLink, BookOpen, Instagram, Globe
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock } from 'lucide-react'; // MODIFIED: Add BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock
 import AnalyticsDashboard from '../ui/AnalyticsDashboard'; // NEW: Import AnalyticsDashboard
 
 interface AdminTabProps {
@@ -220,6 +220,20 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
       : null;
   }, [updateStatus]);
 
+  const handleToggleDashboardPublic = useCallback(async () => {
+    if (activeExhibition.id) {
+      // Default to false if undefined, then toggle
+      const currentValue = activeExhibition.exhibit_dashboard_public ?? false;
+      const newValue = !currentValue;
+      try {
+        await onUpdateExhibition(activeExhibition.id, { exhibit_dashboard_public: newValue });
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to update dashboard visibility:', error);
+      }
+    }
+  }, [activeExhibition.id, activeExhibition.exhibit_dashboard_public, onUpdateExhibition]);
+
   const currentOrigin = window.location.origin;
   const embedUrl = React.useMemo(() => {
     let url = `${currentOrigin}/?embed=true&exhibitionId=${activeExhibition.id}`;
@@ -330,21 +344,50 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
           </div>
         </div>
 
-        {/* NEW: Analytics Dashboard Button */}
-        <div className={`p-4 rounded-xl border ${border} ${lightsOn ? 'bg-cyan-50' : 'bg-cyan-900/20'} flex items-center justify-between`}>
-          <div>
-            <h4 className={`text-sm font-bold ${text} flex items-center gap-2`}>
-              <BarChart2 className="w-4 h-4 text-cyan-500" />
-              Exhibition Analytics
-            </h4>
-            <p className={`text-[11px] ${subtext}`}>View visitor insights and artwork performance</p>
+        {/* NEW: Analytics Dashboard Button & Visibility Toggle */}
+        <div className={`p-4 rounded-xl border ${border} ${lightsOn ? 'bg-cyan-50' : 'bg-cyan-900/20'}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className={`text-sm font-bold ${text} flex items-center gap-2`}>
+                <BarChart2 className="w-4 h-4 text-cyan-500" />
+                Exhibition Analytics
+              </h4>
+              <p className={`text-[11px] ${subtext}`}>View visitor insights and artwork performance</p>
+            </div>
+            <button
+              onClick={() => setIsAnalyticsOpen(true)}
+              className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold rounded-lg transition-all shadow-lg hover:shadow-cyan-500/20 active:scale-95"
+            >
+              Open Dashboard
+            </button>
           </div>
-          <button
-            onClick={() => setIsAnalyticsOpen(true)}
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold rounded-lg transition-all shadow-lg hover:shadow-cyan-500/20 active:scale-95"
-          >
-            Open Dashboard
-          </button>
+          
+          <div className={`pt-3 border-t ${border} flex items-center justify-between`}>
+            <div className="flex items-center gap-2">
+              {activeExhibition.exhibit_dashboard_public ? (
+                <Globe className="w-3.5 h-3.5 text-cyan-500" />
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-neutral-400" />
+              )}
+              <span className={`text-[11px] font-medium ${text}`}>
+                Dashboard Visibility: <span className={activeExhibition.exhibit_dashboard_public ? 'text-cyan-500' : 'text-neutral-400'}>
+                  {activeExhibition.exhibit_dashboard_public ? 'Public' : 'Private'}
+                </span>
+              </span>
+            </div>
+            <button
+              onClick={handleToggleDashboardPublic}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                activeExhibition.exhibit_dashboard_public ? 'bg-cyan-500' : 'bg-neutral-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                  activeExhibition.exhibit_dashboard_public ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
         <InputField label="Title" field="title" icon={FileText} value={localExhibition.title} onChange={handleChange} statusIcon={getStatusIcon('title')} uiConfig={uiConfig} />

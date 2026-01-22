@@ -48,6 +48,7 @@ interface MainControlsProps {
   isEmbed?: boolean; // NEW: hide certain controls when embedded
   showGlobalOverlay?: boolean; // NEW: Add showGlobalOverlay prop to prevent UI flicker
   exhibitionId?: string; // NEW: optional exhibition id for analytics attributes
+  exhibit_dashboard_public?: boolean; // NEW: Whether the dashboard is public
   // REMOVED: activeEffectName: string | null; // NEW: Add activeEffectName
   // REMOVED: onEffectToggle: (effectName: string) => void; // NEW: Add onEffectToggle
 }
@@ -91,6 +92,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   isResetCameraEnable, // NEW: Destructure isResetCameraEnable
   isEmbed = false,
   exhibitionId,
+  exhibit_dashboard_public = false, // NEW: Destructure exhibit_dashboard_public
   setHeartEmitterArtworkId,
   hasMotionArtwork, // NEW: Destructure hasMotionArtwork
   customCameraPosition, // NEW: Destructure customCameraPosition
@@ -136,7 +138,16 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const hasResetCamera = Boolean(isResetCameraEnable) && !isRankingMode && !isZeroGravityMode;
   const hasRankingToggle = !isZeroGravityMode && !hideRankingControl; 
   const hasZeroGravityToggle = !isRankingMode && !hideZeroGravityControl; 
-  const hasDashboard = !!isSignedIn && !!onOpenDashboard && !isRankingMode && !isZeroGravityMode; // NEW: check if dashboard button should show
+
+  // NEW: Refined dashboard button logic. In embed mode, strictly respect the exhibit_dashboard_public flag.
+  // In normal mode, curators can always see it, but others see it only if it's public.
+  const canShowDashboard = !!onOpenDashboard && !isRankingMode && !isZeroGravityMode && (
+    isEmbed 
+      ? (exhibit_dashboard_public === true) 
+      : (!!isSignedIn || exhibit_dashboard_public === true)
+  );
+
+  const hasDashboard = canShowDashboard; // NEW: check if dashboard button should show
   // MODIFIED: Keep small screen navigation visible in editor mode
   const hasSmallScreenNav = isSmallScreen && !isArtworkFocusedForControls && !isRankingMode && !isZeroGravityMode && !isEmbed; 
 

@@ -37,6 +37,7 @@ const DEFAULT_FALLBACK_EXHIBITION: Exhibition = {
   exhibit_artworks: [],
   isPublic: false,
   exhibit_background: undefined, // NEW: Add default for exhibit_background
+  exhibit_dashboard_public: false, // NEW: Add default for exhibit_dashboard_public
 };
 
 const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {

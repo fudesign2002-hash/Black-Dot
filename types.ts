@@ -109,6 +109,7 @@ export interface Exhibition {
   exhibit_viewed?: number; // NEW: Add exhibit_viewed
   exhibit_capacity?: number; // NEW: Add exhibit_capacity
   exhibit_linktype?: 'tickets' | 'learn_more' | 'instagram' | 'website'; // NEW: Add exhibit_linktype
+  exhibit_dashboard_public?: boolean; // NEW: Add toggle for public dashboard access
 }
 
 export interface ZoneArtworkItem {
