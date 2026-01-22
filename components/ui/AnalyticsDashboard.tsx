@@ -286,59 +286,71 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Compact */}
-        <div className={`px-6 py-4 border-b ${border} flex flex-col md:flex-row md:items-center justify-between gap-3 sticky top-0 z-20 ${lightsOn ? 'bg-[#fcfcfc]/90' : 'bg-[#121212]/90'} backdrop-blur-md`}>
-          <div className="flex items-center gap-5">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <BlackDotLogo treatAsCompact={true} className={`${text}`} />
-            </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-full bg-orange-400" />
-                <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-orange-500/80">
-                  Analytics Professional
-                </span>
-              </div>
-              <h2 className={`text-2xl font-serif tracking-tight ${text}`}>
-                {exhibitionTitle}
-              </h2>
-            </div>
-          </div>
+        <div className="relative">
+          {/* Close button - Top right on small screens */}
+          {!standalone && (
+            <button 
+              onClick={onClose}
+              className={`md:hidden absolute top-4 right-4 z-30 p-1.5 rounded-full ${lightsOn ? 'hover:bg-neutral-100' : 'hover:bg-neutral-800'} ${text} transition-all border ${border}`}
+            >
+              <X size={18} strokeWidth={1.2} />
+            </button>
+          )}
           
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-2 px-3 py-1.5 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-lg border ${border}`}>
-              <span className={`text-[9px] font-bold ${subtext} opacity-50 uppercase tracking-widest`}>ID:</span>
-              <span className={`text-[9px] font-mono font-bold ${text}`}>{exhibitionId.toUpperCase()}</span>
-            </div>
-
-            {exhibition.exhibit_dashboard_public && (
-              <div className="flex items-center gap-1.5 p-1 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-full border ${border}">
-                <button 
-                  onClick={handleShare}
-                  className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
-                  title={copied ? "Copied!" : "Copy link"}
-                >
-                  {copied ? <Check size={14} strokeWidth={1.5} className="text-green-500" /> : <Copy size={14} strokeWidth={1.5} />}
-                </button>
-                {!standalone && (
-                  <button 
-                    onClick={openInNewTab}
-                    className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
-                    title="Expand"
-                  >
-                    <ExternalLink size={14} strokeWidth={1.5} />
-                  </button>
-                )}
+          <div className={`px-6 py-4 border-b ${border} flex flex-col md:flex-row md:items-center justify-between gap-3 sticky top-0 z-20 ${lightsOn ? 'bg-[#fcfcfc]/90' : 'bg-[#121212]/90'} backdrop-blur-md`}>
+            <div className="flex items-center gap-5">
+              <div className="w-10 h-10 flex items-center justify-center">
+                <BlackDotLogo treatAsCompact={true} className={`${text}`} />
               </div>
-            )}
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-orange-400" />
+                  <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-orange-500/80">
+                    Analytics Professional
+                  </span>
+                </div>
+                <h2 className={`text-2xl font-serif tracking-tight ${text}`}>
+                  {exhibitionTitle}
+                </h2>
+              </div>
+            </div>
             
-            {!standalone && (
-              <button 
-                onClick={onClose}
-                className={`p-1.5 rounded-full ${lightsOn ? 'hover:bg-neutral-100' : 'hover:bg-neutral-800'} ${text} transition-all border ${border}`}
-              >
-                <X size={18} strokeWidth={1.2} />
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-2 px-3 py-1.5 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-lg border ${border}`}>
+                <span className={`text-[9px] font-bold ${subtext} opacity-50 uppercase tracking-widest`}>ID:</span>
+                <span className={`text-[9px] font-mono font-bold ${text}`}>{exhibitionId.toUpperCase()}</span>
+              </div>
+
+              {exhibition.exhibit_dashboard_public && (
+                <div className="flex items-center gap-1.5 p-1 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-full border ${border}">
+                  <button 
+                    onClick={handleShare}
+                    className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
+                    title={copied ? "Copied!" : "Copy link"}
+                  >
+                    {copied ? <Check size={14} strokeWidth={1.5} className="text-green-500" /> : <Copy size={14} strokeWidth={1.5} />}
+                  </button>
+                  {!standalone && (
+                    <button 
+                      onClick={openInNewTab}
+                      className={`p-1.5 rounded-full hover:bg-white dark:hover:bg-neutral-700 transition-all ${text} group`}
+                      title="Expand"
+                    >
+                      <ExternalLink size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {!standalone && (
+                <button 
+                  onClick={onClose}
+                  className={`hidden md:block p-1.5 rounded-full ${lightsOn ? 'hover:bg-neutral-100' : 'hover:bg-neutral-800'} ${text} transition-all border ${border}`}
+                >
+                  <X size={18} strokeWidth={1.2} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
