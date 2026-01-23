@@ -7,7 +7,8 @@
     "dev": "vite",
     "pusher-auth": "node --env-file=.env.local server/pusher-auth.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "knip": "knip"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "knip": "^5.45.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

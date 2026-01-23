@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "index.html",
+    "src/main.{ts,tsx,js,jsx}",
+    "server/pusher-auth.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx,js,jsx}", "server/**/*.mjs", "*.{ts,tsx,js,jsx}"],
+  "ignore": ["dist/**", "node_modules/**"]
+}
