@@ -253,11 +253,11 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           <div className="flex items-center gap-3 flex-1 min-w-0">
               <h3 className="font-bold tracking-widest uppercase text-sm truncate">Exhibit Editor</h3>
               <div className={`flex items-center gap-1.5 text-green-500 transition-opacity duration-300 ml-auto ${showSaved ? 'opacity-100' : 'opacity-0'}`}>
-                 <Check className="w-4 h-4" />
-                 <span className="text-xs font-bold">Saved</span>
+                 <Check size={14} />
+                 <span className="text-[10px] font-bold uppercase tracking-widest">Saved</span>
               </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-neutral-500/20 rounded-lg transition-colors cursor-pointer flex-shrink-0"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-neutral-500/20 rounded-lg transition-colors cursor-pointer flex-shrink-0"><X size={18} className="opacity-60" /></button>
         </div>
         
         <div className={`p-3 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/50' : 'bg-neutral-800/50'}`}>
@@ -267,7 +267,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                     onClick={() => handleTabClick('lighting')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'lighting' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Sun className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'lighting') && 'Lighting'}
+                    <Sun size={14} className={activeTab === 'lighting' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'lighting') && 'Lighting'}
                 </button>
                 
                 {/* LAYOUT */}
@@ -275,7 +275,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                     onClick={() => handleTabClick('layout')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'layout' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Map className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'layout') && 'Layout'}
+                    <Map size={14} className={activeTab === 'layout' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'layout') && 'Layout'}
                 </button>
                 
                 {/* SCENE */}
@@ -283,7 +283,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                     onClick={() => handleTabClick('scene')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'scene' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Camera className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'scene') && 'Scene'}
+                    <Camera size={14} className={activeTab === 'scene' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'scene') && 'Scene'}
                 </button>
                 
                 {/* ARTWORKS */}
@@ -291,7 +291,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                     onClick={() => handleTabClick('artworks')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'artworks' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Brush className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'artworks') && 'Artworks'}
+                    <Brush size={14} className={activeTab === 'artworks' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'artworks') && 'Artworks'}
                 </button>
                 
                 {/* ADMIN */}
@@ -299,7 +299,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                     onClick={() => handleTabClick('admin')}
                     className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'admin' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <SquarePen className="w-4 h-4" /> {(!isSmallScreen || activeTab === 'admin') && 'Admin'}
+                    <SquarePen size={14} className={activeTab === 'admin' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'admin') && 'Admin'}
                 </button>
             </div>
         </div>
@@ -334,6 +334,10 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             }}
             onUpdateArtworkData={async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {
               await onUpdateArtworkData(artworkId, updatedArtworkData);
+              triggerSaveNotification();
+            }}
+            onUpdateArtworkField={async (artworkId: string, field: string, value: any) => {
+              await onUpdateArtworkField(artworkId, field, value);
               triggerSaveNotification();
             }}
             onRemoveArtworkFromLayout={onRemoveArtworkFromLayout}

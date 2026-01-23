@@ -53,7 +53,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
       aria-describedby="confirmation-dialog-description"
     >
       <div
-        className={`w-full max-w-sm flex flex-col rounded-2xl shadow-2xl overflow-hidden box-border max-w-full ${uiConfig.panelBg} border ${uiConfig.border}`}
+        className={`w-full max-w-sm flex flex-col rounded-xl shadow-2xl overflow-hidden box-border max-w-full ${uiConfig.panelBg} border ${uiConfig.border}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`p-6 border-b flex items-center justify-between ${uiConfig.border}`}>

@@ -363,7 +363,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-neutral-400">
                   <Calendar size={11} strokeWidth={1.5} />
-                  <span className="text-[8px] font-bold uppercase tracking-[0.2em]">Exhibition Period</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Exhibition Period</span>
                 </div>
                  <div className={`text-xs font-bold tracking-tight ${text}`}>
                    {exhibition.dateFrom && exhibition.dateTo ? `${exhibition.dateFrom} — ${exhibition.dateTo}` : (exhibition.dateFrom || exhibition.dateTo || '')}
@@ -373,7 +373,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-neutral-400">
                   <Clock size={11} strokeWidth={1.5} />
-                  <span className="text-[8px] font-bold uppercase tracking-[0.2em]">Operational Status</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Operational Status</span>
                 </div>
                 <div className={`text-xs font-bold tracking-tight ${text} flex items-center gap-2`}>
                   <div className={`w-1 h-1 rounded-full ${exhibition.isPublic ? 'bg-green-500 animate-pulse' : 'bg-orange-500'} `} />
@@ -384,7 +384,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-neutral-400">
                   <MapPin size={11} strokeWidth={1.5} />
-                  <span className="text-[8px] font-bold uppercase tracking-[0.2em]">Venue Context</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Venue Context</span>
                 </div>
                 <div className={`text-xs font-bold tracking-tight ${text}`}>
                   {exhibition.venue || ''}
@@ -464,10 +464,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             {/* 2. Engagement & Traffic Trends */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
               {/* Feature Adoption / Heatmap */}
-              <div className={`lg:col-span-4 p-6 rounded-2xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} flex flex-col justify-between`}>
+              <div className={`lg:col-span-4 p-6 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} flex flex-col justify-between`}>
                 <div className="space-y-6">
                   <div className="space-y-0.5">
-                    <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Engagement Heatmap</h3>
+                    <h3 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-50`}>Engagement Heatmap</h3>
                     <p className={`text-lg font-serif ${text}`}>Feature Adoption</p>
                   </div>
 
@@ -476,11 +476,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       <div key={feature.id} className="space-y-3">
                         <div className="flex items-center justify-between">
                            <div className="flex items-center gap-3">
-                             {feature.id === 'focus' && <ImageIcon size={12} className="opacity-40" />}
-                             {feature.id === 'zeroG' && <Orbit size={12} className="opacity-40" />}
-                             {feature.id === 'ranking' && <ListOrdered size={12} className="opacity-40" />}
-                             {feature.id === 'lighting' && <Sun size={12} className="opacity-40" />}
-                             {feature.id === 'info' && <Info size={12} className="opacity-40" />}
+                             {feature.id === 'focus' && <ImageIcon size={14} className="opacity-40" />}
+                             {feature.id === 'zeroG' && <Orbit size={14} className="opacity-40" />}
+                             {feature.id === 'ranking' && <ListOrdered size={14} className="opacity-40" />}
+                             {feature.id === 'lighting' && <Sun size={14} className="opacity-40" />}
+                             {feature.id === 'info' && <Info size={14} className="opacity-40" />}
                              <span className={`text-sm font-bold ${text}`}>{feature.label}</span>
                            </div>
                            <div className="flex items-center gap-3">
@@ -507,15 +507,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
 
             {/* 3. NEW: Technical Specifications Section */}
-            <div className={`p-6 rounded-2xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} space-y-8`}>
+            <div className={`p-6 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} space-y-8`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Technical Specifications</h3>
+                  <h3 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-50`}>Technical Specifications</h3>
                   <p className={`text-lg font-serif ${text}`}>Audience Technology Breakdown</p>
                 </div>
                 <div className={`px-4 py-2 rounded-full border ${border} ${lightsOn ? 'bg-neutral-50' : 'bg-neutral-900/50'} flex items-center gap-2.5`}>
                   <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                  <span className={`text-[10px] font-black uppercase tracking-[0.1em] ${text} opacity-70`}>Umami Cloud Stats</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${text} opacity-70`}>Umami Cloud Stats</span>
                 </div>
               </div>
 
@@ -524,9 +524,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <div className="space-y-6">
                   <div className="flex items-center gap-2.5">
                     <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
-                       <Monitor size={12} className="opacity-50" />
+                       <Monitor size={14} className="opacity-50" />
                     </div>
-                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Device Distribution</h4>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Device Distribution</h4>
                   </div>
                   
                   <div className="flex flex-col gap-6">
@@ -566,9 +566,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <div className="space-y-6">
                   <div className="flex items-center gap-2.5">
                     <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
-                       <Globe size={12} className="opacity-50" />
+                       <Globe size={14} className="opacity-50" />
                     </div>
-                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Browser Share</h4>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Browser Share</h4>
                   </div>
                   <div className="space-y-5">
                     {isLoading ? (
@@ -647,7 +647,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
 
             {/* 4. NEW: Location Section */}
-            <div className={`p-6 rounded-2xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} space-y-8`}>
+            <div className={`p-6 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} space-y-8`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-0.5">
                   <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Geographic Distribution</h3>
@@ -697,7 +697,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
                       <MapPin size={12} className="opacity-50" />
                     </div>
-                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Regions</h4>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Regions</h4>
                   </div>
                   <div className="space-y-2.5">
                     {isLoading ? (
@@ -731,7 +731,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <div className={`p-1.5 rounded-lg ${lightsOn ? 'bg-neutral-50 border-neutral-100' : 'bg-neutral-800/50 border-neutral-700/50'} border`}>
                       <MapIcon size={12} className="opacity-50" />
                     </div>
-                    <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Top Cities</h4>
+                    <h4 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Top Cities</h4>
                   </div>
                   <div className="space-y-2.5">
                     {isLoading ? (
@@ -753,7 +753,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className={`p-5 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'}`}>
               <div className="flex items-start mb-6">
                 <div className="space-y-0.5">
-                   <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${subtext} opacity-50`}>Top Performing Assets</h3>
+                   <h3 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Top Performing Assets</h3>
                    <p className={`text-lg font-serif ${text}`}>Artwork Performance Ranking</p>
                 </div>
               </div>
@@ -763,7 +763,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Top Liked Assets</h4>
+                      <h4 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Top Liked Assets</h4>
                       <p className={`text-[12px] font-serif ${text}`}>By Likes / Engagement</p>
                     </div>
                   </div>
@@ -790,7 +790,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${subtext} opacity-60`}>Top Viewed Assets</h4>
+                      <h4 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Top Viewed Assets</h4>
                       <p className={`text-[12px] font-serif ${text}`}>By View Count</p>
                     </div>
                   </div>
@@ -894,7 +894,7 @@ const HeroMetric: React.FC<{
       </div>
       <div className="space-y-0.5">
         <p className={`text-2xl font-serif tracking-tight ${text}`}>{value}</p>
-        <p className={`text-[8px] uppercase font-bold tracking-[0.2em] ${subtext} opacity-50`}>{label}</p>
+        <p className={`text-[10px] uppercase font-bold tracking-widest ${subtext} opacity-60`}>{label}</p>
       </div>
     </div>
   );

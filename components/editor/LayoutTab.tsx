@@ -26,6 +26,7 @@ interface LayoutTabProps {
   firebaseArtworks: FirebaseArtwork[]; // NEW: Add firebaseArtworks
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>; // NEW: Add onUpdateArtworkFile
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>; // NEW: Add onUpdateArtworkData
+  onUpdateArtworkField: (artworkId: string, field: string, value: any) => Promise<void>; // NEW: Add onUpdateArtworkField
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>; // NEW: Add onRemoveArtworkFromLayout
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void; // NEW: Add onOpenConfirmationDialog
   isSignedIn?: boolean; // NEW: Add isSignedIn prop
@@ -113,6 +114,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   firebaseArtworks, // NEW: Destructure firebaseArtworks
   onUpdateArtworkFile, // NEW: Destructure onUpdateArtworkFile
   onUpdateArtworkData, // NEW: Destructure onUpdateArtworkData
+  onUpdateArtworkField, // NEW: Destructure onUpdateArtworkField
   onRemoveArtworkFromLayout, // NEW: Destructure onRemoveArtworkFromLayout
   onOpenConfirmationDialog, // NEW: Destructure onOpenConfirmationDialog
   isSignedIn = false, // NEW: Destructure isSignedIn
@@ -610,6 +612,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                     uiConfig={uiConfig}
                     onUpdateArtworkFile={onUpdateArtworkFile}
                     onUpdateArtworkData={onUpdateArtworkData}
+                    onUpdateArtworkField={onUpdateArtworkField}
                   />
                 )}
               </div>

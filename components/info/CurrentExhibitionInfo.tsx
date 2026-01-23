@@ -55,7 +55,7 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                 <React.Fragment>
                     <div className={`flex items-center gap-2 mb-4 ${subtextClass}`}>
                         <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${getStatusColor(activeExhibition.status)}`}></span>
-                        <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-current">
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-current">
                             {activeExhibition.status === 'now showing' ? 'Now Showing' : activeExhibition.status + ' Exhibition'}
                         </span>
                     </div>

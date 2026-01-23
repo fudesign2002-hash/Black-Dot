@@ -467,7 +467,7 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
 
       {showOverlay && !isSignedIn && (
         <div onMouseDown={handleOverlayBackgroundClick} className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 overflow-hidden p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl box-border overflow-hidden">
+          <div className="bg-white rounded-xl p-8 w-full max-w-md shadow-2xl box-border overflow-hidden">
             <div className="flex flex-col items-center gap-4">
               {/* Logo box */}
               <div className="w-20 h-20 flex items-center justify-center">
@@ -583,7 +583,7 @@ export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestClose
       {/* Debug panel (Shift+Click on user icon to open) */}
       {debugPanelOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50" onClick={() => setDebugPanelOpen(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl box-border max-w-full overflow-auto">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl box-border max-w-full overflow-auto">
             <h2 className="text-lg font-bold mb-3">User icon click — Debug Steps</h2>
             <p className="text-sm mb-4">按下各步驟按鈕逐一執行，觀察是否會觸發橫向溢出。</p>
             <div className="space-y-3 mb-4">

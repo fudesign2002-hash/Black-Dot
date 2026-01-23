@@ -205,10 +205,10 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
         <div className={`flex-1 overflow-y-auto px-8 pb-10 scrollbar-hide`}>
            {showArtworkData ? (
              <React.Fragment>
-                {isLoading ? (
+                        {isLoading ? (
                   <div className="text-center py-10">
                     <Loader2 className={`w-8 h-8 animate-spin mx-auto mb-4 opacity-20 ${uiConfig.text}`} />
-                    <p className={`text-xs font-bold tracking-widest opacity-40 ${uiConfig.text}`}>Loading Details</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${uiConfig.text}`}>Loading Details</p>
                   </div>
                 ) : (
                   <div className={`grid grid-cols-2 gap-6 mb-8 p-6 bg-neutral-500/5 border ${uiConfig.border} rounded-sm`}>
@@ -216,7 +216,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                       <div className="flex items-start gap-4">
                           <Image size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                           <div>
-                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Artwork Type</p>
+                               <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Artwork Type</p>
                                <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{formatArtworkType(artworkDataForPanel?.artwork_type)}</p>
                           </div>
                       </div>
@@ -226,7 +226,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                       <div className="flex items-start gap-4">
                           <Brush size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                           <div>
-                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Artist</p>
+                               <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Artist</p>
                                <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel?.artist}</p>
                           </div>
                       </div>
@@ -236,7 +236,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                       <div className="flex items-start gap-4">
                           <Calendar size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                           <div>
-                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Date</p>
+                               <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Date</p>
                                <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel.artwork_date}</p>
                           </div>
                       </div>
@@ -246,7 +246,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                       <div className={`col-span-2 pt-4 border-t border-neutral-500/10 flex items-start gap-4`}>
                           <Layers size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                           <div>
-                              <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Medium</p>
+                              <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Medium</p>
                               <div className="space-y-1">
                                   <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{artworkDataForPanel.artwork_medium || artworkDataForPanel.materials}</p>
                                   {(artworkDataForPanel.artwork_dimensions || artworkDataForPanel.size) && (
@@ -275,7 +275,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                {isLoading ? (
                  <div className="text-center py-10">
                    <Loader2 className={`w-8 h-8 animate-spin mx-auto mb-4 opacity-20 ${uiConfig.text}`} />
-                   <p className={`text-xs font-bold tracking-widest opacity-40 ${uiConfig.text}`}>Synchronizing</p>
+                   <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${uiConfig.text}`}>Synchronizing</p>
                  </div>
                ) : (
                 <React.Fragment>
@@ -288,7 +288,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                            <div className="flex items-start gap-4">
                              <Calendar size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                              <div>
-                               <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Dates</p>
+                               <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Dates</p>
                                {exhibitionDateLines.map((line, idx) => (
                                  <p key={`date-line-${idx}`} className={`text-sm font-mono tracking-tight ${uiConfig.text} ${idx === 0 ? '' : 'mt-1'}`}>{line}</p>
                                ))}
@@ -299,7 +299,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                            <div className="flex items-start gap-4">
                              <Clock size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                              <div>
-                                <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Hours</p>
+                                <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Hours</p>
                                 {exhibitionHoursParts.length === 1 ? (
                                   <p className={`text-sm font-mono tracking-tight ${uiConfig.text}`}>{exhibitionHoursParts[0]}</p>
                                 ) : (
@@ -315,7 +315,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                            <div className={`flex items-start gap-4 ${exhibitionDateLines.length > 0 || exhibitionHoursParts.length > 0 ? 'col-span-2 pt-4 border-t border-neutral-500/10' : 'col-span-2'}`}>
                               <MapPin size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                               <div>
-                                 <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Venue</p>
+                                 <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Venue</p>
                                  <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.venue}</p>
                               </div>
                            </div>
@@ -324,7 +324,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                            <div className={`flex items-start gap-4 col-span-2 pt-4 border-t border-neutral-500/10`}>
                               <Ticket size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                               <div>
-                                 <p className={`text-[10px] font-bold uppercase opacity-40 mb-1 ${uiConfig.text}`}>Admission</p>
+                                 <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Admission</p>
                                  <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.admission}</p>
                               </div>
                            </div>
@@ -336,7 +336,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                       {activeExhibition.overview && activeExhibition.overview.trim() !== '' && (
                         <div className="space-y-6">
                           <div className={`flex items-center gap-4 border-b pb-2 ${uiConfig.border}`}>
-                             <h3 className={`text-xs font-bold uppercase tracking-[0.2em] ${uiConfig.text}`}>Overview</h3>
+                             <h3 className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${uiConfig.text}`}>Overview</h3>
                           </div>
                           <p className={`text-sm leading-8 font-light ${uiConfig.text} opacity-80 whitespace-pre-line`}>
                             {activeExhibition.overview}
@@ -346,7 +346,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                       
                       {activeExhibition.supportedBy && activeExhibition.supportedBy.trim() !== '' && ( 
                         <div className={`pt-6 border-t ${uiConfig.border} flex flex-col gap-2 opacity-50`}>
-                            <p className={`text-[10px] font-bold uppercase ${uiConfig.text}`}>Supported By</p>
+                            <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${uiConfig.text}`}>Supported By</p>
                             <p className={`text-sm ${uiConfig.text}`}>{activeExhibition.supportedBy}</p>
                         </div>
                       )}

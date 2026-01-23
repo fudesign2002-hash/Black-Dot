@@ -38,13 +38,13 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, uiConfig, ex
     return (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
                 <div 
-                    className={`w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden transition-all box-border max-w-full ${lightsOn ? 'bg-white' : 'bg-neutral-900 border border-neutral-800'}`}
+                    className={`w-full max-w-2xl max-h-[80vh] flex flex-col rounded-xl shadow-2xl overflow-hidden transition-all box-border max-w-full ${lightsOn ? 'bg-white' : 'bg-neutral-900 border border-neutral-800'}`}
                     onClick={e => e.stopPropagation()}
                 >
             <div className={`p-6 border-b flex items-center justify-between ${uiConfig.border}`}>
                 <div>
                     <h3 className={`text-xl font-serif font-bold ${uiConfig.text}`}>Exhibition Archive</h3>
-                    <p className={`text-xs mt-1 ${uiConfig.subtext}`}>Total Exhibitions: {exhibitions.length}</p>
+                    <p className={`text-[10px] uppercase tracking-widest opacity-60 mt-1 ${uiConfig.subtext}`}>Total Exhibitions: {exhibitions.length}</p>
                 </div>
                 <button onClick={onClose} className={`p-2 rounded-full hover:bg-black/5 ${uiConfig.text}`}>
                     <X className="w-6 h-6" />

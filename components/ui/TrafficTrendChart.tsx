@@ -214,10 +214,10 @@ const TrafficTrendChart: React.FC<Props> = ({ exhibitionId, uiConfig }) => {
   }, [points, uiConfig.lightsOn, uiConfig.text, uiConfig.subtext, uiConfig.border]);
 
   return (
-    <div className={`p-6 rounded-2xl border ${uiConfig.border} ${uiConfig.lightsOn ? 'bg-white' : 'bg-neutral-800/10'} flex flex-col h-full min-h-[400px]`}>
+    <div className={`p-6 rounded-xl border ${uiConfig.border} ${uiConfig.lightsOn ? 'bg-white' : 'bg-neutral-800/10'} flex flex-col h-full min-h-[400px]`}>
       <div className="flex items-center justify-between mb-8">
         <div className="space-y-0.5">
-          <h3 className={`text-[8px] font-bold uppercase tracking-[0.3em] ${uiConfig.subtext} opacity-50`}>Visitor Traffic</h3>
+          <h3 className={`text-[10px] font-bold uppercase tracking-widest ${uiConfig.subtext} opacity-60`}>Visitor Traffic</h3>
           <p className={`text-lg font-serif ${uiConfig.text}`}>Traffic Trend</p>
         </div>
         
