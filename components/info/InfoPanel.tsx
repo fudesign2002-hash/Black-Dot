@@ -17,8 +17,15 @@ interface InfoPanelProps {
 const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, activeExhibition, isLoading, focusedArtworkFirebaseId, allFirebaseArtworks, onOpenExhibitionInfoFromArtwork }) => {
   const { lightsOn } = uiConfig;
   const [posterLoadError, setPosterLoadError] = React.useState(false);
+  const [artworkPosterLoadError, setArtworkPosterLoadError] = React.useState(false);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const prevIsOpenRef = React.useRef<boolean>(isOpen);
+
+  // Reset error flags when artwork or exhibition changes
+  React.useEffect(() => {
+    setPosterLoadError(false);
+    setArtworkPosterLoadError(false);
+  }, [focusedArtworkFirebaseId, activeExhibition.id]);
 
   // Helper function to get button config based on link type
   const getButtonConfig = (linkType?: string, status?: string) => {
@@ -204,8 +211,17 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
 
         <div className={`flex-1 overflow-y-auto px-8 pb-10 scrollbar-hide`}>
            {showArtworkData ? (
-             <React.Fragment>
-                        {isLoading ? (
+             <React.Fragment>                {artworkDataForPanel?.artwork_poster && artworkDataForPanel.artwork_poster.trim() !== '' && !artworkPosterLoadError && (
+                 <div className={`w-full aspect-[16/9] mb-8 relative overflow-hidden border ${uiConfig.border}`}>
+                    <img
+                      src={artworkDataForPanel.artwork_poster}
+                      alt={`${artworkDataForPanel?.title} poster`}
+                      className="object-cover w-full h-full scale-105 hover:scale-100 transition-transform duration-1000"
+                      onError={() => setArtworkPosterLoadError(true)}
+                    />
+                 </div>
+                )}
+                                        {isLoading ? (
                   <div className="text-center py-10">
                     <Loader2 className={`w-8 h-8 animate-spin mx-auto mb-4 opacity-20 ${uiConfig.text}`} />
                     <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${uiConfig.text}`}>Loading Details</p>

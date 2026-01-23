@@ -102,6 +102,7 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
     date: artwork.artwork_date || '',
     medium: artwork.artwork_medium || '',
     dimensions: artwork.artwork_dimensions || '',
+    poster: artwork.artwork_poster || '',
   });
 
   const { lightsOn, text, subtext, border, input } = uiConfig;
@@ -121,6 +122,7 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
       date: artwork.artwork_date || '',
       medium: artwork.artwork_medium || '',
       dimensions: artwork.artwork_dimensions || '',
+      poster: artwork.artwork_poster || '',
     });
 
     if ((artwork.artwork_type as string) === 'sculpture' || ((artwork.artwork_type as string) === 'sculpture' && artwork.artwork_file?.toLowerCase().includes('.glb'))) {
@@ -201,6 +203,7 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
         onUpdateArtworkField(artwork.id, 'artwork_date', tempMetadata.date),
         onUpdateArtworkField(artwork.id, 'artwork_medium', tempMetadata.medium),
         onUpdateArtworkField(artwork.id, 'artwork_dimensions', tempMetadata.dimensions),
+        onUpdateArtworkField(artwork.id, 'artwork_poster', tempMetadata.poster),
       ]);
       handleUpdateStatus('saved');
       setEditingMetadataId(null);
@@ -390,6 +393,17 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+          <div className="flex gap-4 pt-4 border-t border-neutral-500/10">
+            <div className={`mt-1 p-2 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} h-fit shadow-sm`}><ImageIcon size={14} className="opacity-40" /></div>
+            <div className="flex-1 space-y-1.5">
+              <label className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Artwork Poster URL</label>
+              {editingMetadataId === artwork.id ? (
+                <input autoFocus type="text" value={tempMetadata.poster} onChange={e => setTempMetadata(prev => ({ ...prev, poster: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') handleMetadataSave(); if (e.key === 'Escape') setEditingMetadataId(null); }} placeholder="Feature image URL for info panel" className={`w-full px-3 py-1.5 rounded-lg border ${border} text-xs font-semibold ${input} outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all`} />
+              ) : (
+                <p className={`text-sm font-medium ${text} cursor-text hover:bg-black/5 dark:hover:bg-white/5 rounded px-1 -mx-1 transition-colors truncate max-w-[200px]`} onClick={() => setEditingMetadataId(artwork.id)} title={artwork.artwork_poster || 'Click to set poster URL'}>{artwork.artwork_poster || 'Set feature poster URL...'}</p>
+              )}
             </div>
           </div>
         </div>

@@ -105,6 +105,7 @@ export const processFirebaseArtworks = async (docs: firebase.firestore.QueryDocu
                         artwork_viewed: typeof data.artwork_viewed === 'number' ? data.artwork_viewed : 0,
                         artwork_shared: typeof data.artwork_shared === 'number' ? data.artwork_shared : undefined,
                         artwork_gravity: typeof data.artwork_gravity === 'number' ? data.artwork_gravity : 0,
+                        artwork_poster: data.artwork_poster || undefined,
                         ownerId: data.ownerId || data.ownerUid || data.uid || data.userId || data.owner || undefined, // NEW: Map various owner/uid fields from Firestore
                 };
     });

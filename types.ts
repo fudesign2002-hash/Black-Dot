@@ -146,6 +146,7 @@ export interface FirebaseArtwork {
   artwork_shared?: number;
   artwork_gravity?: number; // NEW: Add artwork_gravity for zero gravity mode
   artwork_viewed?: number;
+  artwork_poster?: string; // NEW: Add artwork_poster for artwork-specific posters
   ownerId?: string; // NEW: Add ownerId to track artwork ownership
 }
 
