@@ -534,14 +534,14 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
       {/* Artwork Info Section with Scrolling */}
       <div className={`flex-1 overflow-y-auto min-h-0 pt-4 mt-4 border-t ${border}`}>
-        <p className={`text-[10px] font-bold tracking-[0.2em] uppercase ${subtext}`}>Artwork Name</p>
-        <p className="text-lg font-medium mt-1 min-h-[1.75rem]">{selectedArtworkId ? selectedArtworkTitle : ' '}</p>
+        <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${subtext}`}>Artwork Name</p>
+        <p className="text-xl font-medium mt-1 min-h-[1.75rem]">{selectedArtworkId ? selectedArtworkTitle : ' '}</p>
         <p className={`text-sm mt-1 min-h-[1.25rem] ${subtext}`}>{selectedArtworkId && selectedArtworkArtist ? `by ${selectedArtworkArtist}` : ' '}</p>
         
         <div className={`transition-opacity duration-300 ${selectedArt ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="flex items-center gap-4 mt-4">
+          <div className="flex items-center gap-4 mt-6 mb-2">
             <button onClick={handleRotationReset} className={`p-2 rounded-full transition-colors ${buttonHoverClass}`} title="Reset Rotation">
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw size={14} className="opacity-60" />
             </button>
             <input 
               type="range"
@@ -588,7 +588,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                     className={`p-1.5 rounded-full hover:bg-red-500/10 transition-colors ${text}`}
                     title="Remove Artwork from Layout"
                   >
-                    <Trash2 className="w-4 h-4 text-red-500" />
+                    <Trash2 size={14} className="text-red-500" />
                   </button>
                 )}
                 <button
@@ -596,7 +596,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                   className={`p-1.5 rounded-full transition-colors ${isEditingArtwork ? (lightsOn ? 'bg-neutral-900 text-white' : 'bg-white text-black') : 'hover:bg-black/5'} ${text}`}
                   title={isEditingArtwork ? "Close Editor" : "Edit Artwork Settings"}
                 >
-                  {isEditingArtwork ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  {isEditingArtwork ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
               </div>
             </div>

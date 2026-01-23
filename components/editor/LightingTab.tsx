@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { Sun, Moon, Sparkles, Image, Palette } from 'lucide-react';
 import { SimplifiedLightingConfig, SimplifiedLightingPreset, ZoneLightingDesign } from '../../types';
+import { ControlRow } from './EditorCommon';
 
 interface LightingTabProps {
   uiConfig: {
@@ -21,16 +22,6 @@ interface LightingTabProps {
 }
 
 const fixedSpotlightPalette = ['#FFFFFF', '#FFFBEB', '#FFDDDD', '#DDEEFF', '#E0FFEE', '#FFEECC', '#CCEEFF', '#FFCCEE', '#EEEEEE', '#FFEEAA'];
-
-const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode; border: string; controlBgClass: string }> = ({ label, value, children, border, controlBgClass }) => (
-    <div className={`p-4 rounded-xl border flex flex-col items-start gap-3 ${border} ${controlBgClass}`}>
-        <div className="w-full flex justify-between items-center">
-            <p className="text-sm font-medium">{label}</p>
-            {value && <p className="text-[10px] font-mono uppercase opacity-50">{value}</p>}
-        </div>
-        {children}
-    </div>
-);
 
 const LightingTab: React.FC<LightingTabProps> = React.memo(({
   uiConfig,
@@ -94,10 +85,10 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
             <div className="space-y-4">
                 <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
                     <div className="flex items-start gap-4 w-full">
-                        <Sparkles className="w-5 h-5 text-cyan-500 mt-0.5 shrink-0" />
+                        <Sparkles size={18} className="text-cyan-500 mt-1 shrink-0" />
                         <div>
                             <h4 className="font-bold text-sm mb-2">Lighting Presets for "{exhibitionTitle || currentZoneNameForEditor}"</h4>
-                            <p className={`text-base leading-relaxed ${subtext} mb-4`}>{fullZoneLightingDesign.description}</p>
+                            <p className="text-sm leading-relaxed opacity-60 mb-4">{fullZoneLightingDesign.description}</p>
                             <div className="flex flex-wrap gap-2">
                                 {availablePresets.map((preset: SimplifiedLightingPreset) => (
                                     <button key={preset.name} onClick={() => applyPreset(preset)} className={`px-4 py-2 rounded-full text-xs font-bold uppercase transition-colors ${(lightingConfig.colorTemperature === preset.colorTemperature && lightingConfig.ambientIntensity === preset.ambientIntensity && lightingConfig.manualSpotlightColor === preset.manualSpotlightColor) ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-neutral-900 shadow-md') : (lightsOn ? 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700' : 'bg-neutral-700 hover:bg-neutral-600 text-white')}`}>{preset.name}</button>
@@ -109,7 +100,7 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
 
                 <ControlRow label="Ambient Environment" value={`${lightingConfig.colorTemperature}K`} border={border} controlBgClass={controlBgClass}>
                     <div className="w-full flex items-center gap-3">
-                        <span className="text-amber-500"><Sun className="w-4 h-4" /></span>
+                        <span className="text-amber-500"><Sun size={14} className="opacity-60" /></span>
                         <input 
                             type="range" 
                             min="2700" 
@@ -121,7 +112,7 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
                             onMouseDown={e => e.stopPropagation()}
                             className="w-full h-1 bg-gradient-to-r from-amber-500 to-blue-500 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-300 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:shadow-lg" 
                         />
-                        <span className="text-blue-500"><Moon className="w-4 h-4" /></span>
+                        <span className="text-blue-500"><Moon size={14} className="opacity-60" /></span>
                     </div>
                 </ControlRow>
                 <ControlRow label="Master Lights" value={lightingConfig.lightsOn ? 'ON' : 'OFF'} border={border} controlBgClass={controlBgClass}>

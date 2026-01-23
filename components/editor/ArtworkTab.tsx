@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2, ChevronDown, ChevronUp, AlertCircle, Plus, Search, ZoomIn, ZoomOut } from 'lucide-react'; // NEW: Add ZoomIn, ZoomOut imports
+import { Image as ImageIcon, Check, UploadCloud, Loader2, Box, RefreshCw, Trash2, ChevronDown, ChevronUp, AlertCircle, Plus, Minus, Search, ZoomIn, ZoomOut, Calendar, Layers } from 'lucide-react'; // NEW: Add ZoomIn, ZoomOut imports
 import { FirebaseArtwork, ExhibitionArtItem, ArtworkData, ArtworkMaterialConfig, MaterialPreset } from '../../types';
 import { storage } from '../../firebase';
 import { getVideoEmbedUrl } from '../../services/utils/videoUtils';
+import { StatusIndicator } from './EditorCommon';
 
 const MAX_IMAGE_WIDTH = 1200;
 const MAX_IMAGE_HEIGHT = 1200;
@@ -21,6 +22,7 @@ interface ArtworkTabProps {
   currentLayout: ExhibitionArtItem[];
   activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
+  onUpdateArtworkField: (artworkId: string, field: string, value: any) => Promise<void>;
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
   onFocusArtwork: (artworkInstanceId: string | null) => void;
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void;
@@ -85,6 +87,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
   currentLayout, 
   activeZoneId, // NEW: Destructure activeZoneId
   onUpdateArtworkFile, 
+  onUpdateArtworkField,
   onUpdateArtworkData, 
   onFocusArtwork, 
   onOpenConfirmationDialog, 
@@ -98,6 +101,14 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
   const [originalArtworkFile, setOriginalArtworkFile] = useState<string>('');
   const [updateStatus, setUpdateStatus] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [editingTitleArtworkId, setEditingTitleArtworkId] = useState<string | null>(null); // NEW: State for title editing
+  const [tempTitle, setTempTitle] = useState<string>(''); // NEW: Temporary state for title input
+  const [editingMetadataId, setEditingMetadataId] = useState<string | null>(null);
+  const [tempMetadata, setTempMetadata] = useState<{
+    date: string;
+    medium: string;
+    dimensions: string;
+  }>({ date: '', medium: '', dimensions: '' });
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -386,6 +397,10 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
   }, [editingUrlArtworkId, activeZoneId, setUpdateStatus, currentLayout, onFocusArtwork, firebaseArtworks, onSelectArtwork, normalizeDegrees]);
 
   const handleArtworkDoubleClick = useCallback((artwork: FirebaseArtwork) => {
+    // Enable title editing on double click
+    setEditingTitleArtworkId(artwork.id);
+    setTempTitle(artwork.title);
+    
     const artworkInstance = currentLayout.find(item => item.artworkId === artwork.id);
     if (artworkInstance) {
       onFocusArtwork(artworkInstance.id);
@@ -395,6 +410,41 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
       }
     }
   }, [currentLayout, onFocusArtwork, onSelectArtwork, editingUrlArtworkId, handleToggleEdit]);
+
+  const handleTitleSave = useCallback(async (artworkId: string) => {
+    if (!tempTitle.trim()) {
+      setEditingTitleArtworkId(null);
+      return;
+    }
+    
+    try {
+      setUpdateStatus(prev => ({ ...prev, [artworkId]: 'saving' }));
+      await onUpdateArtworkField(artworkId, 'title', tempTitle.trim());
+      setUpdateStatus(prev => ({ ...prev, [artworkId]: 'saved' }));
+      setTimeout(() => setUpdateStatus(prev => ({ ...prev, [artworkId]: 'idle' })), 2000);
+      setEditingTitleArtworkId(null);
+    } catch (error) {
+      setUpdateStatus(prev => ({ ...prev, [artworkId]: 'error' }));
+      setTimeout(() => setUpdateStatus(prev => ({ ...prev, [artworkId]: 'idle' })), 3000);
+    }
+  }, [tempTitle, onUpdateArtworkField]);
+
+  const handleMetadataSave = useCallback(async (artworkId: string) => {
+    try {
+      setUpdateStatus(prev => ({ ...prev, [artworkId]: 'saving' }));
+      await Promise.all([
+        onUpdateArtworkField(artworkId, 'artwork_date', tempMetadata.date),
+        onUpdateArtworkField(artworkId, 'artwork_medium', tempMetadata.medium),
+        onUpdateArtworkField(artworkId, 'artwork_dimensions', tempMetadata.dimensions),
+      ]);
+      setUpdateStatus(prev => ({ ...prev, [artworkId]: 'saved' }));
+      setTimeout(() => setUpdateStatus(prev => ({ ...prev, [artworkId]: 'idle' })), 2000);
+      setEditingMetadataId(null);
+    } catch (error) {
+      setUpdateStatus(prev => ({ ...prev, [artworkId]: 'error' }));
+      setTimeout(() => setUpdateStatus(prev => ({ ...prev, [artworkId]: 'idle' })), 3000);
+    }
+  }, [tempMetadata, onUpdateArtworkField]);
 
 
   const handleRemoveClick = useCallback(async (artworkId: string, artworkTitle: string) => {
@@ -611,17 +661,7 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
 
   const getStatusIcon = useCallback((artworkId: string, type: 'update' | 'add') => {
     const statusMap = type === 'update' ? updateStatus : addArtworkStatus;
-    const status = statusMap[artworkId];
-    switch (status) {
-      case 'saving':
-        return <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />;
-      case 'saved':
-        return <Check className="w-4 h-4 text-green-500" />;
-      case 'error':
-        return <span className="text-red-500 font-bold">!</span>;
-      default:
-        return null;
-    }
+    return <StatusIndicator status={statusMap[artworkId]} size={14} />;
   }, [updateStatus, addArtworkStatus]);
 
   const currentArtworkForScale = useMemo(() => relevantArtworks.find(art => art.id === editingUrlArtworkId), [relevantArtworks, editingUrlArtworkId]);
@@ -729,9 +769,30 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
         {relevantArtworks.map(artwork => (
           <div key={artwork.id} className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
             <div className={`flex items-center justify-between ${editingUrlArtworkId === artwork.id ? 'mb-3' : ''}`}>
-              <div className="flex items-center gap-2">
-                <h4 className="font-bold text-sm cursor-pointer" onDoubleClick={() => handleArtworkDoubleClick(artwork)}>{artwork.title}</h4>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              <div className="flex-1 flex items-center gap-2 overflow-hidden mr-2">
+                {editingTitleArtworkId === artwork.id ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    value={tempTitle}
+                    onChange={(e) => setTempTitle(e.target.value)}
+                    onBlur={() => handleTitleSave(artwork.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleTitleSave(artwork.id);
+                      if (e.key === 'Escape') setEditingTitleArtworkId(null);
+                    }}
+                    className={`flex-1 text-sm font-bold bg-white dark:bg-neutral-900 rounded-lg border ${border} px-3 py-1 outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all`}
+                  />
+                ) : (
+                  <h4 
+                    className="font-bold text-sm cursor-text truncate px-1 -mx-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors" 
+                    onClick={() => handleArtworkDoubleClick(artwork)}
+                    title="Click to rename"
+                  >
+                    {artwork.title}
+                  </h4>
+                )}
+                <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold ${
                   (artwork.artwork_type === 'painting' || artwork.artwork_type === 'photography')
                     ? 'bg-cyan-100 text-cyan-700' 
                     : artwork.artwork_type === 'sculpture' 
@@ -811,22 +872,126 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
                   </>
                 )}
 
+                {/* Artwork Metadata Section - Show for all types */}
+                <div className={`p-4 rounded-xl border ${border} ${lightsOn ? 'bg-neutral-100' : 'bg-neutral-800'} space-y-4`}>
+                  <div className="flex items-center justify-between">
+                    <p className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-50`}>Artwork Information</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-5">
+                    <div className="flex gap-4">
+                      <div className={`mt-1 p-2 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} h-fit shadow-sm`}>
+                        <Calendar size={14} className="opacity-40" />
+                      </div>
+                      <div className="flex-1 space-y-1.5">
+                        <label className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Creation Date</label>
+                        {editingMetadataId === artwork.id ? (
+                          <input
+                            autoFocus
+                            type="text"
+                            value={tempMetadata.date}
+                            onChange={e => setTempMetadata(prev => ({ ...prev, date: e.target.value }))}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleMetadataSave(artwork.id);
+                              if (e.key === 'Escape') setEditingMetadataId(null);
+                            }}
+                            placeholder="e.g. 2022"
+                            className={`w-full px-3 py-1.5 rounded-lg border ${border} text-xs font-semibold ${input} outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all`}
+                          />
+                        ) : (
+                          <p 
+                            className={`text-sm font-bold ${text} cursor-text hover:bg-black/5 dark:hover:bg-white/5 rounded px-1 -mx-1 transition-colors`}
+                            onClick={() => {
+                              setEditingMetadataId(artwork.id);
+                              setTempMetadata({
+                                date: artwork.artwork_date || '',
+                                medium: artwork.artwork_medium || '',
+                                dimensions: artwork.artwork_dimensions || '',
+                              });
+                            }}
+                            title="Click to edit"
+                          >
+                            {artwork.artwork_date || '-'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className={`mt-1 p-2 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-900'} h-fit shadow-sm`}>
+                        <Layers size={14} className="opacity-40" />
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        <div className="space-y-1.5">
+                          <label className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Medium & Dimensions</label>
+                          {editingMetadataId === artwork.id ? (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={tempMetadata.medium}
+                                onChange={e => setTempMetadata(prev => ({ ...prev, medium: e.target.value }))}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleMetadataSave(artwork.id);
+                                  if (e.key === 'Escape') setEditingMetadataId(null);
+                                }}
+                                placeholder="Medium (e.g. Fiberglass)"
+                                className={`w-full px-3 py-1.5 rounded-lg border ${border} text-xs font-semibold ${input} outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all`}
+                              />
+                              <input
+                                type="text"
+                                value={tempMetadata.dimensions}
+                                onChange={e => setTempMetadata(prev => ({ ...prev, dimensions: e.target.value }))}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleMetadataSave(artwork.id);
+                                  if (e.key === 'Escape') setEditingMetadataId(null);
+                                }}
+                                placeholder='Dimensions (e.g. 16"X8"X5")'
+                                className={`w-full px-3 py-1.5 rounded-lg border ${border} text-xs font-mono font-semibold ${input} outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all`}
+                              />
+                            </div>
+                          ) : (
+                            <div 
+                              className="space-y-1.5 cursor-text hover:bg-black/5 dark:hover:bg-white/5 rounded px-1 -mx-1 transition-colors"
+                              onClick={() => {
+                                setEditingMetadataId(artwork.id);
+                                setTempMetadata({
+                                  date: artwork.artwork_date || '',
+                                  medium: artwork.artwork_medium || '',
+                                  dimensions: artwork.artwork_dimensions || '',
+                                });
+                              }}
+                              title="Click to edit"
+                            >
+                              <p className={`text-sm font-bold ${text} leading-tight`}>{artwork.artwork_medium || '-'}</p>
+                              <p className={`text-[11px] font-mono ${subtext} opacity-80`}>{artwork.artwork_dimensions || '-'}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* FIX: Added type assertion to `artwork.artwork_type` to bypass a TypeScript inference issue */}
                 {(artwork.artwork_type as string) === 'sculpture' && (artwork.artwork_file?.toLowerCase().includes('.glb')) && ( // MODIFIED: Check for sculpture type
-                    <div className="border-t pt-4 mt-4 space-y-3">
-                        <p className={`text-xs font-bold uppercase ${subtext}`}>GLB Model Rotation</p>
-                        <div className="flex items-center gap-3">
-                            {['Y-Axis', 'X-Axis', 'Z-Axis'].map((axis, index) => (
+                    <div className="border-t border-neutral-200/50 pt-6 mt-6 space-y-5">
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-50`}>GLB Model Rotation</p>
+                        <div className="flex items-center gap-8 px-4">
+                            {['Y', 'X', 'Z'].map((axis, index) => (
                                 <div key={axis} className="flex-1 flex flex-col items-center">
                                     <button
                                         onClick={() => handleGlbAxisRotate(artwork.id, index as 0 | 1 | 2)}
-                                        className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${text}`}
+                                        className={`w-full aspect-square flex items-center justify-center rounded-lg border transition-all ${
+                                          lightsOn 
+                                            ? 'bg-neutral-50/50 border-neutral-200/60 hover:bg-white hover:border-neutral-300' 
+                                            : 'bg-neutral-800 border-neutral-700 hover:bg-neutral-700 hover:border-neutral-600'
+                                        } ${text}`}
                                         title={`Rotate around ${axis}`}
                                         disabled={updateStatus[artwork.id] === 'saving'}
                                     >
-                                        <RefreshCw className="w-4 h-4" />
+                                        <RefreshCw className="w-5 h-5 opacity-30 stroke-[1.5]" />
                                     </button>
-                                    <span className={`text-xs font-mono mt-1 ${subtext}`}>{axis.split('-')[0]}: {glbPreviewRotation[index]}°</span>
+                                    <span className={`text-[11px] font-medium mt-3 ${subtext} opacity-60`}>{axis}: {glbPreviewRotation[index]}°</span>
                                 </div>
                             ))}
                         </div>
@@ -836,29 +1001,32 @@ const ArtworkTab: React.FC<ArtworkTabProps> = React.memo(({
                 {/* NEW: Sculpture Scale Section */}
                 {/* FIX: Added type assertion to `artwork.artwork_type` to bypass a TypeScript inference issue */}
                 {(artwork.artwork_type as string) === 'sculpture' && (
-                    <div className="border-t pt-4 mt-4 space-y-3">
-                        <p className={`text-xs font-bold uppercase ${subtext}`}>Sculpture Scale</p>
-                        <div className="flex items-center justify-between gap-3">
+                    <div className="border-t border-neutral-200/50 pt-6 mt-6 space-y-5">
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-50`}>Sculpture Scale</p>
+                        <div className={`flex items-center h-12 rounded-xl border ${lightsOn ? 'bg-neutral-50/50 border-neutral-200/60' : 'bg-neutral-800'}`}>
                             <button
                                 onClick={() => handleScaleChange(artwork.id, -0.2)}
-                                className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${text}`}
+                                className={`w-12 h-full flex items-center justify-center transition-colors hover:bg-neutral-200/30 dark:hover:bg-neutral-700/50 ${text}`}
                                 title="Decrease Scale"
                                 disabled={updateStatus[artwork.id] === 'saving' || getZoneSpecificScale(currentArtworkForScale) <= 0.1}
                             >
-                                <ZoomOut className="w-4 h-4" />
+                                <Minus size={14} strokeWidth={3} className="opacity-80" />
                             </button>
-                            <span className={`text-sm font-mono tracking-tight flex-1 text-center ${text}`}>
-                                {Math.round(getZoneSpecificScale(currentArtworkForScale) * 100)}%
-                            </span>
+                            <div className="flex-1 flex items-center justify-center">
+                              <span className={`text-sm font-bold tracking-tight ${text}`}>
+                                  {Math.round(getZoneSpecificScale(currentArtworkForScale) * 100)}%
+                              </span>
+                            </div>
                             <button
                                 onClick={() => handleScaleChange(artwork.id, 0.2)}
-                                className={`p-2 rounded-full transition-colors ${lightsOn ? 'hover:bg-neutral-200' : 'hover:bg-neutral-700'} ${text}`}
+                                className={`w-12 h-full flex items-center justify-center transition-colors hover:bg-neutral-200/30 dark:hover:bg-neutral-700/50 ${text}`}
                                 title="Increase Scale"
                                 disabled={updateStatus[artwork.id] === 'saving' || getZoneSpecificScale(currentArtworkForScale) >= 5.0}
                             >
-                                <ZoomIn className="w-4 h-4" />
+                                <Plus size={14} strokeWidth={3} className="opacity-80" />
                             </button>
                         </div>
+                        <div className="border-b border-neutral-200/50 pt-2" />
                     </div>
                 )}
 

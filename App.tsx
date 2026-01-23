@@ -1135,6 +1135,19 @@ function MuseumApp({
     }
   }, [refreshNow, user, ownerOverrideUid]);
 
+  const handleUpdateArtworkField = useCallback(async (artworkId: string, field: string, value: any) => {
+    if (embedMode) return;
+    try {
+      if ((import.meta as any).env?.DEV) {
+        console.warn(`[App] handleUpdateArtworkField start: ${field}`, { artworkId, value });
+      }
+      await db.collection('artworks').doc(artworkId).update({ [field]: value });
+      try { await refreshNow?.(); } catch (e) {}
+    } catch (error) {
+      console.error(`Error updating artwork ${field}:`, error);
+    }
+  }, [refreshNow]);
+
   const handleUpdateArtworkData = useCallback(async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {
     if (embedMode) {
       console.warn('[embed] blocked handleUpdateArtworkData');
@@ -2050,6 +2063,7 @@ function MuseumApp({
             currentZoneNameForEditor={activeZone.name}
             firebaseArtworks={firebaseArtworks}
             onUpdateArtworkFile={handleUpdateArtworkFile}
+            onUpdateArtworkField={handleUpdateArtworkField}
             onUpdateArtworkData={handleUpdateArtworkData}
             onUpdateExhibition={handleUpdateExhibition}
             activeExhibition={activeExhibition}

@@ -25,6 +25,7 @@ interface FloorPlanEditorProps {
   currentZoneNameForEditor: string;
   firebaseArtworks: FirebaseArtwork[];
   onUpdateArtworkFile: (artworkId: string, newFileUrl: string) => Promise<void>;
+  onUpdateArtworkField: (artworkId: string, field: string, value: any) => Promise<void>;
   onUpdateArtworkData: (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => Promise<void>;
   onUpdateExhibition: (exhibitionId: string, updatedFields: Partial<Exhibition>) => Promise<void>;
   activeExhibition: Exhibition;
@@ -74,6 +75,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   currentZoneNameForEditor,
   firebaseArtworks,
   onUpdateArtworkFile,
+  onUpdateArtworkField,
   onUpdateArtworkData,
   onUpdateExhibition,
   activeExhibition,
@@ -362,6 +364,10 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             activeZoneId={activeZoneId}
             onUpdateArtworkFile={async (artworkId: string, newFileUrl: string) => {
               await onUpdateArtworkFile(artworkId, newFileUrl);
+              triggerSaveNotification();
+            }}
+            onUpdateArtworkField={async (artworkId: string, field: string, value: any) => {
+              await onUpdateArtworkField(artworkId, field, value);
               triggerSaveNotification();
             }}
             onUpdateArtworkData={async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {

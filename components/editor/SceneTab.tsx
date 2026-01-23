@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import * as LucideIcons from 'lucide-react';
 import { Sparkles, X, Loader2, AlertCircle, Image, Palette } from 'lucide-react'; // Icons for effects and controls
 import { SimplifiedLightingConfig, SimplifiedLightingPreset, ZoneLightingDesign, EffectRegistryType } from '../../types';
+import { ControlRow } from './EditorCommon';
 
 interface SceneTabProps {
   uiConfig: {
@@ -26,16 +27,6 @@ interface SceneTabProps {
   onUpdateZoneGravity: (gravity: number | undefined) => Promise<void>; // NEW: Add onUpdateZoneGravity
 }
 
-const ControlRow: React.FC<{ label: string; value?: string; children: React.ReactNode; border: string; controlBgClass: string }> = ({ label, value, children, border, controlBgClass }) => (
-    <div className={`p-4 rounded-xl border flex flex-col items-start gap-3 ${border} ${controlBgClass}`}>
-        <div className="w-full flex justify-between items-center">
-            <p className="text-sm font-medium">{label}</p>
-            {value && <p className="text-[10px] font-mono uppercase opacity-50">{value}</p>}
-        </div>
-        {children}
-    </div>
-);
-
 interface ColorFieldProps {
   label: string;
   icon?: React.ComponentType<{ className?: string }>;
@@ -50,6 +41,7 @@ interface ColorFieldProps {
   textClass: string;
   controlBgClass: string;
   onFocus: () => void;
+  borderClass: string;
 }
 
 const ColorField: React.FC<ColorFieldProps> = ({
@@ -66,21 +58,22 @@ const ColorField: React.FC<ColorFieldProps> = ({
   textClass,
   controlBgClass,
   onFocus,
+  borderClass,
 }) => (
-  <div className={`w-full rounded-xl border px-3 py-3 ${controlBgClass}`}>
-    <div className="flex items-center gap-2 mb-2">
-      {Icon && <Icon className="w-4 h-4" />}
-      <span className="text-sm font-semibold">{label}</span>
+  <div className={`w-full rounded-xl border p-4 ${controlBgClass} ${borderClass}`}>
+    <div className="flex items-center gap-2 mb-3">
+      {Icon && <Icon size={14} className="opacity-40" />}
+      <span className="text-[10px] uppercase font-bold tracking-widest opacity-60 mb-0">{label}</span>
     </div>
 
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-4">
       <input
         type="color"
         value={pickerValue}
         onChange={(e) => { if (!disabled) onPickerChange(e.target.value); }}
         onFocus={onFocus}
         onMouseDown={(e) => { e.stopPropagation(); }}
-        className={`w-10 h-10 rounded-md border-2 cursor-pointer transition-all duration-150 hover:scale-[1.02] ${lightsOn ? 'border-neutral-300 shadow-sm' : 'border-neutral-700 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`w-12 h-10 rounded-lg border-2 cursor-pointer transition-all duration-150 hover:scale-[1.02] ${lightsOn ? 'border-neutral-200 shadow-sm' : 'border-neutral-700 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         disabled={disabled}
         aria-label={`${label} color`}
       />
@@ -91,7 +84,7 @@ const ColorField: React.FC<ColorFieldProps> = ({
         onFocus={onFocus}
         onBlur={onBlur}
         onMouseDown={(e) => { e.stopPropagation(); }}
-        className={`w-24 text-xs font-mono px-2 py-1 rounded border ${error ? 'border-red-500' : lightsOn ? 'border-neutral-300 bg-white' : 'border-neutral-700 bg-neutral-900'} ${textClass} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`w-full max-w-[120px] text-xs font-mono font-bold px-3 py-2 rounded-lg border ${error ? 'border-red-500' : lightsOn ? 'border-neutral-200 bg-white' : 'border-neutral-700 bg-neutral-900'} ${textClass} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} outline-none focus:ring-1 focus:ring-cyan-500/50`}
         disabled={disabled}
         maxLength={7}
         placeholder="#FFFFFF"
@@ -99,9 +92,9 @@ const ColorField: React.FC<ColorFieldProps> = ({
       />
     </div>
 
-    {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+    {error && <p className="text-[10px] font-bold text-red-500 mt-2.5 uppercase tracking-wider">{error}</p>}
     {disabled && label === 'Background' && (
-      <p className="text-xs text-neutral-500 mt-2">Background is disabled when "Use Exhibition Background" is enabled.</p>
+      <p className="text-[10px] font-medium text-neutral-500 mt-2.5 italic">Background is disabled when "Use Exhibition Background" is enabled.</p>
     )}
   </div>
 );
@@ -330,8 +323,8 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                       </span>
                   </label>
                   {!activeExhibitionBackgroundUrl && (
-                    <div className="flex items-center text-amber-500 text-xs mt-2">
-                        <Image className="w-4 h-4 mr-1" /> No background URL set for this exhibition.
+                    <div className="flex items-center text-amber-500 text-xs mt-2.5 opacity-80">
+                        <Image size={14} className="mr-1.5 opacity-60" /> No background URL set for this exhibition.
                     </div>
                   )}
                 </ControlRow>
@@ -362,17 +355,17 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                             } catch (err) {}
                             setCustomExpanded(true);
                           }}
-                          className="text-sm px-3 py-2 rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-900 flex items-center gap-2"
+                          className="text-[10px] font-bold tracking-widest px-4 py-2 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-neutral-900 dark:text-white flex items-center gap-2 transition-colors uppercase"
                           title="Open custom color controls"
                         >
-                          <Palette className="w-4 h-4" />
+                          <Palette size={14} className="opacity-60" />
                           Custom Color
                         </button>
                         <div>
                           {hasCustomColors && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleClearColors(); }}
-                              className="text-xs px-2 py-1 rounded bg-neutral-200 hover:bg-neutral-300 text-neutral-800"
+                              className="text-[10px] font-bold tracking-widest px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-red-500/10 hover:text-red-500 text-neutral-800 dark:text-neutral-200 transition-colors uppercase"
                               title="Use default colors"
                             >
                               Default Color
@@ -396,6 +389,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                             textClass={uiConfig.text}
                             controlBgClass={controlBgClass}
                             onFocus={() => { isFloorEditingRef.current = true; }}
+                            borderClass={border}
                           />
 
                           <ColorField
@@ -412,6 +406,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                             textClass={uiConfig.text}
                             controlBgClass={controlBgClass}
                             onFocus={() => { isBackgroundEditingRef.current = true; }}
+                            borderClass={border}
                           />
                         </div>
                         <div className="mt-2 flex justify-end">
@@ -432,10 +427,10 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
 
                 {/* MODIFIED: Theme Selection Section - now uses a grid of cards */}
                 <div className={`flex-shrink-0 pt-4 mt-4 border-t ${border}`}>
-                    <p className={`text-[10px] font-bold tracking-[0.2em] uppercase ${subtext}`}>Environment Theme</p>
+                    <p className={`text-[10px] uppercase tracking-widest mb-3 ${subtext}`}>Environment Theme</p>
                     {isEffectRegistryLoading ? (
-                      <div className="flex items-center text-cyan-500 text-xs mt-2">
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Loading effects...
+                      <div className="flex items-center text-cyan-500 text-[10px] font-bold tracking-widest uppercase mt-2">
+                          <Loader2 size={14} className="mr-2 animate-spin" /> Loading effects...
                       </div>
                     ) : (effectRegistry ? (
                       <div className="max-w-fit mx-auto"> {/* Added wrapper div for centering */}
@@ -460,7 +455,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
 
                             const cardBgClass = isSelected
                               ? (lightsOn ? 'bg-neutral-900' : 'bg-white')
-                              : (lightsOn ? 'bg-neutral-100 hover:bg-neutral-200' : 'bg-neutral-800 hover:bg-neutral-700');
+                              : (lightsOn ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/10');
                             const cardTextClass = isSelected
                               ? (lightsOn ? 'text-white' : 'text-neutral-900')
                               : (lightsOn ? 'text-neutral-700' : 'text-white');
@@ -476,10 +471,10 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                                 <button
                                 key={effectName}
                                 onClick={() => onUpdateZoneTheme(effectName)}
-                                className={`w-24 h-24 flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-colors duration-200 shadow-md ${cardBgClass} ${cardShadowClass}`}
+                                className={`w-24 h-24 flex flex-col items-center justify-center p-2 rounded-xl border border-transparent cursor-pointer transition-all duration-200 ${cardBgClass} ${cardShadowClass} ${isSelected ? 'scale-105 border-cyan-500/30' : ''}`}
                                 >
-                                <IconComponent className={`w-6 h-6 mb-2 ${iconColorClass}`} /> {/* Reduced icon size and margin */}
-                                <span className={`text-xs font-bold uppercase text-center ${cardTextClass}`}> {/* Reduced text size */}
+                                <IconComponent size={24} className={`mb-2 ${iconColorClass} ${isSelected ? 'opacity-100' : 'opacity-60'}`} /> {/* Reduced icon size and margin */}
+                                <span className={`text-[10px] font-bold uppercase tracking-tight text-center ${cardTextClass}`}> {/* Reduced text size */}
                                     {effectName}
                                 </span>
                                 </button>
@@ -488,22 +483,22 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                         {/* Button to deactivate all effects (No Theme) */}
                         <button
                             onClick={() => onUpdateZoneTheme(null)}
-                            className={`w-24 h-24 flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-colors duration-200 shadow-md 
+                            className={`w-24 h-24 flex flex-col items-center justify-center p-2 rounded-xl border border-transparent cursor-pointer transition-all duration-200 
                             ${activeZoneTheme === null
-                                ? (lightsOn ? 'bg-neutral-900 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white shadow-[0_0_15px_rgba(0,192,255,0.3)]') 
-                                : (lightsOn ? 'bg-neutral-100 hover:bg-neutral-200' : 'bg-neutral-800 hover:bg-neutral-700')
+                                ? (lightsOn ? 'bg-neutral-900 shadow-[0_0_15px_rgba(0,0,0,0.1)] border-red-500/30 scale-105' : 'bg-white shadow-[0_0_15px_rgba(0,192,255,0.3)] border-red-500/30 scale-105') 
+                                : (lightsOn ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/10')
                             }`}
                         >
-                            <X className={`w-8 h-8 mb-2 ${activeZoneTheme === null ? (lightsOn ? 'text-red-600' : 'text-red-500') : (lightsOn ? 'text-neutral-700' : 'text-white')}`} /> {/* Reduced icon size and margin */}
-                            <span className={`text-xs font-bold uppercase text-center ${activeZoneTheme === null ? (lightsOn ? 'text-red-600' : 'text-red-500') : (lightsOn ? 'text-neutral-700' : 'text-white')}`}> {/* Reduced text size */}
+                            <X size={24} className={`mb-2 ${activeZoneTheme === null ? (lightsOn ? 'text-red-500' : 'text-red-500') : (lightsOn ? 'text-neutral-700 opacity-60' : 'text-white opacity-60')}`} /> {/* Reduced icon size and margin */}
+                            <span className={`text-[10px] font-bold uppercase tracking-tight text-center ${activeZoneTheme === null ? (lightsOn ? 'text-red-500' : 'text-red-500') : (lightsOn ? 'text-neutral-700' : 'text-white')}`}> {/* Reduced text size */}
                                 No Theme
                             </span>
                         </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center text-red-500 text-xs mt-2">
-                          <AlertCircle className="w-4 h-4 mr-1" /> Failed to load effects.
+                      <div className="flex items-center text-red-500 text-[10px] font-bold tracking-widest uppercase mt-2">
+                          <AlertCircle size={14} className="mr-2 opacity-60" /> Failed to load effects.
                       </div>
                     ))}
                 </div>

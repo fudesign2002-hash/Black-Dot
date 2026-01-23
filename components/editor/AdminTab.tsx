@@ -3,8 +3,9 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition, ExhibitionArtItem, FirebaseArtwork } from '../../types'; // MODIFIED: Add ExhibitionArtItem and FirebaseArtwork
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock } from 'lucide-react'; // MODIFIED: Add BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock, AlertCircle } from 'lucide-react'; // MODIFIED: Add BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock
 import AnalyticsDashboard from '../ui/AnalyticsDashboard'; // NEW: Import AnalyticsDashboard
+import { StatusIndicator, StatusType } from './EditorCommon';
 
 interface AdminTabProps {
   uiConfig: {
@@ -58,9 +59,9 @@ function InputFieldComponent<T extends ExhibitionEditableFieldKeys>({
 
   return (
     <div className={`p-4 rounded-xl border ${border} ${controlBgClass} ${className || ''}`}>
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 opacity-70 ${text}`} />
-        <p className={`text-sm font-medium ${text}`}>{label}</p>
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className={`w-4 h-4 opacity-50 ${text}`} />
+        <p className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>{label}</p>
         <div className="ml-auto flex items-center gap-2">
           {statusIcon}
         </div>
@@ -69,7 +70,7 @@ function InputFieldComponent<T extends ExhibitionEditableFieldKeys>({
         <textarea
           value={displayValue}
           onChange={handleInputChange}
-          className={`w-full px-3 py-2 rounded-md text-xs ${input} h-24 resize-y`}
+          className={`w-full px-3 py-2 rounded-lg text-xs font-semibold ${input} h-24 resize-none focus:ring-1 focus:ring-cyan-500/50 outline-none transition-all`}
           rows={3}
         />
       ) : (
@@ -77,7 +78,7 @@ function InputFieldComponent<T extends ExhibitionEditableFieldKeys>({
           type={inputType}
           value={displayValue}
           onChange={handleInputChange}
-          className={`w-full px-3 py-2 rounded-md text-xs ${input}`}
+          className={`w-full px-3 py-2 rounded-lg text-xs font-semibold ${input} focus:ring-1 focus:ring-cyan-500/50 outline-none transition-all`}
         />
       )}
     </div>
@@ -211,13 +212,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
 
   // FIX: Use non-generic field in getStatusIcon
   const getStatusIcon = useCallback((field: ExhibitionEditableFieldKeys) => {
-    return updateStatus[field] === 'saving'
-      ? <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
-      : updateStatus[field] === 'saved'
-      ? <Check className="w-4 h-4 text-green-500" />
-      : updateStatus[field] === 'error'
-      ? <span className="text-red-500 font-bold">!</span>
-      : null;
+    return <StatusIndicator status={updateStatus[field]} size={14} />;
   }, [updateStatus]);
 
   const handleToggleDashboardPublic = useCallback(async () => {

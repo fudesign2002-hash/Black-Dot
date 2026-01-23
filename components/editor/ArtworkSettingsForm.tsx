@@ -3,6 +3,7 @@ import { Image as ImageIcon, Check, UploadCloud, Loader2, Box, RefreshCw, AlertC
 import { FirebaseArtwork, ArtworkData, ArtworkMaterialConfig, MaterialPreset } from '../../types';
 import { storage } from '../../firebase';
 import { getVideoEmbedUrl } from '../../services/utils/videoUtils';
+import { StatusIndicator, ControlRow } from './EditorCommon';
 
 const MAX_IMAGE_WIDTH = 1200;
 const MAX_IMAGE_HEIGHT = 1200;
@@ -448,9 +449,7 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
               placeholder="https://..."
             />
             <div className="flex items-center justify-center w-8">
-              {updateStatus === 'saving' && <Loader2 size={14} className={`animate-spin ${subtext}`} />}
-              {updateStatus === 'saved' && <Check size={14} className="text-green-500" />}
-              {updateStatus === 'error' && <AlertCircle size={14} className="text-red-500" />}
+              <StatusIndicator status={updateStatus} />
             </div>
           </div>
           
@@ -464,9 +463,9 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className={`w-full py-2 px-3 rounded border ${border} ${controlBgClass} ${text} text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`w-full py-2 px-3 rounded border ${border} ${controlBgClass} ${text} text-[10px] font-bold tracking-widest cursor-pointer hover:opacity-80 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            <UploadCloud size={14} />
+            <UploadCloud size={14} className="opacity-60" />
             UPLOAD FILE
           </button>
         </div>
@@ -476,73 +475,73 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
       {isGlb && (
         <>
           <div className={`pt-3 border-t ${border}`}>
-            <label className={`text-[10px] font-bold ${subtext} uppercase tracking-wider mb-2 block`}>
+            <label className={`text-[10px] uppercase tracking-widest mb-2.5 block ${subtext}`}>
               GLB Model Rotation
             </label>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { label: 'Y', axis: 0 },
                 { label: 'X', axis: 1 },
                 { label: 'Z', axis: 2 }
               ].map((item) => (
-                <div key={item.label} className="flex flex-col items-center gap-1">
+                <div key={item.label} className="flex flex-col items-center gap-1.5">
                   <button
                     onClick={() => handleGlbAxisRotate(item.axis as 0 | 1 | 2)}
-                    className={`w-16 h-16 rounded border ${border} ${controlBgClass} flex items-center justify-center hover:bg-blue-500/10 hover:border-blue-500/50 transition-colors group cursor-pointer`}
+                    className={`w-full aspect-square rounded border ${border} ${controlBgClass} flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer`}
                   >
-                    <RefreshCw size={16} className={`${subtext} group-hover:text-blue-500 transition-colors`} />
+                    <RefreshCw size={14} className={`${subtext} group-hover:text-blue-500 transition-colors opacity-60`} />
                   </button>
-                  <span className={`text-[10px] ${subtext}`}>{item.label}: {glbPreviewRotation[item.axis as 0 | 1 | 2]}°</span>
+                  <span className={`text-[10px] font-mono ${subtext}`}>{item.label}: {glbPreviewRotation[item.axis as 0 | 1 | 2]}°</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className={`pt-3 border-t ${border}`}>
-            <div className="flex items-center justify-between mb-2">
-                <label className={`text-[10px] font-bold ${subtext} uppercase tracking-wider block`}>
-                Sculpture Scale
-                </label>
-            </div>
-            <div className={`flex items-center justify-between px-2 py-1 rounded border ${border} ${controlBgClass}`}>
-                <button 
-                    onClick={() => handleScaleChange(-0.1)}
-                    className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${text} cursor-pointer`}
-                >
-                    <span className="text-lg font-bold">-</span>
-                </button>
-                <span className={`text-xs font-medium ${text}`}>
-                    {Math.round(localScale * 100)}%
-                </span>
-                <button 
-                    onClick={() => handleScaleChange(0.1)}
-                    className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${text} cursor-pointer`}
-                >
-                    <span className="text-lg font-bold">+</span>
-                </button>
-            </div>
+          <div className="pt-3">
+            <ControlRow
+              label="Sculpture Scale"
+              uiConfig={uiConfig}
+            >
+              <div className="flex items-center gap-3">
+                  <button 
+                      onClick={() => handleScaleChange(-0.1)}
+                      className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${text} cursor-pointer`}
+                  >
+                      <span className="text-sm font-bold">-</span>
+                  </button>
+                  <span className={`text-xs font-mono font-medium ${text} min-w-[3rem] text-center`}>
+                      {Math.round(localScale * 100)}%
+                  </span>
+                  <button 
+                      onClick={() => handleScaleChange(0.1)}
+                      className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${text} cursor-pointer`}
+                  >
+                      <span className="text-sm font-bold">+</span>
+                  </button>
+              </div>
+            </ControlRow>
           </div>
 
-          <div className={`pt-3 border-t ${border}`}>
-            <label className={`text-[10px] font-bold ${subtext} uppercase tracking-wider mb-2 block`}>
+          <div className="pt-3">
+            <label className={`text-[10px] uppercase tracking-widest mb-2.5 block ${subtext}`}>
               Material Presets
             </label>
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-1.5">
               {MATERIAL_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
                   onClick={() => handleSaveMaterial(preset.id, preset.config)}
-                  className={`flex items-center gap-2 p-1 rounded border text-left transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 p-1.5 rounded border text-left transition-all cursor-pointer ${
                     selectedMaterialPresetId === preset.id
                       ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500'
                       : `${border} ${controlBgClass} hover:border-blue-500/50`
                   }`}
                 >
                   <div 
-                    className="w-3 h-3 rounded-full border border-black/10 shadow-sm"
+                    className="w-2.5 h-2.5 rounded-full border border-black/10 shadow-sm"
                     style={{ backgroundColor: preset.iconColor }}
                   />
-                  <span className={`text-[10px] font-medium ${text} truncate`}>
+                  <span className={`text-[10px] font-medium ${text} truncate uppercase tracking-tight`}>
                     {preset.name}
                   </span>
                 </button>
