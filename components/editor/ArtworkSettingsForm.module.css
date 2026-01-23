@@ -1,0 +1,9 @@
+.artwork-settings-panel {
+  padding: 24px;
+  gap: 24px;
+}
+
+.artwork-settings-panel.small {
+  padding: 16px !important;
+  gap: 16px !important;
+}

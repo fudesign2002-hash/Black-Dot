@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import styles from './ArtworkSettingsForm.module.css';
 import { Image as ImageIcon, Check, UploadCloud, Loader2, Box, RefreshCw, AlertCircle, Calendar, Layers, Minus, Plus } from 'lucide-react';
 import { FirebaseArtwork, ArtworkData, ArtworkMaterialConfig, MaterialPreset } from '../../types';
 import { storage } from '../../firebase';
@@ -324,8 +325,17 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
   const isGlb = /\.glb(?:$|-[0-9]+$)/i.test(lastSegment);
   const isVideo = /\.(mp4|webm|ogg|mov)(?:$|-[0-9]+$)/i.test(lastSegment);
 
+  // Responsive panel class
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+  useEffect(() => {
+    const checkScreen = () => setIsSmallScreen(window.innerWidth <= 600);
+    checkScreen();
+    window.addEventListener('resize', checkScreen);
+    return () => window.removeEventListener('resize', checkScreen);
+  }, []);
+
   return (
-    <div className="space-y-4">
+    <div className={`${styles['artwork-settings-panel']} ${isSmallScreen ? styles.small : ''} space-y-4`}>
       {showTitle && (
         <div className="flex items-center gap-2">
            {isEditingTitle ? (
