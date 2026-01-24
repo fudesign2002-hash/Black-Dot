@@ -31,6 +31,8 @@ interface MainControlsProps {
   onInfoOpen: () => void;
   focusedArtworkTitle: string | null;
   focusedArtworkArtist?: string | null;
+  focusedArtworkMedium?: string | null;
+  focusedArtworkDate?: string | null;
   onLikeTriggered: (artworkInstanceId: string) => void;
   isRankingMode: boolean;
   onRankingToggle: () => void;
@@ -79,6 +81,8 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   onInfoOpen,
   focusedArtworkTitle,
   focusedArtworkArtist,
+  focusedArtworkMedium,
+  focusedArtworkDate,
   onLikeTriggered,
   isRankingMode,
   onRankingToggle,
@@ -172,14 +176,23 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
         
         
         <div ref={artworkControlsRef}
-             className={`flex flex-col items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${showArtworkControls ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'}`} // MODIFIED: Hide if in zero gravity mode
+             className={`flex flex-col items-center gap-4 transition-all duration-500 ease-[cubic-bezier(0.68,-0.8,0.32,1.8)] ${showArtworkControls ? 'scale-100 opacity-100 visible' : 'scale-0 opacity-0 pointer-events-none invisible'}`} // MODIFIED: Hide if in zero gravity mode
              aria-hidden={!showArtworkControls}
              inert={!showArtworkControls}>
             {focusedArtworkTitle && (
-                <p className={`text-base font-serif font-medium uppercase px-4 py-2 rounded-full backdrop-blur-xl shadow-lg 
-        ${uiConfig.text} ${uiConfig.border} whitespace-nowrap`}>
-                    {focusedArtworkTitle}
-                </p>
+                <div className={`flex flex-col items-start text-left px-7 py-6 rounded-none backdrop-blur-3xl shadow-2xl border
+                    ${uiConfig.text} ${lightsOn ? 'bg-white/95 border-neutral-200 shadow-xl' : 'bg-neutral-900/95 border-neutral-800 shadow-neutral-950/50'} w-max max-w-[85vw] sm:max-w-xl`}>
+                    <h2 className="text-xl font-serif font-medium tracking-wide leading-tight whitespace-nowrap overflow-hidden text-ellipsis w-full">
+                        {focusedArtworkTitle}
+                    </h2>
+                    <div className={`w-full h-[0.5px] ${lightsOn ? 'bg-black/10' : 'bg-white/10'} my-4`} />
+                    <span className="text-base font-serif italic tracking-[0.05em] opacity-90 capitalize whitespace-nowrap">
+                        {(focusedArtworkArtist || 'Unknown Artist').toLowerCase()}
+                    </span>
+                    <span className="text-[11px] font-serif opacity-40 mt-2.5 tracking-[0.2em] uppercase whitespace-nowrap">
+                        {[focusedArtworkDate, focusedArtworkMedium].filter(Boolean).join(' \u00B7 ')}
+                    </span>
+                </div>
             )}
             <div className={`backdrop-blur-xl p-1.5 rounded-full flex gap-2 shadow-2xl
                 `}>

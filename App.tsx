@@ -1736,14 +1736,31 @@ function MuseumApp({
     const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
     if (!artItem) return null;
     const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
-    return firebaseArt ? firebaseArt.title.toUpperCase() : null;
+    return firebaseArt ? firebaseArt.title : null;
   }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
 
   const focusedArtworkArtist = useMemo(() => {
+    if (!focusedArtworkInstanceId || !currentLayout || !firebaseArtworks) return null;
     const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
     if (!artItem) return null;
     const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
     return firebaseArt ? firebaseArt.artist : null;
+  }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
+
+  const focusedArtworkMedium = useMemo(() => {
+    if (!focusedArtworkInstanceId || !currentLayout || !firebaseArtworks) return null;
+    const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+    if (!artItem) return null;
+    const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
+    return firebaseArt ? firebaseArt.artwork_medium : null;
+  }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
+
+  const focusedArtworkDate = useMemo(() => {
+    if (!focusedArtworkInstanceId || !currentLayout || !firebaseArtworks) return null;
+    const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+    if (!artItem) return null;
+    const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
+    return firebaseArt ? firebaseArt.artwork_date : null;
   }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
 
   const showGlobalOverlay = isTransitioning || isEffectRegistryLoading || !authResolved || isLoading; // Show overlay if explicitly transitioning OR still loading critical data
@@ -2023,6 +2040,8 @@ function MuseumApp({
         onInfoOpen={handleOpenInfo}
         focusedArtworkTitle={focusedArtworkDisplayTitle}
         focusedArtworkArtist={focusedArtworkArtist}
+        focusedArtworkMedium={focusedArtworkMedium}
+        focusedArtworkDate={focusedArtworkDate}
         onLikeTriggered={onLikeTriggered}
         isRankingMode={isRankingMode}
         onRankingToggle={handleRankingToggle}

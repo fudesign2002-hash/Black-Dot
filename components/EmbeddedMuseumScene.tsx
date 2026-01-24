@@ -134,7 +134,7 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
     const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
     if (!artItem) return null;
     const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
-    return firebaseArt ? firebaseArt.title.toUpperCase() : null;
+    return firebaseArt ? firebaseArt.title : null;
   }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
 
   const focusedArtworkArtist = useMemo(() => {
@@ -143,6 +143,22 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
     if (!artItem) return null;
     const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
     return firebaseArt ? firebaseArt.artist : null;
+  }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
+
+  const focusedArtworkMedium = useMemo(() => {
+    if (!focusedArtworkInstanceId || !currentLayout) return null;
+    const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+    if (!artItem) return null;
+    const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
+    return firebaseArt ? firebaseArt.artwork_medium : null;
+  }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
+
+  const focusedArtworkDate = useMemo(() => {
+    if (!focusedArtworkInstanceId || !currentLayout) return null;
+    const artItem = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+    if (!artItem) return null;
+    const firebaseArt = firebaseArtworks.find(fbArt => fbArt.id === artItem.artworkId);
+    return firebaseArt ? firebaseArt.artwork_date : null;
   }, [focusedArtworkInstanceId, currentLayout, firebaseArtworks]);
 
   const zeroGravityViews = useMemo(() => {
@@ -238,6 +254,8 @@ const EmbeddedMuseumScene: React.FC<EmbeddedMuseumSceneProps> = () => {
         onInfoOpen={() => setIsInfoOpen(true)}
         focusedArtworkTitle={focusedArtworkTitle}
         focusedArtworkArtist={focusedArtworkArtist}
+        focusedArtworkMedium={focusedArtworkMedium}
+        focusedArtworkDate={focusedArtworkDate}
         onLikeTriggered={() => {}}
         isRankingMode={isRankingMode}
         onRankingToggle={handleRankingToggle}
