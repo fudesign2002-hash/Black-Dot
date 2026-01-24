@@ -180,16 +180,16 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
              aria-hidden={!showArtworkControls}
              inert={!showArtworkControls}>
             {focusedArtworkTitle && (
-                <div className={`flex flex-col items-start text-left px-7 py-6 rounded-none backdrop-blur-3xl shadow-2xl border
+                <div className={`flex flex-col items-start text-left px-6 pt-5 pb-8 rounded-none backdrop-blur-3xl shadow-2xl border
                     ${uiConfig.text} ${lightsOn ? 'bg-white/95 border-neutral-200 shadow-xl' : 'bg-neutral-900/95 border-neutral-800 shadow-neutral-950/50'} w-max max-w-[85vw] sm:max-w-xl`}>
-                    <h2 className="text-xl font-serif font-medium tracking-wide leading-tight whitespace-nowrap overflow-hidden text-ellipsis w-full">
+                    <h2 className="text-lg font-serif font-medium tracking-wide leading-tight whitespace-nowrap overflow-hidden text-ellipsis w-full">
                         {focusedArtworkTitle}
                     </h2>
-                    <div className={`w-full h-[0.5px] ${lightsOn ? 'bg-black/10' : 'bg-white/10'} my-4`} />
-                    <span className="text-base font-serif italic tracking-[0.05em] opacity-90 capitalize whitespace-nowrap">
+                    <div className={`w-full h-[0.5px] ${lightsOn ? 'bg-black/10' : 'bg-white/10'} my-3`} />
+                    <span className="text-sm font-serif italic tracking-[0.05em] opacity-90 capitalize whitespace-nowrap">
                         {(focusedArtworkArtist || 'Unknown Artist').toLowerCase()}
                     </span>
-                    <span className="text-[11px] font-serif opacity-40 mt-2.5 tracking-[0.2em] uppercase whitespace-nowrap">
+                    <span className="text-[9px] font-serif opacity-45 mt-1 tracking-[0.2em] uppercase whitespace-nowrap">
                         {[focusedArtworkDate, focusedArtworkMedium].filter(Boolean).join(' \u00B7 ')}
                     </span>
                 </div>

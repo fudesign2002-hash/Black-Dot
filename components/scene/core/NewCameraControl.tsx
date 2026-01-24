@@ -115,9 +115,9 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
   const CAMERA_ANIMATION_DURATION = 600;
   const CAMERA_ARTWORK_DISTANCE = 10; // Updated to 10 as per user request
-  const CAMERA_PAINTING_CAMERA_Z_DISTANCE = 10; // Updated to 10 as per user request
+  const CAMERA_PAINTING_CAMERA_Z_DISTANCE = 30; // Increased to 40 to provide more breathing room
   const CAMERA_ARTWORK_HEIGHT_OFFSET = 0.5;
-  const CAMERA_PAINTING_CAMERA_Y_OFFSET = -18;
+  const CAMERA_PAINTING_CAMERA_Y_OFFSET = 0; // FIXED: Centered target
 
   const RANKING_CAMERA_POSITION: [number, number, number] = [-8, 3, 10];
   const RANKING_CAMERA_TARGET: [number, number, number] = [0, 1, 0];
@@ -240,10 +240,18 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
       cameraYOffset = CAMERA_PAINTING_CAMERA_Y_OFFSET;
     }
 
-    const artworkTargetY = position[1] + (artworkType === 'sculpture_base' ? CAMERA_ARTWORK_HEIGHT_OFFSET : 0);
+    // Determine artwork target Y based on type to ensure centering
+    let artworkTargetY = position[1];
+    if (artworkType === 'sculpture_base') {
+      artworkTargetY += CAMERA_ARTWORK_HEIGHT_OFFSET;
+    } else if (artworkType === 'canvas_portrait') {
+      artworkTargetY += 4.5; // Center for portrait artworks
+    } else if (artworkType.startsWith('canvas_') || artworkType === 'motion') {
+      artworkTargetY += 2.8; // Center for landscape/square/motion artworks
+    }
     
-    // Add Z offset for paintings to bring them forward
-    const paintingZOffset = (artworkType.startsWith('canvas_') || artworkType === 'motion') ? -2 : 0;
+    // MODIFIED: Use 0 offset for paintings to ensure the camera pivots around the artwork surface
+    const paintingZOffset = 0;
     tmpArtworkWorldPosition.current.set(position[0], artworkTargetY, position[2] + paintingZOffset);
     tmpArtworkWorldRotation.current.set(rotation[0], rotation[1], rotation[2], 'YXZ');
 
