@@ -217,14 +217,14 @@ function MuseumApp({
     currentIndex,
     refreshNow,
     updateLocalArtworkData,
-  } = useMuseumState(isSnapshotEnabledGlobally, ownerOverrideUid || user?.uid, isIdentityResolved); // Pass isIdentityResolved to hook
+  } = useMuseumState(isSnapshotEnabledGlobally, ownerOverrideUid || user?.uid, isIdentityResolved, initialExhibitionId); // Pass initialExhibitionId to hook
 
   const isLoading = isDataLoading || !isIdentityResolved; // Compound loading state for UI logic
 
   // NEW: Global Umami tracking for exhibition transitions
   useEffect(() => {
     const exhibitionId = activeExhibition?.id;
-    if (!exhibitionId) return;
+    if (!exhibitionId || exhibitionId === 'fallback_id') return;
 
     // Update global tracking path for events
     const virtualPath = `/exhibition/${exhibitionId}`;

@@ -55,7 +55,7 @@ const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
   zone_gravity: undefined, // NEW: Default zone_gravity
 };
 
-export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | null, authResolved: boolean = true) => { // NEW: Accept enableSnapshots, optional ownerUid, and authResolved
+export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | null, authResolved: boolean = true, initialExhibitionId?: string | null) => { // NEW: Accept enableSnapshots, optional ownerUid, authResolved, and optional initialExhibitionId
   const [rawExhibitionDocs, setRawExhibitionDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [rawArtworkDocs, setRawArtworkDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [zones, setZones] = useState<ExhibitionZone[]>([]);
@@ -213,8 +213,10 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       });
       return filteredOwner;
     }
-    // For guests filter to showcase and then sort by desired ordering below
-    const filtered = processedAllExhibitions.filter(ex => ex.isShowcase === true);
+    // For guests filter to showcase OR the specific initialExhibitionId and then sort by desired ordering below
+    const filtered = processedAllExhibitions.filter(ex => 
+      ex.isShowcase === true || (initialExhibitionId && ex.id === initialExhibitionId)
+    );
     // Default ordering: status priority (past, current, permanent, others) then by dateFrom (newest first)
     const statusRank: Record<string, number> = { 'now showing': 0, permanent: 1, past: 2 };
     filtered.sort((a, b) => {
@@ -226,7 +228,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       return db - da; // newer dateFrom first
     });
     return filtered;
-  }, [rawExhibitionDocs, firebaseArtworks, ownerUid]);
+  }, [rawExhibitionDocs, firebaseArtworks, ownerUid, initialExhibitionId]);
 
   useEffect(() => {
     if (exhibitions.length === 0) {
@@ -246,11 +248,18 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
   }, [ownerUid]);
   useEffect(() => {
     if (!isLoading && !initialIndexAppliedRef.current && exhibitions.length > 0) {
-      // Always start at the first exhibition in the sorted list (index 0) after load/sign changes
-      setCurrentIndex(0);
+      // NEW: If an initial ID is requested, start there instead of defaulting to index 0
+      let targetIndex = 0;
+      if (initialExhibitionId) {
+        const foundIdx = exhibitions.findIndex(ex => ex.id === initialExhibitionId);
+        if (foundIdx !== -1) {
+          targetIndex = foundIdx;
+        }
+      }
+      setCurrentIndex(targetIndex);
       initialIndexAppliedRef.current = true;
     }
-  }, [isLoading, exhibitions]);
+  }, [isLoading, exhibitions, initialExhibitionId]);
 
   const { activeExhibition, activeZone } = useMemo(() => {
     if (isLoading || exhibitions.length === 0) {
