@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info, Eye, BookOpen, Instagram, Globe } from 'lucide-react';
+import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info, Eye, BookOpen, Instagram, Globe, Info as InfoIcon } from 'lucide-react';
+import ArtistPanel from './ArtistPanel';
 import { Exhibition, FirebaseArtwork } from '../../types';
 
 interface InfoPanelProps {
@@ -14,7 +15,29 @@ interface InfoPanelProps {
   onOpenExhibitionInfoFromArtwork?: () => void;
 }
 
-const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, activeExhibition, isLoading, focusedArtworkFirebaseId, allFirebaseArtworks, onOpenExhibitionInfoFromArtwork }) => {
+interface InfoPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  uiConfig: any;
+  activeExhibition: Exhibition;
+  isLoading: boolean;
+  focusedArtworkFirebaseId?: string | null;
+  allFirebaseArtworks: FirebaseArtwork[];
+  onOpenExhibitionInfoFromArtwork?: () => void;
+  onBackToArtworkInfo?: () => void;
+  fromArtworkInfoFlag?: boolean; // 直接由父層傳 flag
+}
+
+const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, activeExhibition, isLoading, focusedArtworkFirebaseId, allFirebaseArtworks, onOpenExhibitionInfoFromArtwork, onBackToArtworkInfo, fromArtworkInfoFlag }) => {
+  const [artistPanelOpen, setArtistPanelOpen] = React.useState(false);
+  const [artistId, setArtistId] = React.useState<string | null>(null);
+  // 直接用 prop 控制返回箭頭
+  const fromArtworkInfo = !!fromArtworkInfoFlag;
+  const handleBackToArtwork = () => {
+    if (onBackToArtworkInfo) {
+      onBackToArtworkInfo();
+    }
+  };
   const { lightsOn } = uiConfig;
   const [posterLoadError, setPosterLoadError] = React.useState(false);
   const [artworkPosterLoadError, setArtworkPosterLoadError] = React.useState(false);
@@ -100,6 +123,8 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
 
   const showArtworkData = !!artworkDataForPanel;
 
+  // ...existing code...
+
   // NEW: Calculate aggregated likes and views for the exhibition view if showArtworkData is false
   const exhibitionStats = useMemo(() => {
     if (showArtworkData || !activeExhibition || !allFirebaseArtworks) return { liked: 0, viewed: 0 };
@@ -166,25 +191,68 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
         ref={panelRef}
         className={`fixed top-0 right-0 h-full w-full md:w-[600px] z-50 backdrop-blur-xl shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden flex flex-col border-l ${uiConfig.border} ${uiConfig.panelBg} ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className="p-8 pb-4 flex justify-between items-start">
+
+        <div className="pt-8 pb-4 pr-4 pl-8 flex justify-between items-start relative">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-bold tracking-[0.3em] uppercase ${showArtworkData ? 'text-cyan-500' : 'text-cyan-500'}`}>
+              {/* Debug log for arrow visibility */}
+              {(() => {
+                // eslint-disable-next-line no-console
+                console.log('[InfoPanel] showArtworkData:', showArtworkData, 'fromArtworkInfo:', fromArtworkInfo, 'focusedArtworkFirebaseId:', focusedArtworkFirebaseId);
+                return null;
+              })()}
+              {/* Back arrow only when on exhibit info, navigated from artwork info */}
+              {!showArtworkData && fromArtworkInfo && (
+                <button
+                  onClick={handleBackToArtwork}
+                  className={`mr-2 p-1 rounded-full hover:bg-neutral-200/30 transition-colors ${uiConfig.text}`}
+                  aria-label="Back to Artwork Info"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+              <span className={`text-[10px] font-bold tracking-[0.3em] uppercase ${showArtworkData ? 'text-cyan-500' : 'text-cyan-500'}`}> 
                 {showArtworkData ? 'Artwork Details' : 'Exhibition Details'}
               </span>
             </div>
-            
             <div className="space-y-1">
-              <h3 className={`text-5xl font-serif font-medium tracking-tight uppercase ${uiConfig.text}`}>
+              <h3 className={`text-5xl font-serif font-medium tracking-tight uppercase ${uiConfig.text}`}> 
                 {showArtworkData ? artworkDataForPanel?.title : activeExhibition.title}
               </h3>
               {(showArtworkData || (activeExhibition.artist && activeExhibition.artist.toUpperCase() !== 'OOTB')) && (
-                <p className={`text-base font-serif opacity-70 ${uiConfig.text}`}>
-                  {showArtworkData ? `by ${artworkDataForPanel?.artist || 'Unknown Artist'}` : `Artist : ${activeExhibition.artist}`}
-                </p>
+                <div className={`flex items-center gap-2`}>
+                  <span className={`text-base font-serif opacity-70 ${uiConfig.text}`}>
+                    {showArtworkData ? `by ${artworkDataForPanel?.artist || 'Unknown Artist'}` : `Artist : ${activeExhibition.artist}`}
+                  </span>
+                  {/* Info icon for artist panel */}
+                  {(showArtworkData ? artworkDataForPanel?.artist : activeExhibition.artist) && (
+                    <button
+                      type="button"
+                      className="p-1 rounded-full hover:bg-neutral-200/30 transition-colors"
+                      aria-label="Show Artist Info"
+                      onClick={() => {
+                        setArtistPanelOpen(true);
+                        setArtistId(showArtworkData ? artworkDataForPanel?.artist : activeExhibition.artist);
+                      }}
+                    >
+                      <InfoIcon className="w-4 h-4 opacity-60" />
+                    </button>
+                  )}
+                </div>
               )}
+                  {/* ArtistPanel overlay */}
+                  {artistPanelOpen && artistId && (
+                    <ArtistPanel
+                      isOpen={artistPanelOpen}
+                      onClose={() => setArtistPanelOpen(false)}
+                      onBack={() => setArtistPanelOpen(false)}
+                      artistId={artistId}
+                      uiConfig={uiConfig}
+                    />
+                  )}
             </div>
-
             <div className="flex items-center gap-6 pt-2">
                <div className="flex items-center gap-2 group">
                   <Heart className={`w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-rose-500 transition-all ${uiConfig.text}`} strokeWidth={1.5} />
@@ -204,7 +272,12 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                 </div>
             </div>
           </div>
-          <button onClick={onClose} className={`p-3 transition-all ${uiConfig.text} opacity-50 hover:opacity-100`}>
+          <button
+            onClick={onClose}
+            className={`absolute top-2 right-2 p-2 transition-all ${uiConfig.text} opacity-50 hover:opacity-100 z-10`}
+            style={{ boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)' }}
+            aria-label="Close Info Panel"
+          >
             <X className="w-8 h-8" strokeWidth={1} />
           </button>
         </div>
@@ -375,7 +448,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
 
         <div className={`p-10 border-t ${uiConfig.border} ${uiConfig.panelBg}`}>
            {showArtworkData ? (
-             <div className="flex gap-4">
+             <div className="flex flex-wrap gap-2 min-w-0">
                <button
                   onClick={onOpenExhibitionInfoFromArtwork}
                   className={`flex-1 h-16 flex items-center justify-center gap-4 font-bold tracking-[0.3em] uppercase transition-all duration-500 rounded-sm border ${uiConfig.border} ${uiConfig.text} hover:bg-neutral-500/5 group`}

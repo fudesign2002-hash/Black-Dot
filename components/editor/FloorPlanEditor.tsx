@@ -240,8 +240,27 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
       <div 
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        className={`fixed top-[10px] right-[10px] h-full w-full max-w-lg z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden rounded-xl border ${lightsOn ? 'bg-white/90 shadow-2xl border-white/20' : 'bg-neutral-900/90 shadow-2xl border-white/10'} ${uiConfig.text}`}
+        className={`fixed z-50 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden rounded-xl border ${lightsOn ? 'bg-white/90 shadow-2xl border-white/20' : 'bg-neutral-900/90 shadow-2xl border-white/10'} ${uiConfig.text}`}
         style={{
+          ...(isSmallScreen
+            ? {
+                left: 10,
+                right: 10,
+                top: 10,
+                bottom: 10,
+                maxWidth: 'unset',
+                maxHeight: 'unset',
+                width: 'auto',
+                height: 'auto',
+                boxSizing: 'border-box',
+              }
+            : {
+                top: 10,
+                right: 10,
+                maxWidth: '32rem', // max-w-lg
+                height: 'calc(100% - 20px)',
+                width: '100%',
+              }),
           transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
           transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.19,1,0.22,1)',
         }}
@@ -359,6 +378,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass loading state
             activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
             onUpdateZoneGravity={onUpdateZoneGravity} // NEW: Pass onUpdateZoneGravity
+            isSmallScreen={isSmallScreen}
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab
