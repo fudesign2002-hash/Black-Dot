@@ -25,6 +25,7 @@ interface SceneTabProps {
   isEffectRegistryLoading: boolean; // NEW: Add isEffectRegistryLoading prop
   activeZoneGravity: number | undefined; // NEW: Add activeZoneGravity
   onUpdateZoneGravity: (gravity: number | undefined) => Promise<void>; // NEW: Add onUpdateZoneGravity
+  isSmallScreen: boolean;
 }
 
 interface ColorFieldProps {
@@ -112,7 +113,8 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
   effectRegistry, // NEW: Destructure effectRegistry
   isEffectRegistryLoading, // NEW: Destructure isEffectRegistryLoading
   activeZoneGravity, // NEW: Destructure activeZoneGravity
-  onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity
+  onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity,
+  isSmallScreen,
 }) => {
     const { lightsOn, border, subtext } = uiConfig;
     const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
@@ -434,7 +436,14 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                       </div>
                     ) : (effectRegistry ? (
                       <div className="max-w-fit mx-auto"> {/* Added wrapper div for centering */}
-                        <div className="grid grid-cols-4 gap-3 mt-2"> {/* Changed to grid with 4 columns and decreased gap */}
+                        <div
+                          className={
+                            `grid mt-2 ` +
+                            (isSmallScreen
+                              ? 'grid-cols-3 gap-3 px-1' // 3欄、gap適中、左右留白
+                              : 'grid-cols-4 gap-3')
+                          }
+                        >
                         {Object.keys(effectRegistry).map((effectName) => {
                             const effectData = effectRegistry[effectName];
                             // FIX: Access icon property correctly from effectData
@@ -471,7 +480,10 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                                 <button
                                 key={effectName}
                                 onClick={() => onUpdateZoneTheme(effectName)}
-                                className={`w-24 h-24 flex flex-col items-center justify-center p-2 rounded-xl border border-transparent cursor-pointer transition-all duration-200 ${cardBgClass} ${cardShadowClass} ${isSelected ? 'scale-105 border-cyan-500/30' : ''}`}
+                                className={
+                                  `${isSmallScreen ? 'w-24 h-24 p-0.5' : 'w-24 h-24 p-2'} flex flex-col items-center justify-center rounded-xl border border-transparent cursor-pointer transition-all duration-200 ` +
+                                  cardBgClass + ' ' + cardShadowClass + (isSelected ? ' scale-105 border-cyan-500/30' : '')
+                                }
                                 >
                                 <IconComponent size={24} className={`mb-2 ${iconColorClass} ${isSelected ? 'opacity-100' : 'opacity-60'}`} /> {/* Reduced icon size and margin */}
                                 <span className={`text-[10px] font-bold uppercase tracking-tight text-center ${cardTextClass}`}> {/* Reduced text size */}
@@ -482,12 +494,12 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
                         })}
                         {/* Button to deactivate all effects (No Theme) */}
                         <button
-                            onClick={() => onUpdateZoneTheme(null)}
-                            className={`w-24 h-24 flex flex-col items-center justify-center p-2 rounded-xl border border-transparent cursor-pointer transition-all duration-200 
-                            ${activeZoneTheme === null
-                                ? (lightsOn ? 'bg-neutral-900 shadow-[0_0_15px_rgba(0,0,0,0.1)] border-red-500/30 scale-105' : 'bg-white shadow-[0_0_15px_rgba(0,192,255,0.3)] border-red-500/30 scale-105') 
-                                : (lightsOn ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/10')
-                            }`}
+                          onClick={() => onUpdateZoneTheme(null)}
+                          className={`${isSmallScreen ? 'w-24 h-24 p-0.5' : 'w-24 h-24 p-2'} flex flex-col items-center justify-center rounded-xl border border-transparent cursor-pointer transition-all duration-200 
+                          ${activeZoneTheme === null
+                            ? (lightsOn ? 'bg-neutral-900 shadow-[0_0_15px_rgba(0,0,0,0.1)] border-red-500/30 scale-105' : 'bg-white shadow-[0_0_15px_rgba(0,192,255,0.3)] border-red-500/30 scale-105') 
+                            : (lightsOn ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/10')
+                          }`}
                         >
                             <X size={24} className={`mb-2 ${activeZoneTheme === null ? (lightsOn ? 'text-red-500' : 'text-red-500') : (lightsOn ? 'text-neutral-700 opacity-60' : 'text-white opacity-60')}`} /> {/* Reduced icon size and margin */}
                             <span className={`text-[10px] font-bold uppercase tracking-tight text-center ${activeZoneTheme === null ? (lightsOn ? 'text-red-500' : 'text-red-500') : (lightsOn ? 'text-neutral-700' : 'text-white')}`}> {/* Reduced text size */}

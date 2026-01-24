@@ -378,6 +378,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass loading state
             activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
             onUpdateZoneGravity={onUpdateZoneGravity} // NEW: Pass onUpdateZoneGravity
+            isSmallScreen={isSmallScreen}
           />
         ) : activeTab === 'artworks' ? (
           <ArtworkTab

@@ -1580,11 +1580,14 @@ function MuseumApp({
 
   const handleCloseInfo = useCallback(() => {
     setIsInfoOpen(false);
-    setFocusedArtworkFirebaseId(null);
-  }, [setFocusedArtworkFirebaseId]);
+    setFromArtworkInfoFlag(false); // 關閉時清空 trigger flag
+    setFocusedArtworkFirebaseId(null); // 關閉時強制清空 artwork id
+  }, []);
 
+  const [fromArtworkInfoFlag, setFromArtworkInfoFlag] = useState(false);
   const handleOpenExhibitionInfoFromArtwork = useCallback(() => {
     setFocusedArtworkFirebaseId(null);
+    setFromArtworkInfoFlag(true);
     setIsInfoOpen(true);
   }, [setFocusedArtworkFirebaseId]);
 
@@ -2107,6 +2110,17 @@ function MuseumApp({
         focusedArtworkFirebaseId={focusedArtworkFirebaseId}
         allFirebaseArtworks={firebaseArtworks}
         onOpenExhibitionInfoFromArtwork={handleOpenExhibitionInfoFromArtwork}
+        fromArtworkInfoFlag={fromArtworkInfoFlag}
+        onBackToArtworkInfo={() => {
+          setFromArtworkInfoFlag(false);
+          // Restore the last focused artwork if possible
+          if (focusedArtworkInstanceId) {
+            const artworkInLayout = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+            if (artworkInLayout) {
+              setFocusedArtworkFirebaseId(artworkInLayout.artworkId);
+            }
+          }
+        }}
       />
 
       <AnalyticsDashboard 
