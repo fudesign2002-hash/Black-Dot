@@ -115,7 +115,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
   const CAMERA_ANIMATION_DURATION = 600;
   const CAMERA_ARTWORK_DISTANCE = 10; // Updated to 10 as per user request
-  const CAMERA_PAINTING_CAMERA_Z_DISTANCE = 22; // Increased to 40 to provide more breathing room
+  const CAMERA_PAINTING_CAMERA_Z_DISTANCE = 18; // Increased to 40 to provide more breathing room
   const CAMERA_ARTWORK_HEIGHT_OFFSET = 0.5;
   const CAMERA_PAINTING_CAMERA_Y_OFFSET = 0; // FIXED: Centered target
 
@@ -236,7 +236,7 @@ const NewCameraControl = React.forwardRef<NewCameraControlHandle, NewCameraContr
 
     if (artworkType.startsWith('canvas_') || artworkType === 'motion') {
       // For paintings: use smaller distance on small screens, larger (half) on normal screens
-      cameraDistance = props.isSmallScreen ? CAMERA_PAINTING_CAMERA_Z_DISTANCE : CAMERA_PAINTING_CAMERA_Z_DISTANCE / 2;
+      cameraDistance = props.isSmallScreen ? CAMERA_PAINTING_CAMERA_Z_DISTANCE : CAMERA_PAINTING_CAMERA_Z_DISTANCE / 1.5;
       cameraYOffset = CAMERA_PAINTING_CAMERA_Y_OFFSET;
     }
 
