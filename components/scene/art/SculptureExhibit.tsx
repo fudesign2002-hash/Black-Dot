@@ -79,7 +79,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
     emissive: '#000000',
     emissiveIntensity: 0,
     metalness: 0,
-    roughness: 0.5,
+    roughness: 0.6,
     side: THREE.FrontSide,
     transparent: false,
     opacity: 1,
@@ -124,13 +124,14 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
   useEffect(() => {
     // Debugging: log material and scene change detection to help diagnose first-click missing apply
     // material apply debug logging removed to reduce console noise
-    // If the GLB scene object itself has changed or material config is different
+    // If the GLB scene object itself has changed or material config is different or debug toggle changed
     const materialConfigChanged = !shallowEqual(prevMaterialConfigRef.current, currentMaterialConfig);
     const glbSceneChanged = cleanedGlbScene !== prevGlbSceneRef.current;
+    
+    // Check if we need to re-apply due to debug toggle (we'll just use a ref or simplified logic)
+    // For simplicity, we add debugNoReflections to the dependency array.
 
-    // change detection logging removed
-
-    if (!isGLB || !cleanedGlbScene || glbSceneChanged || materialConfigChanged) {
+    if (!isGLB || !cleanedGlbScene || glbSceneChanged || materialConfigChanged || true) { // Force update for debug toggle
       // Dispose of the existing model in the ref before potentially replacing it
       if (glbWithAppliedMaterialsRef.current) {
         deepDispose(glbWithAppliedMaterialsRef.current);
@@ -192,6 +193,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
                 newMaterial.color.set(new THREE.Color(config?.color ?? defaultMaterialPropsForGlb.color));
                 newMaterial.emissive.set(new THREE.Color(config?.emissive ?? defaultMaterialPropsForGlb.emissive));
                 newMaterial.emissiveIntensity = config?.emissiveIntensity ?? defaultMaterialPropsForGlb.emissiveIntensity;
+                
                 newMaterial.metalness = config?.metalness ?? defaultMaterialPropsForGlb.metalness;
                 newMaterial.roughness = config?.roughness ?? defaultMaterialPropsForGlb.roughness;
                 newMaterial.side = getSide(config?.side);
@@ -212,18 +214,21 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
                 newMaterial.transparent = config?.transparent ?? false;
                 newMaterial.opacity = config?.opacity ?? 1;
 
-
                 child.material = newMaterial;
                 child.material.needsUpdate = true;
                 try {
                   // eslint-disable-next-line no-console
-                  console.debug('[SculptureExhibit] applied material to mesh', { meshName: child.name || null, meshUuid: child.uuid, newMaterial: {
-                    color: (newMaterial as any).color?.getHexString ? (newMaterial as any).color.getHexString() : undefined,
-                    roughness: (newMaterial as any).roughness,
-                    metalness: (newMaterial as any).metalness,
-                    opacity: (newMaterial as any).opacity,
-                    transparent: (newMaterial as any).transparent,
-                  }});
+                  console.debug('[SculptureExhibit] applied material to mesh', { 
+                    meshName: child.name || null, 
+                    meshUuid: child.uuid, 
+                    newMaterial: {
+                      color: (newMaterial as any).color?.getHexString ? (newMaterial as any).color.getHexString() : undefined,
+                      roughness: (newMaterial as any).roughness,
+                      metalness: (newMaterial as any).metalness,
+                      opacity: (newMaterial as any).opacity,
+                      transparent: (newMaterial as any).transparent,
+                    }
+                  });
                 } catch (e) {}
               }
             });

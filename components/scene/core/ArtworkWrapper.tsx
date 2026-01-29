@@ -148,15 +148,25 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
 
 
   // Store the previous props to detect changes reliably
-  const prevProps = useRef({
+  const prevProps = useRef<{
+    isRankingMode: boolean;
+    isZeroGravityMode: boolean;
+    targetPosition: THREE.Vector3;
+    targetRotation: THREE.Euler;
+    originalPosition: THREE.Vector3 | null;
+    artworkType: ArtType;
+    zoneGravity: number | undefined;
+    artworkGravity: number | undefined;
+    externalOffsetX: number;
+  }>({
     isRankingMode: false,
-    isZeroGravityMode: false, // NEW
+    isZeroGravityMode: false,
     targetPosition: new THREE.Vector3(),
     targetRotation: new THREE.Euler(),
-    originalPosition: new THREE.Vector3(), // NEW: Track originalPosition changes
-    artworkType: 'sculpture_base' as ArtType, // Initialize with a default value
-    zoneGravity: undefined as number | undefined, // NEW
-    artworkGravity: undefined as number | undefined, // NEW
+    originalPosition: null, // Initialize as null to prevent "from zero" animation on mount
+    artworkType: 'sculpture_base' as ArtType,
+    zoneGravity: undefined,
+    artworkGravity: undefined,
     externalOffsetX: 0,
   });
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { trackUmamiEvent } from '../../services/umamiService';
-import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Cpu, ChevronLeft, ChevronRight, Users, Heart, Info, X, ChevronDown, Share2, ListOrdered, Orbit, ChartColumnIncreasing } from 'lucide-react'; // NEW: Import Orbit and ChartColumnIncreasing icon
+import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Cpu, ChevronLeft, ChevronRight, Users, Heart, Info, X, ChevronDown, Share2, ListOrdered, Orbit, ChartColumnIncreasing } from 'lucide-react'; // NEW: Import Orbit, ChartColumnIncreasing icon
 import { Exhibition } from '../../types';
 // REMOVED: import { EffectRegistry } from '../../effect_bundle'; // NEW: Import EffectRegistry
 

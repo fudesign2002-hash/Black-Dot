@@ -85,7 +85,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
     isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn,
       uiConfig, setFocusedArtworkInstanceId, activeExhibition, onInfoOpen, isDebugMode,
       triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
-      isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType, thresholdLevel, activeZoneId // NEW: Destructure thresholdLevel and activeZoneId
+      isRankingMode, isCameraMovingToArtwork, displayLikes, isSmallScreen, sourceArtworkType, thresholdLevel, activeZoneId // NEW: Destructure noReflections
 }) => {
   // Debug logging removed to reduce console noise in production/dev
     const [visualDimensions, setVisualDimensions] = useState<ExhibitVisualDimensions | null>(null);

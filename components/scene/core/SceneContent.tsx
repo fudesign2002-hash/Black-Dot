@@ -256,7 +256,7 @@ const SceneContent: React.FC<SceneProps> = ({
   const overlayTmpDir = useMemo(() => new THREE.Vector3(), []);
 
   // NEW: Track environment and light intensities for smooth transitions
-  const envIntensityRef = useRef(lightsOn ? 1.0 : 0.05);
+  const envIntensityRef = useRef(lightsOn ? 0.1 : 0.05);
   const mainLightIntensityRef = useRef(lightsOn ? 0.4 : 0);
 
   // NEW: Load background texture when exhibit_background changes and useExhibitionBackground is true
@@ -605,7 +605,7 @@ const SceneContent: React.FC<SceneProps> = ({
   return (
     <React.Fragment>
         <ambientLight 
-          intensity={lightsOn ? 0.2 : 0.05} 
+          intensity={lightsOn ? 0.1 : 0.05} 
           color="#ffffff" 
         />
         {/* FIX: Use THREE.Vector3 for position */}
@@ -627,7 +627,7 @@ const SceneContent: React.FC<SceneProps> = ({
         <directionalLight
             ref={dirLight2Ref}
             position={fillLightPos}
-            intensity={lightsOn ? 0.2 : 0}
+            intensity={lightsOn ? 0.1 : 0}
             color={fillLightColor}
         />
 
@@ -822,7 +822,7 @@ const SceneContent: React.FC<SceneProps> = ({
             setFocusedIndex={onFocusChange}
             currentFocusedIndex={focusedIndex}
             focusedArtworkInstanceId={focusedArtworkInstanceId}
-            cameraControlRef={cameraControlRef}
+            cameraControlRef={cameraControlRef as any}
           />
         )}
 
