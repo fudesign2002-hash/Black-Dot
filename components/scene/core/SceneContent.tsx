@@ -746,6 +746,7 @@ const SceneContent: React.FC<SceneProps> = ({
                     artworkPosition={art.originalPosition || art.position}
                     artworkRotation={art.originalRotation || art.rotation}
                     artworkType={art.type}
+                    scale={art.scale || 1}
                     aspectRatio={art.aspectRatio}
                     sourceArtworkType={art.source_artwork_type}
                     isFocused={isExplicitlyFocused}

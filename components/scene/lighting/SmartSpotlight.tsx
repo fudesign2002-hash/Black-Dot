@@ -32,6 +32,8 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
         return { spotlightAngle: 0.8, spotlightDistance: 45, spotlightHeight: 18 };
       case 'canvas_landscape':
         return { spotlightAngle: 0.6, spotlightDistance: 60, spotlightHeight: 22 };
+      case 'text_3d':
+        return { spotlightAngle: 0.8, spotlightDistance: 45, spotlightHeight: 20 };
       case 'sculpture_base':
       default:
         return { spotlightAngle: 0.4, spotlightDistance: 35, spotlightHeight: 30 };

@@ -304,8 +304,11 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
     
     const defaultLayout = activeExhibition.defaultLayout || [];
 
-    
-    const filteredZoneLayout = zoneLayout.filter(item => canonicalArtworkIds.has(item.artworkId));
+    // 4. Filter the zone layout to only include artworks that are still intended to be in the exhibition,
+    //    OR special "virtual" items (like text_3d) that exist purely for the view.
+    const filteredZoneLayout = zoneLayout.filter(item => 
+        canonicalArtworkIds.has(item.artworkId) || item.type === 'text_3d'
+    );
     const artworksWithCustomLayout = new Set(filteredZoneLayout.map(item => item.artworkId));
 
     

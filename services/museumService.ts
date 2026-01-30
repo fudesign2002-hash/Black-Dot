@@ -130,6 +130,20 @@ export const createLayoutFromZone = (zoneArtworks: ZoneArtworkItem[], allFirebas
     
     return zoneArtworks.map((item, index): ExhibitionArtItem | null => {
         const firebaseArt = allFirebaseArtworks.find(art => art.id === item.artworkId);
+        
+        // NEW: Handle special types like text_3d that might not have a corresponding FirebaseArtwork
+        if (!firebaseArt && item.type === 'text_3d') {
+            return {
+                id: `text_3d_${item.artworkId}_${index}`,
+                artworkId: item.artworkId,
+                type: 'text_3d',
+                position: item.position,
+                rotation: item.rotation,
+                scale: item.scale,
+                artworkData: item.artworkData || { text: 'BLACK DOT' }
+            };
+        }
+
         if (!firebaseArt) {
             return null;
         }

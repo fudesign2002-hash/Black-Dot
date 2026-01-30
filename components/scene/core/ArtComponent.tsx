@@ -9,6 +9,7 @@ import * as THREE from 'three'; // NEW: Import THREE
 
 const LazyCanvasExhibit = React.lazy(() => import('../art/CanvasExhibit'));
 const LazySculptureExhibit = React.lazy(() => import('../art/SculptureExhibit'));
+const LazyText3DExhibit = React.lazy(() => import('../art/Text3DExhibit')); // NEW: Import Text3DExhibit
 
 interface ExhibitVisualDimensions {
     width: number;
@@ -54,6 +55,7 @@ interface ArtComponentProps {
     artworkPosition: [number, number, number];
     artworkRotation: [number, number, number];
     artworkType: ArtType;
+    scale?: number; // NEW: Add scale prop
     sourceArtworkType?: string | undefined;
     isFocused: boolean;
     textureUrl?: string;
@@ -82,6 +84,7 @@ interface ArtComponentProps {
 const ArtComponent: React.FC<ArtComponentProps> = ({
     id,
     type, artworkPosition, artworkRotation, artworkType,
+    scale = 1, // NEW: Destructure scale
     isFocused, textureUrl, artworkData, isMotionVideo, isFaultyMotionVideo, aspectRatio, lightsOn,
       uiConfig, setFocusedArtworkInstanceId, activeExhibition, onInfoOpen, isDebugMode,
       triggerHeartEmitter, heartEmitterArtworkId, onArtworkClicked,
@@ -194,6 +197,7 @@ const ArtComponent: React.FC<ArtComponentProps> = ({
         'canvas_landscape': <LazyCanvasExhibit orientation="landscape" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,
         'canvas_square': <LazyCanvasExhibit orientation="square" {...commonProps} isPainting={isPaintingArtwork} onDimensionsCalculated={handleCanvasDimensionsCalculated} artworkData={artworkData} />,
         'sculpture_base': <LazySculptureExhibit {...commonProps} onDimensionsCalculated={handleSculptureDimensionsCalculated} activeZoneId={activeZoneId} />,
+        'text_3d': <LazyText3DExhibit {...commonProps} scale={scale} onDimensionsCalculated={handleSculptureDimensionsCalculated} />, // NEW: Map text_3d type
     };
 
     const componentToRender = componentMap[type] || null;
