@@ -219,6 +219,15 @@ function MuseumApp({
     updateLocalArtworkData,
   } = useMuseumState(isSnapshotEnabledGlobally, ownerOverrideUid || user?.uid, isIdentityResolved, initialExhibitionId); // Pass initialExhibitionId to hook
 
+  // NEW: Update page title dynamically based on active exhibition
+  useEffect(() => {
+    if (activeExhibition?.title) {
+      document.title = `Kurodot.io - ${activeExhibition.title}`;
+    } else {
+      document.title = 'Kurodot.io';
+    }
+  }, [activeExhibition?.title]);
+
   const isLoading = isDataLoading || !isIdentityResolved; // Compound loading state for UI logic
 
   // NEW: Global Umami tracking for exhibition transitions

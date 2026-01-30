@@ -42,6 +42,13 @@ const isMobileDevice = () => {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 };
 
+// NEW: Detect if the browser is Safari
+const isSafariBrowser = () => {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.includes('safari') && !ua.includes('chrome') && !ua.includes('android');
+};
+
 // NEW: Detect if the app is embedded in an iframe
 const isInIframe = () => {
   if (typeof window === 'undefined') return false;
@@ -53,7 +60,8 @@ const VIDEO_INNER_CONTENT_MULTIPLIER = 0.85;
 const EMBED_VIDEO_VERTICAL_OFFSET = 0; 
 const MOTION_WALL_BACKING_MULTIPLIER = 2.5; 
 
-// NEW: Y offset specifically for mobile browsers (iPhone, iPad, Android)
+// NEW: Y offset for Safari to fix vertical misalignment (moving it down)
+const SAFARI_Y_OFFSET = -0.25;
 const MOBILE_BROWSER_MOTION_Y_OFFSET = 0.5;
 
 const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, aspectRatio, isMotionVideo, isFaultyMotionVideo, isPainting, isFocused, lightsOn, onDimensionsCalculated,
@@ -300,7 +308,10 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
       // Embedded with dpr=3 (mobile): apply small offset
       dprOffset = 0.2;
     }
-    const htmlPositionY = htmlContentCenterY + dprOffset;
+
+    // NEW: Safari specific offset to fix vertical misalignment (moving it down if it's too high)
+    const safariFix = isSafariBrowser() ? SAFARI_Y_OFFSET : 0;
+    const htmlPositionY = htmlContentCenterY + dprOffset + safariFix;
 
 
     const HTML_SCALE_FACTOR = 100;
