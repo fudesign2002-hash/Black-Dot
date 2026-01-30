@@ -145,6 +145,11 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
             child.castShadow = true;
             child.receiveShadow = true;
 
+            // NEW: Smooth out the polygonal look by computing vertex normals
+            if (child.geometry) {
+              child.geometry.computeVertexNormals();
+            }
+
             const materials = Array.isArray(child.material) ? child.material : [child.material];
             materials.forEach(originalMaterial => {
               const config = currentMaterialConfig;
@@ -180,7 +185,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
                     ];
                     textureProps.forEach(prop => {
                       if (prop in newMaterial) {
-                        (newMaterial as any)[prop] = null;
+                        (newMaterial as any)[prop] = (prop === 'flatShading') ? false : null;
                       }
                     });
                     newMaterial.needsUpdate = true;
@@ -215,6 +220,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
                 newMaterial.opacity = config?.opacity ?? 1;
 
                 child.material = newMaterial;
+                (child.material as any).flatShading = false; // NEW: Ensure smooth shading for models
                 child.material.needsUpdate = true;
                 try {
                   // eslint-disable-next-line no-console
@@ -467,6 +473,7 @@ const SculptureExhibit: React.FC<SculptureExhibitProps> = ({ artworkData, textur
       thickness: config?.thickness ?? defaultMaterialProps.thickness,
       clearcoat: config?.clearcoat ?? defaultMaterialProps.clearcoat,
       clearcoatRoughness: config?.clearcoatRoughness ?? defaultMaterialProps.clearcoatRoughness,
+      flatShading: false, // NEW: Ensure flat shading is disabled for smoother look
     };
   }, [artworkData, defaultMaterialProps]);
 

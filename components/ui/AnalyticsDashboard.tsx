@@ -188,23 +188,37 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
   // NEW: Process real artwork data for the dashboard
   const artworkStats = useMemo(() => {
-    return currentLayout.map(item => {
-      const artwork = firebaseArtworks.find(a => a.id === item.artworkId);
-      const views = typeof artwork.artwork_viewed === 'number' ? artwork.artwork_viewed : 0;
-      const engagementVal = typeof artwork.artwork_liked === 'number'
-        ? artwork.artwork_liked
-        : (typeof artwork.artwork_gravity === 'number' ? artwork.artwork_gravity : 0);
+    return currentLayout
+      .filter(item => item.type !== 'text_3d') // Skip virtual text items in stats for now
+      .map(item => {
+        const artwork = firebaseArtworks.find(a => a.id === item.artworkId);
+        if (!artwork) {
+          return {
+            id: item.id,
+            name: 'Unknown Element',
+            artist: '',
+            views: 0,
+            engagement: 0,
+            val: 0,
+            color: "from-gray-400 to-gray-600"
+          };
+        }
 
-      return {
-        id: item.id,
-        name: artwork.title || 'Untitled Artwork',
-        artist: artwork.artist || '',
-        views: views,
-        engagement: engagementVal,
-        val: engagementVal,
-        color: item.type.startsWith('canvas_') ? "from-cyan-400 to-cyan-600" : "from-violet-400 to-violet-600"
-      };
-    }).sort((a, b) => b.views - a.views);
+        const views = typeof artwork.artwork_viewed === 'number' ? artwork.artwork_viewed : 0;
+        const engagementVal = typeof artwork.artwork_liked === 'number'
+          ? artwork.artwork_liked
+          : (typeof artwork.artwork_gravity === 'number' ? artwork.artwork_gravity : 0);
+
+        return {
+          id: item.id,
+          name: artwork.title || 'Untitled Artwork',
+          artist: artwork.artist || '',
+          views: views,
+          engagement: engagementVal,
+          val: engagementVal,
+          color: item.type.startsWith('canvas_') ? "from-cyan-400 to-cyan-600" : "from-violet-400 to-violet-600"
+        };
+      }).sort((a, b) => b.views - a.views);
   }, [currentLayout, firebaseArtworks]);
 
   // Derived rankings: likes (engagement) and views

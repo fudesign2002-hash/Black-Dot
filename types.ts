@@ -5,7 +5,8 @@ export type ArtType =
   | 'canvas_square'
   | 'sculpture_base'
   | 'media'
-  | 'motion';
+  | 'motion'
+  | 'text_3d';
 
 export interface Artwork {
   id: string;
@@ -52,6 +53,8 @@ export interface ArtworkMaterialConfig {
 }
 
 export interface ArtworkData {
+  text?: string; // NEW: 3D text content
+  font?: string; // NEW: 3D text font path
   geometry?: ArtworkGeometry;
   material?: ArtworkMaterialConfig;
   material_per_zone?: Record<string, ArtworkMaterialConfig>; // NEW: Zone-specific materials
@@ -117,6 +120,8 @@ export interface ZoneArtworkItem {
   position: [number, number, number];
   rotation: [number, number, number];
   scale: number;
+  type?: ArtType; // NEW: Explicit type for non-artwork items (like text)
+  artworkData?: ArtworkData; // NEW: Data for non-artwork items
 }
 
 export type FirebaseArtType = 

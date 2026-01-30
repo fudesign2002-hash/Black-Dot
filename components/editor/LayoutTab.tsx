@@ -1,7 +1,7 @@
 
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { RefreshCw, Lightbulb, Sun, Video, Sparkles, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'; // NEW: Add Trash2
+import { RefreshCw, Lightbulb, Sun, Video, Sparkles, X, ChevronDown, ChevronUp, Trash2, Type } from 'lucide-react'; // NEW: Add Trash2, Type
 // FIX: Added missing imports for types
 import { ExhibitionArtItem, SimplifiedLightingConfig, ArtType, FirebaseArtwork, ArtworkData } from '../../types';
 import ArtworkSettingsForm from './ArtworkSettingsForm'; // NEW: Import ArtworkSettingsForm
@@ -43,6 +43,7 @@ const ARTWORK_DIMENSIONS_2D: Record<ArtType, { width: number; depth: number }> =
   canvas_landscape: { width: 24.0, depth: 1.0 },
   canvas_square: { width: 10.0, depth: 1.0 },
   sculpture_base: { width: 6.0, depth: 6.0 },
+  text_3d: { width: 12.0, depth: 2.0 }, // NEW: Add text_3d dimensions
   media: { width: 24.0, depth: 1.0 },
   motion: { width: 24.0, depth: 1.0 },
 };
@@ -136,7 +137,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
            });
   }, [currentLayout, firebaseArtworks]);
 
-  const { lightsOn, text, subtext, border } = uiConfig;
+  const { lightsOn, text, subtext, border, input } = uiConfig;
   const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
 
   const selectedArt = currentLayout.find(art => art.id === selectedArtworkId);
@@ -348,6 +349,55 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
     }
   }, [selectedArt, selectedArtworkId, onEditorLayoutChange, currentLayout]);
 
+  const handleAdd3DText = useCallback(() => {
+    const newId = `text-${Date.now()}`;
+    const newTextItem: ExhibitionArtItem = {
+      id: newId,
+      artworkId: newId,
+      type: 'text_3d',
+      position: [0, 4, 0],
+      rotation: [0, 0, 0],
+      scale: 1,
+      artworkData: {
+        text: 'BLACK DOT',
+        material: {
+          color: '#000000',
+          roughness: 0.1,
+          metalness: 0.8
+        }
+      }
+    };
+    onEditorLayoutChange(prev => [...prev, newTextItem]);
+    onSelectArtwork(newId);
+  }, [onEditorLayoutChange, onSelectArtwork]);
+
+  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newText = e.target.value;
+    onEditorLayoutChange(prev => prev.map(art => 
+      art.id === selectedArtworkId ? { ...art, artworkData: { ...art.artworkData, text: newText } } : art
+    ));
+  }, [selectedArtworkId, onEditorLayoutChange]);
+
+  const handleScaleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newScale = parseFloat(e.target.value);
+    onEditorLayoutChange(prev => prev.map(art => 
+      art.id === selectedArtworkId ? { ...art, scale: newScale } : art
+    ));
+  }, [selectedArtworkId, onEditorLayoutChange]);
+
+  const handleTextHeightChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newY = parseFloat(e.target.value);
+    onEditorLayoutChange(prev => prev.map(art => 
+      art.id === selectedArtworkId ? { ...art, position: [art.position[0], newY, art.position[2]] as [number, number, number] } : art
+    ));
+  }, [selectedArtworkId, onEditorLayoutChange]);
+
+  const handleRemoveText = useCallback(() => {
+    if (!selectedArtworkId) return;
+    onEditorLayoutChange(prev => prev.filter(art => art.id !== selectedArtworkId));
+    onSelectArtwork(null);
+  }, [selectedArtworkId, onEditorLayoutChange, onSelectArtwork]);
+
   const handleRotationReset = useCallback(() => {
     if (!selectedArt) return;
 
@@ -461,7 +511,8 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
           const isSelected = art.id === selectedArtworkId;
           const isDragged = art.id === draggedElementId;
           const isColliding = art.id === collidingArtworkId;
-          const isCanvas = art.type.startsWith('canvas_');
+          const isText = art.type === 'text_3d'; // NEW: Check if it's 3D text
+          const isCanvas = !isText && art.type.startsWith('canvas_');
           const shouldShowFadedRing = isSelected && !isArtworkLifted; // NEW: Faded ring when selected but not lifted
 
           return (
@@ -473,9 +524,13 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
             >
               <div 
                 className="w-full h-full flex items-center justify-center"
-                style={{ transform: isCanvas ? `rotate(${-art.rotation[1]}rad)` : 'none' }}
+                style={{ transform: (isCanvas || isText) ? `rotate(${-art.rotation[1]}rad)` : 'none' }}
               >
-                {isCanvas ? (
+                {isText ? (
+                  <div className="flex items-center justify-center">
+                    <Type className={`w-4 h-4 ${isSelected ? 'text-cyan-400' : (lightsOn ? 'text-neutral-700' : 'text-neutral-300')}`} />
+                  </div>
+                ) : isCanvas ? (
                   <div className={`relative ${getArtworkMapDisplayDimensions(art.type).widthClass} ${getArtworkMapDisplayDimensions(art.type).heightClass} rounded-full overflow-hidden`}>
                     <div className={`w-full h-full ${lightsOn ? 'bg-neutral-800' : 'bg-neutral-200'}`} />
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-400" />
@@ -536,9 +591,24 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
       {/* Artwork Info Section with Scrolling */}
       <div className={`flex-1 overflow-y-auto min-h-0 pt-4 mt-4 border-t ${border}`}>
-        <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${subtext}`}>Artwork Name</p>
-        <p className="text-xl font-medium mt-1 min-h-[1.75rem]">{selectedArtworkId ? selectedArtworkTitle : ' '}</p>
-        <p className={`text-sm mt-1 min-h-[1.25rem] ${subtext}`}>{selectedArtworkId && selectedArtworkArtist ? `by ${selectedArtworkArtist}` : ' '}</p>
+        <div className="flex items-center justify-between mb-4">
+          <p className={`text-[10px] uppercase tracking-widest ${subtext}`}>Scene Elements</p>
+          <button 
+            onClick={handleAdd3DText}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${lightsOn ? 'bg-white border-neutral-200 hover:bg-neutral-50 shadow-sm' : 'bg-neutral-800 border-neutral-700 hover:bg-neutral-700'}`}
+          >
+            <Type size={14} className="text-cyan-500" />
+            <span>Add 3D Text</span>
+          </button>
+        </div>
+
+        <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${subtext}`}>Element Name</p>
+        <p className="text-xl font-medium mt-1 min-h-[1.75rem]">
+          {selectedArtworkId ? (selectedArt?.type === 'text_3d' ? (selectedArt.artworkData?.text || '3D Text') : selectedArtworkTitle) : ' '}
+        </p>
+        <p className={`text-sm mt-1 min-h-[1.25rem] ${subtext}`}>
+          {selectedArtworkId ? (selectedArt?.type === 'text_3d' ? '3D Text Element' : (selectedArtworkArtist ? `by ${selectedArtworkArtist}` : ' ')) : ' '}
+        </p>
         
         <div className={`transition-opacity duration-300 ${selectedArt ? 'opacity-100' : 'opacity-0'}`}>
           <div className="flex items-center gap-4 mt-6 mb-2">
@@ -560,6 +630,66 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
             <span className="font-mono text-sm w-12 text-right">{currentRotationDegrees}°</span>
           </div>
         </div>
+
+        {selectedArt && selectedArt.type === 'text_3d' && (
+          <div className={`my-4 p-4 rounded-xl border ${border} ${controlBgClass}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-bold text-sm">Text Settings</h4>
+              <button
+                onClick={handleRemoveText}
+                className="p-1.5 rounded-full hover:bg-red-500/10 transition-colors"
+                title="Remove Text Element"
+              >
+                <Trash2 size={14} className="text-red-500" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${subtext}`}>Content</p>
+                <input
+                  type="text"
+                  value={selectedArt.artworkData?.text || ''}
+                  onChange={handleTextChange}
+                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium border transition-all outline-none focus:ring-2 focus:ring-cyan-500/50 ${input} ${border}`}
+                  placeholder="Enter text..."
+                />
+              </div>
+
+              <div>
+                <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${subtext}`}>Size</p>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="10.0"
+                    step="0.1"
+                    value={selectedArt.scale || 1.0}
+                    onChange={handleScaleChange}
+                    className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500 ${sliderTrackClass} [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-300`}
+                  />
+                  <span className="font-mono text-sm w-12 text-right">×{(selectedArt.scale || 1.0).toFixed(1)}</span>
+                </div>
+              </div>
+
+              <div>
+                <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${subtext}`}>Height (Y)</p>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="15.0"
+                    step="0.1"
+                    value={selectedArt.position[1]}
+                    onChange={handleTextHeightChange}
+                    className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500 ${sliderTrackClass} [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-300`}
+                  />
+                  <span className="font-mono text-sm w-12 text-right">{selectedArt.position[1].toFixed(1)}m</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {selectedArt && firebaseArtworks.find(fw => fw.id === selectedArt.artworkId) && (
           <div key={selectedArt.id} className={`my-4 p-4 rounded-xl border ${border} ${controlBgClass}`}>

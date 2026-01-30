@@ -830,12 +830,17 @@ function MuseumApp({
         return;
     }
     if (!layoutToSave || !activeZone?.id || activeZone.id === 'fallback_zone_id') return;
-    const artworkSelectedData: ZoneArtworkItem[] = layoutToSave.map(item => ({
-        artworkId: item.artworkId,
-        position: item.position,
-        rotation: item.rotation,
-        scale: item.scale
-    }));
+    const artworkSelectedData: ZoneArtworkItem[] = layoutToSave.map(item => {
+        const itemData: ZoneArtworkItem = {
+            artworkId: item.artworkId,
+            position: item.position,
+            rotation: item.rotation,
+            scale: item.scale,
+        };
+        if (item.type) itemData.type = item.type;
+        if (item.artworkData) itemData.artworkData = item.artworkData;
+        return itemData;
+    });
     try {
         const zoneDocRef = db.collection('zones').doc(activeZone.id);
         await zoneDocRef.update({ 'artwork_selected': artworkSelectedData });

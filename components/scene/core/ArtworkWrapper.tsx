@@ -146,6 +146,9 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
     amplitudeY: mapRange(Math.random(), 0, 1, 0.05, 0.15) // Slight random amplitude for Y
   });
 
+  // NEW: Flag to skip animation on initial component mount
+  const isInitialized = useRef(false);
+
 
   // Store the previous props to detect changes reliably
   const prevProps = useRef<{
@@ -331,6 +334,12 @@ const ArtworkWrapper: React.FC<ArtworkWrapperProps> = ({
       animTargetRot.copy(newOriginalEuler);
       animTargetScale = 1.0;
       rotationBlendCurrent.current = 0;
+    }
+
+    // NEW: Prevent initial "bounce" or slide animation on component mount
+    if (!isInitialized.current) {
+      shouldAnimate = false;
+      isInitialized.current = true;
     }
 
 
