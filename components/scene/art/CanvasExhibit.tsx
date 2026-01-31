@@ -302,8 +302,8 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
     const isEmbedded = isInIframe();
     let dprOffset = 0;
     if (!isEmbedded) {
-      // Not embedded: apply dpr compensation
-      dprOffset = (dpr - 2) * 0.5;
+      // Not embedded: apply dpr compensation (User requested 0.75 instead of 0.7)
+      dprOffset = (dpr - 2) * 0.75;
     } else if (isEmbedded && dpr === 3) {
       // Embedded with dpr=3 (mobile): apply small offset
       dprOffset = 0.2;
