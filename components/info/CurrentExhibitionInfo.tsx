@@ -11,14 +11,14 @@ interface CurrentExhibitionInfoProps {
   isInfoOpen: boolean;
   isSmallScreen: boolean;
   isCurrentExhibitionInfoHidden: boolean;
-  onInfoOpen: () => void;
+  onInfoOpen: (type?: 'exhibition' | 'artwork') => void;
     useExhibitionBackground?: boolean;
 }
 
 const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo(({ uiConfig, isLoading, activeExhibition, isInfoOpen, isSmallScreen, isCurrentExhibitionInfoHidden, onInfoOpen, useExhibitionBackground = false }) => {
     const handleInfoClick = () => {
         trackUmamiEvent('Exhibit-Info');
-        onInfoOpen();
+        onInfoOpen('exhibition');
     };
 
     const getStatusColor = (status: string) => {

@@ -25,7 +25,7 @@ export interface SceneProps {
   uiConfig: any;
   setFocusedArtworkInstanceId: (id: string | null) => void;
   activeExhibition: Exhibition;
-  onInfoOpen: () => void;
+  onInfoOpen: (type?: 'exhibition' | 'artwork') => void;
   isEmbed?: boolean; // NEW: Flag for iframe embed mode
   // FIX: Updated cameraControlRef and onArtworkClicked props to include artworkType
   cameraControlRef: React.Ref<{ 

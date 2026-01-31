@@ -28,7 +28,7 @@ interface MainControlsProps {
   focusedArtworkInstanceId: string | null;
   isArtworkFocusedForControls: boolean;
   onDismissArtworkControls: () => void;
-  onInfoOpen: () => void;
+  onInfoOpen: (type?: 'exhibition' | 'artwork') => void;
   focusedArtworkTitle: string | null;
   focusedArtworkArtist?: string | null;
   focusedArtworkMedium?: string | null;
@@ -222,7 +222,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                           trackUmamiEvent('Artwork-Info', { artworkInstanceId: focusedArtworkInstanceId });
                         }
                       } catch(e) {}
-                      onInfoOpen();
+                      onInfoOpen('artwork');
                     }}
                     disabled={focusedArtworkArtist?.toUpperCase() === 'OOTB'}
                     className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors duration-300 active:scale-95 bg-cyan-500 text-white hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none`}

@@ -1677,15 +1677,18 @@ function MuseumApp({
     setHeartEmitterArtworkId(null);
   }, [focusedArtworkInstanceId, cameraControlRef, setIsArtworkFocusedForControls, setFocusedArtworkInstanceId, setFocusedArtworkFirebaseId, setHeartEmitterArtworkId]);
 
-  const handleOpenInfo = useCallback(() => {
-    // Removed noisy stack log
-    if (focusedArtworkInstanceId) {
-      const artworkInLayout = currentLayout.find(item => item.id === focusedArtworkInstanceId);
+  const handleOpenInfo = useCallback((type?: 'exhibition' | 'artwork') => {
+    // Use explicit type if provided, otherwise fallback to check if an artwork is currently focused
+    const showArtwork = type === 'artwork' || (!type && !!focusedArtworkInstanceId);
+
+    if (showArtwork) {
+      // Try to ensure the Firebase ID is synced with the focused instance
+      const artworkInLayout = currentLayout.find(item => item.id === (focusedArtworkInstanceId || ''));
       if (artworkInLayout) {
         setFocusedArtworkFirebaseId(artworkInLayout.artworkId);
-      } else {
-        setFocusedArtworkFirebaseId(null);
       }
+      // If not in layout, we simply leave the existing focusedArtworkFirebaseId as is
+      // instead of nulling it out, which would cause InfoPanel to switch to exhibition view.
     } else {
       setFocusedArtworkFirebaseId(null);
 

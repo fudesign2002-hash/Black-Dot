@@ -67,7 +67,7 @@ interface ArtComponentProps {
     uiConfig: any;
     setFocusedArtworkInstanceId: (id: string | null) => void;
     activeExhibition: Exhibition;
-    onInfoOpen: () => void;
+    onInfoOpen: (type?: 'exhibition' | 'artwork') => void;
     isDebugMode: boolean;
     triggerHeartEmitter: number;
     heartEmitterArtworkId: string | null;

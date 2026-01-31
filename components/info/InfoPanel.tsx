@@ -114,6 +114,14 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
     prevIsOpenRef.current = isOpen;
   }, [isOpen]);
 
+  // NEW: Reset artist panel when info panel is closed to ensure it starts fresh next time
+  React.useEffect(() => {
+    if (!isOpen) {
+      setArtistPanelOpen(false);
+      setArtistId(null);
+    }
+  }, [isOpen]);
+
   const artworkDataForPanel = useMemo(() => {
     if (focusedArtworkFirebaseId && allFirebaseArtworks) {
       return allFirebaseArtworks.find(art => art.id === focusedArtworkFirebaseId);
