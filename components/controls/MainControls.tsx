@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { trackUmamiEvent } from '../../services/umamiService';
-import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Cpu, ChevronLeft, ChevronRight, Users, Heart, Info, X, ChevronDown, Share2, ListOrdered, Orbit, ChartColumnIncreasing } from 'lucide-react'; // NEW: Import Orbit, ChartColumnIncreasing icon
+import { Sun, Moon, RefreshCw, Map as MapIcon, Search, Lock, Unlock, Cpu, ChevronLeft, ChevronRight, Users, Heart, Info, X, ChevronDown, Share2, ListOrdered, Orbit, ChartColumnIncreasing, FlaskConical } from 'lucide-react'; // NEW: Import Orbit, ChartColumnIncreasing, FlaskConical icon
 import { Exhibition } from '../../types';
 // REMOVED: import { EffectRegistry } from '../../effect_bundle'; // NEW: Import EffectRegistry
 
@@ -41,6 +41,7 @@ interface MainControlsProps {
   onZeroGravityToggle: () => void; // NEW: Add onZeroGravityToggle prop
   hideZeroGravityControl?: boolean; // NEW: Add hideZeroGravityControl prop
   isSignedIn?: boolean; // NEW: whether current user is signed in
+  isSandboxMode?: boolean; // NEW: whether sandbox mode is active
   onOpenDashboard?: () => void; // NEW: callback to open analytics dashboard
   isCameraAtDefaultPosition: boolean; // NEW: Add isCameraAtDefaultPosition prop
   isResetCameraEnable?: boolean; // NEW: Global reset-enable flag
@@ -91,6 +92,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   onZeroGravityToggle, // NEW: Destructure onZeroGravityToggle
   hideZeroGravityControl, // NEW: Destructure hideZeroGravityControl
   isSignedIn, // NEW: Destructure isSignedIn
+  isSandboxMode, // NEW: Destructure isSandboxMode
   onOpenDashboard, // NEW: Destructure onOpenDashboard
   isCameraAtDefaultPosition, // NEW: Destructure isCameraAtDefaultPosition
   isResetCameraEnable, // NEW: Destructure isResetCameraEnable
@@ -132,9 +134,11 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
 
   // NEW: Logic for conditional divider rendering
   // MODIFIED: In simplified editor flow, we don't hide buttons anymore when isEditorMode is true
-  const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl; 
+  const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl && !isEmbed; 
   // MODIFIED: Hide editor mode toggle if in zero gravity mode. Now uses MapIcon and opens editor directly.
-  const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && !!isSignedIn && !isEmbed;
+  // NEW: Allow editor toggle if in sandbox mode even if not signed in
+  // MODIFIED: Sandbox icon now shows up in embed mode if explicitly requested
+  const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && (isSandboxMode || (!!isSignedIn && !isEmbed));
   // Determine right-side buttons based on their visibility conditions
   // REMOVED: DevTools toggle button as it is now controlled via hotkey only
   const hasDevToolsToggle = false; 
@@ -297,11 +301,23 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
             )}
 
             {hasEditorModeToggle && (
-                <button onClick={() => {
-                  setHeartEmitterArtworkId(null);
-                  onEditorOpen();
-                }} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${isEditorMode ? uiConfig.glassActive : uiConfig.glass}`} title="Open Exhibit Editor">
-                    <MapIcon className={`w-4 h-4 ${isEditorMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
+                <button 
+                  onClick={() => {
+                    setHeartEmitterArtworkId(null);
+                    onEditorOpen();
+                  }} 
+                  className={`relative w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${isEditorMode ? uiConfig.glassActive : uiConfig.glass}`} 
+                  title={isSandboxMode ? "Enter Sandbox Mode" : "Open Exhibit Editor"}
+                >
+                    {isSandboxMode ? (
+                      <FlaskConical className={`w-5 h-5 ${isEditorMode && (lightsOn ? 'text-amber-500' : 'text-amber-400')}`} />
+                    ) : (
+                      <MapIcon className={`w-4 h-4 ${isEditorMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
+                    )}
+                    
+                    {isSandboxMode && (
+                      <span className="absolute -top-1 -right-1 text-[7px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold tracking-tighter shadow-sm border border-white/20">SANDBOX</span>
+                    )}
                 </button>
             )}
 

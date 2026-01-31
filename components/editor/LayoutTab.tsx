@@ -30,6 +30,7 @@ interface LayoutTabProps {
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>; // NEW: Add onRemoveArtworkFromLayout
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void; // NEW: Add onOpenConfirmationDialog
   isSignedIn?: boolean; // NEW: Add isSignedIn prop
+  isSandboxMode?: boolean; // NEW: Add isSandboxMode prop
   activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
   onArtworkLiftedChange?: (isLifted: boolean) => void; // NEW: Callback for artwork lifted state
 }
@@ -119,6 +120,7 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
   onRemoveArtworkFromLayout, // NEW: Destructure onRemoveArtworkFromLayout
   onOpenConfirmationDialog, // NEW: Destructure onOpenConfirmationDialog
   isSignedIn = false, // NEW: Destructure isSignedIn
+  isSandboxMode = false, // NEW: Destructure isSandboxMode
   activeZoneId, // NEW: Destructure activeZoneId
   onArtworkLiftedChange, // NEW: Destructure onArtworkLiftedChange
 }) => {
@@ -463,6 +465,15 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 
   return (
     <div className={`flex-1 flex flex-col p-4 bg-neutral-500/5 ${text} overflow-hidden`}>
+      {isSandboxMode && (
+        <div className="mb-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg flex items-center gap-3 flex-shrink-0">
+          <Sparkles className="w-5 h-5 text-cyan-500" />
+          <div className="flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-500">Sandbox Mode</p>
+            <p className="text-[10px] opacity-70 leading-tight">Changes are temporary and stored in your local browser.</p>
+          </div>
+        </div>
+      )}
       <div
         ref={containerRef}
         className={`w-full aspect-square rounded-lg border-2 border-dashed relative overflow-hidden touch-none flex-shrink-0 ${mapBgClass} ${mapBorderClass}`}
@@ -731,6 +742,44 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                   {isEditingArtwork ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
               </div>
+            </div>
+
+            {/* NEW: Y-Axis Height Slider */}
+            <div className="mt-4 px-1 pb-2 border-b border-dashed border-white/10">
+              <div className="flex justify-between items-center mb-1">
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${subtext}`}>Elevation (Y-Axis)</span>
+                <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => {
+                       onEditorLayoutChange(prev => prev.map(art => 
+                         art.id === selectedArt.id 
+                           ? { ...art, position: [art.position[0], 0, art.position[2]] } 
+                           : art
+                       ));
+                     }}
+                     className="text-[8px] px-1.5 py-0.5 bg-neutral-500/10 hover:bg-neutral-500/20 rounded-sm font-bold opacity-60"
+                   >
+                     RESET
+                   </button>
+                   <span className="text-[10px] font-mono">{selectedArt.position[1].toFixed(1)}m</span>
+                </div>
+              </div>
+              <input 
+                type="range"
+                min="-5"
+                max="10"
+                step="0.1"
+                value={selectedArt.position[1]}
+                onChange={(e) => {
+                  const newY = parseFloat(e.target.value);
+                  onEditorLayoutChange(prev => prev.map(art => 
+                    art.id === selectedArt.id 
+                      ? { ...art, position: [art.position[0], newY, art.position[2]] } 
+                      : art
+                  ));
+                }}
+                className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+              />
             </div>
 
             {isEditingArtwork && (

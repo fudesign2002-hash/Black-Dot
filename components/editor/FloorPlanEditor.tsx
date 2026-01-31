@@ -44,6 +44,8 @@ interface FloorPlanEditorProps {
   onOpenConfirmationDialog: (itemType: 'artwork_removal', artworkId: string, artworkTitle: string) => void;
   onAddArtworkToLayout: (artwork: FirebaseArtwork) => Promise<boolean>;
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>; // NEW: Add onRemoveArtworkFromLayout
+  isSignedIn?: boolean; // NEW: Add isSignedIn prop
+  isSandboxMode?: boolean; // NEW: Add isSandboxMode prop
   useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground
   activeZoneTheme: string | null; // NEW: Add activeZoneTheme
   onUpdateZoneTheme: (themeName: string | null) => Promise<void>; // NEW: Add onUpdateZoneTheme
@@ -94,6 +96,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   activeZoneGravity, // NEW: Destructure activeZoneGravity
   onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity
   isSignedIn, // NEW: Destructure isSignedIn
+  isSandboxMode, // NEW: Destructure isSandboxMode
   activeZoneId, // NEW: Destructure activeZoneId
   onArtworkLiftedChange, // NEW: Destructure onArtworkLiftedChange
   onlineCount = 0,
@@ -271,6 +274,11 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
               <h3 className="font-bold tracking-widest uppercase text-sm truncate">Exhibit Editor</h3>
+              {isSandboxMode && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded-full">
+                  <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Sandbox Mode</span>
+                </div>
+              )}
               <div className={`flex items-center gap-1.5 text-green-500 transition-opacity duration-300 ml-auto ${showSaved ? 'opacity-100' : 'opacity-0'}`}>
                  <Check size={14} />
                  <span className="text-[10px] font-bold uppercase tracking-widest">Saved</span>
@@ -279,47 +287,51 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           <button onClick={onClose} className="p-1.5 hover:bg-neutral-500/20 rounded-lg transition-colors cursor-pointer flex-shrink-0"><X size={18} className="opacity-60" /></button>
         </div>
         
-        <div className={`p-3 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/50' : 'bg-neutral-800/50'}`}>
-            <div className="flex items-center gap-2">
+        <div className={`p-2 border-b ${uiConfig.border} ${lightsOn ? 'bg-white/50' : 'bg-neutral-800/50'}`}>
+            <div className="flex items-center gap-1.5">
                 {/* LIGHTING */}
                 <button
                     onClick={() => handleTabClick('lighting')}
-                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'lighting' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
+                    className={`flex-1 py-2 px-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${activeTab === 'lighting' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Sun size={14} className={activeTab === 'lighting' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'lighting') && 'Lighting'}
+                    <Sun size={13} className={activeTab === 'lighting' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'lighting') && 'Lighting'}
                 </button>
                 
                 {/* LAYOUT */}
                 <button
                     onClick={() => handleTabClick('layout')}
-                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'layout' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
+                    className={`flex-1 py-2 px-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${activeTab === 'layout' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Map size={14} className={activeTab === 'layout' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'layout') && 'Layout'}
+                    <Map size={13} className={activeTab === 'layout' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'layout') && 'Layout'}
                 </button>
                 
                 {/* SCENE */}
                 <button
                     onClick={() => handleTabClick('scene')}
-                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'scene' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
+                    className={`flex-1 py-2 px-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${activeTab === 'scene' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
                 >
-                    <Camera size={14} className={activeTab === 'scene' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'scene') && 'Scene'}
+                    <Camera size={13} className={activeTab === 'scene' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'scene') && 'Scene'}
                 </button>
                 
                 {/* ARTWORKS */}
-                <button
-                    onClick={() => handleTabClick('artworks')}
-                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'artworks' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
-                >
-                    <Brush size={14} className={activeTab === 'artworks' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'artworks') && 'Artworks'}
-                </button>
+                {!isSandboxMode && (
+                  <button
+                      onClick={() => handleTabClick('artworks')}
+                      className={`flex-1 py-2 px-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${activeTab === 'artworks' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
+                  >
+                      <Brush size={13} className={activeTab === 'artworks' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'artworks') && 'Artworks'}
+                  </button>
+                )}
                 
                 {/* ADMIN */}
-                <button
-                    onClick={() => handleTabClick('admin')}
-                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'admin' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
-                >
-                    <SquarePen size={14} className={activeTab === 'admin' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'admin') && 'Admin'}
-                </button>
+                {!isSandboxMode && (
+                  <button
+                      onClick={() => handleTabClick('admin')}
+                      className={`flex-1 py-2 px-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${activeTab === 'admin' ? (lightsOn ? 'bg-neutral-900 text-white shadow-md' : 'bg-white text-black shadow-md') : (lightsOn ? 'text-neutral-600 hover:bg-black/5' : 'text-neutral-400 hover:bg-white/5')}`}
+                  >
+                      <SquarePen size={13} className={activeTab === 'admin' ? '' : 'opacity-60'} /> {(!isSmallScreen || activeTab === 'admin') && 'Admin'}
+                  </button>
+                )}
             </div>
         </div>
 
@@ -331,6 +343,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             fullZoneLightingDesign={fullZoneLightingDesign}
             currentZoneNameForEditor={currentZoneNameForEditor}
             exhibitionTitle={activeExhibition?.title} // NEW: Pass exhibition title
+            isSandboxMode={isSandboxMode}
           />
         ) : activeTab === 'layout' ? (
           <LayoutTab 
@@ -347,6 +360,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             firebaseArtworks={firebaseArtworks}
             activeZoneId={activeZoneId}
             onArtworkLiftedChange={onArtworkLiftedChange}
+            isSandboxMode={isSandboxMode}
             onUpdateArtworkFile={async (artworkId: string, newFileUrl: string) => {
               await onUpdateArtworkFile(artworkId, newFileUrl);
               triggerSaveNotification();
@@ -379,8 +393,9 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
             onUpdateZoneGravity={onUpdateZoneGravity} // NEW: Pass onUpdateZoneGravity
             isSmallScreen={isSmallScreen}
+            isSandboxMode={isSandboxMode}
           />
-        ) : activeTab === 'artworks' ? (
+        ) : (activeTab === 'artworks' && !isSandboxMode) ? (
           <ArtworkTab
             uiConfig={uiConfig}
             firebaseArtworks={firebaseArtworks}
@@ -411,7 +426,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
             isSignedIn={isSignedIn}
             ownerId={ownerId}
           />
-        ) : (
+        ) : (activeTab === 'admin' && !isSandboxMode) ? (
             <AdminTab
                 uiConfig={uiConfig}
                 activeExhibition={activeExhibition}
@@ -423,7 +438,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                 firebaseArtworks={firebaseArtworks}
                 onlineCount={onlineCount}
             />
-        )}
+        ) : null}
       </div>
     </React.Fragment>
   );

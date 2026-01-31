@@ -17,8 +17,7 @@ interface LightingTabProps {
   fullZoneLightingDesign: ZoneLightingDesign;
   currentZoneNameForEditor: string;
   exhibitionTitle?: string; // NEW: Add exhibition title for display
-  // REMOVED: activeExhibitionBackgroundUrl?: string;
-  // REMOVED: useExhibitionBackground: boolean;
+  isSandboxMode?: boolean; // NEW: Add sandbox mode support
 }
 
 const fixedSpotlightPalette = ['#FFFFFF', '#FFFBEB', '#FFDDDD', '#DDEEFF', '#E0FFEE', '#FFEECC', '#CCEEFF', '#FFCCEE', '#EEEEEE', '#FFEEAA'];
@@ -30,8 +29,7 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
   fullZoneLightingDesign,
   currentZoneNameForEditor,
   exhibitionTitle, // NEW: Get exhibition title
-  // REMOVED: activeExhibitionBackgroundUrl,
-  // REMOVED: useExhibitionBackground,
+  isSandboxMode = false, // NEW: default to false
 }) => {
     const { lightsOn, border, subtext } = uiConfig;
     const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
@@ -82,6 +80,15 @@ const LightingTab: React.FC<LightingTabProps> = React.memo(({
 
     return (
         <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
+            {isSandboxMode && (
+                <div className="mb-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg flex items-center gap-3 flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-cyan-500" />
+                    <div className="flex-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-500">Sandbox Mode</p>
+                        <p className="text-[10px] opacity-70 leading-tight">Changes are temporary and stored in your local browser.</p>
+                    </div>
+                </div>
+            )}
             <div className="space-y-4">
                 <div className={`p-4 rounded-xl border ${border} ${controlBgClass}`}>
                     <div className="flex items-start gap-4 w-full">

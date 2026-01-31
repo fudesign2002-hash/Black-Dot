@@ -26,6 +26,7 @@ interface SceneTabProps {
   activeZoneGravity: number | undefined; // NEW: Add activeZoneGravity
   onUpdateZoneGravity: (gravity: number | undefined) => Promise<void>; // NEW: Add onUpdateZoneGravity
   isSmallScreen: boolean;
+  isSandboxMode?: boolean; // NEW: Add isSandboxMode support
 }
 
 interface ColorFieldProps {
@@ -115,6 +116,7 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
   activeZoneGravity, // NEW: Destructure activeZoneGravity
   onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity,
   isSmallScreen,
+  isSandboxMode = false, // NEW: default to false
 }) => {
     const { lightsOn, border, subtext } = uiConfig;
     const controlBgClass = lightsOn ? 'bg-neutral-100' : 'bg-neutral-800';
@@ -307,6 +309,15 @@ const SceneTab: React.FC<SceneTabProps> = React.memo(({
 
     return (
         <div className="flex-1 overflow-y-auto p-6 bg-neutral-500/5">
+            {isSandboxMode && (
+                <div className="mb-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg flex items-center gap-3 flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-cyan-500" />
+                    <div className="flex-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-500">Sandbox Mode</p>
+                        <p className="text-[10px] opacity-70 leading-tight">Changes are temporary and stored in your local browser.</p>
+                    </div>
+                </div>
+            )}
             <div className="space-y-4">
                 {/* NEW: Use Exhibition Background Toggle */}
                 <ControlRow label="Use Exhibition Background" value={useExhibitionBackground ? 'ON' : 'OFF'} border={border} controlBgClass={controlBgClass}>

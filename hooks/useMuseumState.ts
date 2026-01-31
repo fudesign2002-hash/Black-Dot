@@ -55,7 +55,13 @@ const DEFAULT_FALLBACK_ZONE: ExhibitionZone = {
   zone_gravity: undefined, // NEW: Default zone_gravity
 };
 
-export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | null, authResolved: boolean = true, initialExhibitionId?: string | null) => { // NEW: Accept enableSnapshots, optional ownerUid, authResolved, and optional initialExhibitionId
+export const useMuseumState = (
+  enableSnapshots: boolean, 
+  ownerUid?: string | null, 
+  authResolved: boolean = true, 
+  initialExhibitionId?: string | null,
+  isSandboxMode: boolean = false // NEW: Support sandbox mode
+) => {
   const [rawExhibitionDocs, setRawExhibitionDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [rawArtworkDocs, setRawArtworkDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [zones, setZones] = useState<ExhibitionZone[]>([]);
@@ -269,14 +275,45 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       };
     }
     const exhibition = exhibitions[currentIndex] || DEFAULT_FALLBACK_EXHIBITION;
-    const zone = zones.find(z => z.exhibitionId === exhibition?.id) || DEFAULT_FALLBACK_ZONE;
+    let zone = zones.find(z => z.exhibitionId === exhibition?.id) || DEFAULT_FALLBACK_ZONE;
+
+    // Apply Sandbox Overrides for Scene (Theme/Gravity)
+    if (isSandboxMode && exhibition.id !== 'fallback_id' && zone.id !== 'fallback_zone_id') {
+      try {
+        const themeKey = `sandbox_theme_${exhibition.id}_${zone.id}`;
+        const themeData = localStorage.getItem(themeKey);
+        if (themeData) {
+          const parsed = JSON.parse(themeData);
+          zone = { ...zone, zone_theme: parsed.zone_theme };
+        }
+
+        const gravityKey = `sandbox_gravity_${exhibition.id}_${zone.id}`;
+        const gravityData = localStorage.getItem(gravityKey);
+        if (gravityData) {
+          const parsed = JSON.parse(gravityData);
+          zone = { ...zone, zone_gravity: parsed.zone_gravity };
+        }
+      } catch (e) {}
+    }
+
     return { activeExhibition: exhibition, activeZone: zone };
-  }, [isLoading, exhibitions, zones, currentIndex]);
+  }, [isLoading, exhibitions, zones, currentIndex, isSandboxMode]);
   
   const lightingConfig = useMemo((): SimplifiedLightingConfig => {
     const baseConfig = { ...DEFAULT_SIMPLIFIED_LIGHTING_CONFIG, ...activeZone.lightingDesign.defaultConfig };
     // NEW: Apply customCameraPosition from baseConfig, then any overrides
-    const finalConfig = { ...baseConfig, ...lightingOverrides[activeZone.id] };
+    let finalConfig = { ...baseConfig, ...lightingOverrides[activeZone.id] };
+
+    // Apply Sandbox Overrides for Lighting
+    if (isSandboxMode && activeExhibition.id !== 'fallback_id' && activeZone.id !== 'fallback_zone_id') {
+      try {
+        const lightingKey = `sandbox_lighting_${activeExhibition.id}_${activeZone.id}`;
+        const sandboxLighting = localStorage.getItem(lightingKey);
+        if (sandboxLighting) {
+          finalConfig = { ...finalConfig, ...JSON.parse(sandboxLighting) };
+        }
+      } catch (e) {}
+    }
 
     // Check if the current exhibition has any motion artworks
     const hasMotionArt = activeExhibition.exhibit_artworks?.some(artId => {
@@ -300,14 +337,26 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
       finalConfig.floorColor = DEFAULT_SIMPLIFIED_LIGHTING_CONFIG.floorColor;
     }
     return finalConfig;
-  }, [activeZone, lightingOverrides, activeExhibition, firebaseArtworks]);
+  }, [activeZone, lightingOverrides, activeExhibition, firebaseArtworks, isSandboxMode]);
 
   const currentLayout = useMemo((): ExhibitionArtItem[] => {
     const canonicalArtworkIds = new Set(activeExhibition.exhibit_artworks || []);
 
+    let zoneArtworkSelected = activeZone.artwork_selected;
+
+    // Apply Sandbox Overrides for Layout
+    if (isSandboxMode && activeExhibition.id !== 'fallback_id' && activeZone.id !== 'fallback_zone_id') {
+      try {
+        const layoutKey = `sandbox_layout_${activeExhibition.id}`;
+        const sandboxLayout = localStorage.getItem(layoutKey);
+        if (sandboxLayout) {
+          zoneArtworkSelected = JSON.parse(sandboxLayout);
+        }
+      } catch (e) {}
+    }
     
-    const zoneLayout = activeZone.artwork_selected
-        ? createLayoutFromZone(activeZone.artwork_selected, firebaseArtworks)
+    const zoneLayout = (zoneArtworkSelected && Array.isArray(zoneArtworkSelected))
+        ? createLayoutFromZone(zoneArtworkSelected, firebaseArtworks)
         : [];
 
     
@@ -315,8 +364,10 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
 
     // 4. Filter the zone layout to only include artworks that are still intended to be in the exhibition,
     //    OR special "virtual" items (like text_3d) that exist purely for the view.
+    // MODIFIED: If in sandbox mode, we trust the sandbox layout and don't strictly filter by canonical ids
+    // to allow adding new artworks locally.
     const filteredZoneLayout = zoneLayout.filter(item => 
-        canonicalArtworkIds.has(item.artworkId) || item.type === 'text_3d'
+        isSandboxMode || canonicalArtworkIds.has(item.artworkId) || item.type === 'text_3d'
     );
     const artworksWithCustomLayout = new Set(filteredZoneLayout.map(item => item.artworkId));
 
@@ -327,7 +378,7 @@ export const useMuseumState = (enableSnapshots: boolean, ownerUid?: string | nul
 
     
     return [...filteredZoneLayout, ...newArtworks];
-  }, [activeExhibition, activeZone, firebaseArtworks]);
+  }, [activeExhibition, activeZone, firebaseArtworks, isSandboxMode]);
 
   const handleNavigate = useCallback((index: number) => {
     setCurrentIndex(index);

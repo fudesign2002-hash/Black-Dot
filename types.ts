@@ -198,6 +198,7 @@ export interface EffectRegistryType {
   [key: string]: {
     creator: (dependencies: {
       THREE: any; // Using 'any' for THREE to avoid complex type imports here
+      scene: any; // NEW: Pass scene for effects that need to modify fog or other scene properties
       SCENE_WIDTH: number;
       SCENE_HEIGHT: number;
       SCENE_DEPTH: number;

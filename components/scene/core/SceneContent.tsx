@@ -347,6 +347,7 @@ const SceneContent: React.FC<SceneProps> = ({
       if (shouldEffectBeActive) {
         const newEffectGroup = effectConfig.creator({
           THREE,
+          scene,
           SCENE_WIDTH,
           SCENE_HEIGHT,
           SCENE_DEPTH,
