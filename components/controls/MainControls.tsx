@@ -134,7 +134,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
 
   // NEW: Logic for conditional divider rendering
   // MODIFIED: In simplified editor flow, we don't hide buttons anymore when isEditorMode is true
-  const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl && !isEmbed; 
+  const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl; 
   // MODIFIED: Hide editor mode toggle if in zero gravity mode. Now uses MapIcon and opens editor directly.
   // NEW: Allow editor toggle if in sandbox mode even if not signed in
   // MODIFIED: Sandbox icon now shows up in embed mode if explicitly requested

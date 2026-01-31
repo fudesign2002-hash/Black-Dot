@@ -3,18 +3,7 @@ let currentUmamiPath = window.location.pathname;
 export const setUmamiPath = (path: string) => {
   currentUmamiPath = path;
   
-  // NEW: Sync the browser's address bar with the virtual path.
-  // This helps Umami's automatic tracker and other events stay on the correct context.
-  try {
-    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
-        // Only update if it's different and non-empty
-        if (path && window.location.pathname !== path) {
-            window.history.replaceState(null, '', path + window.location.search);
-        }
-    }
-  } catch (e) {
-    console.warn('[umami] failed to sync history state:', e);
-  }
+  // LOG: currentUmamiPath updated for tracking
 };
 
 export const trackUmamiEvent = (eventName: string, props?: Record<string, any>) => {

@@ -247,11 +247,22 @@ function MuseumApp({
     if (activeExhibition?.title && activeExhibition.id !== 'fallback_id') {
       document.title = `Kurodot.io - ${activeExhibition.title}`;
       
-      // Update URL to match active exhibition if not in embed/analytics mode
-      const isEmbed = window.location.search.includes('embed=true');
+      // Update URL to match active exhibition logic
+      const params = new URLSearchParams(window.location.search);
+      const isEmbed = params.get('embed') === 'true';
       const isAnalytics = window.location.pathname.startsWith('/analytics/');
       
-      if (!isEmbed && !isAnalytics) {
+      if (isEmbed) {
+        const hasExhibitionPath = window.location.pathname.startsWith('/exhibition/');
+        const currentExhibitionIdParam = params.get('exhibitionId');
+        
+        // If we are in embed mode but on an exhibition path, or exhibitionId param is missing/incorrect,
+        // normalize to root path with exhibitionId parameter.
+        if (hasExhibitionPath || currentExhibitionIdParam !== activeExhibition.id) {
+          params.set('exhibitionId', activeExhibition.id);
+          window.history.replaceState(null, '', `/?${params.toString()}`);
+        }
+      } else if (!isAnalytics) {
         const newPath = `/exhibition/${activeExhibition.id}`;
         if (window.location.pathname !== newPath) {
           window.history.replaceState(null, '', newPath + window.location.search);
