@@ -69,6 +69,7 @@ export const useMuseumState = (
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [lightingOverrides, setLightingOverrides] = useState<Record<string, SimplifiedLightingConfig>>({});
+  const [sandboxVersion, setSandboxVersion] = useState(0); // NEW: To force refresh sandbox memos
 
   const [firebaseArtworks, setFirebaseArtworks] = useState<FirebaseArtwork[]>([]);
 
@@ -297,7 +298,7 @@ export const useMuseumState = (
     }
 
     return { activeExhibition: exhibition, activeZone: zone };
-  }, [isLoading, exhibitions, zones, currentIndex, isSandboxMode]);
+  }, [isLoading, exhibitions, zones, currentIndex, isSandboxMode, sandboxVersion]);
   
   const lightingConfig = useMemo((): SimplifiedLightingConfig => {
     const baseConfig = { ...DEFAULT_SIMPLIFIED_LIGHTING_CONFIG, ...activeZone.lightingDesign.defaultConfig };
@@ -337,7 +338,7 @@ export const useMuseumState = (
       finalConfig.floorColor = DEFAULT_SIMPLIFIED_LIGHTING_CONFIG.floorColor;
     }
     return finalConfig;
-  }, [activeZone, lightingOverrides, activeExhibition, firebaseArtworks, isSandboxMode]);
+  }, [activeZone, lightingOverrides, activeExhibition, firebaseArtworks, isSandboxMode, sandboxVersion]);
 
   const currentLayout = useMemo((): ExhibitionArtItem[] => {
     const canonicalArtworkIds = new Set(activeExhibition.exhibit_artworks || []);
@@ -378,7 +379,7 @@ export const useMuseumState = (
 
     
     return [...filteredZoneLayout, ...newArtworks];
-  }, [activeExhibition, activeZone, firebaseArtworks, isSandboxMode]);
+  }, [activeExhibition, activeZone, firebaseArtworks, isSandboxMode, sandboxVersion]);
 
   const handleNavigate = useCallback((index: number) => {
     setCurrentIndex(index);
@@ -405,6 +406,14 @@ export const useMuseumState = (
     }));
   }, []);
 
+  const clearLightingOverrides = useCallback(() => {
+    setLightingOverrides({});
+  }, []);
+
+  const triggerSandboxRefresh = useCallback(() => {
+    setSandboxVersion(v => v + 1);
+  }, []);
+
   return {
     isLoading,
     exhibitions,
@@ -417,6 +426,8 @@ export const useMuseumState = (
     currentIndex,
     handleNavigate,
     setLightingOverride,
+    clearLightingOverrides,
+    triggerSandboxRefresh, // NEW: Export the refresh trigger
     refreshNow,
     updateLocalArtworkData,
   };

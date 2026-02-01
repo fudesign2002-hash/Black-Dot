@@ -1,7 +1,7 @@
 
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Check, Sun, Map, Brush, Settings, Camera, SquarePen } from 'lucide-react';
+import { X, Check, Sun, Map, Brush, Settings, Camera, SquarePen, RotateCcw } from 'lucide-react';
 import { SimplifiedLightingConfig, ExhibitionArtItem, ZoneLightingDesign, FirebaseArtwork, ArtworkData, Exhibition, EffectRegistryType } from '../../types';
 import LightingTab from './LightingTab';
 import LayoutTab from './LayoutTab';
@@ -46,6 +46,7 @@ interface FloorPlanEditorProps {
   onRemoveArtworkFromLayout: (artworkId: string) => Promise<void>; // NEW: Add onRemoveArtworkFromLayout
   isSignedIn?: boolean; // NEW: Add isSignedIn prop
   isSandboxMode?: boolean; // NEW: Add isSandboxMode prop
+  onResetSandbox?: () => Promise<void>; // NEW: Add onResetSandbox prop
   useExhibitionBackground: boolean; // NEW: Add useExhibitionBackground
   activeZoneTheme: string | null; // NEW: Add activeZoneTheme
   onUpdateZoneTheme: (themeName: string | null) => Promise<void>; // NEW: Add onUpdateZoneTheme
@@ -54,7 +55,6 @@ interface FloorPlanEditorProps {
   isEffectRegistryLoading: boolean; // NEW: Add isEffectRegistryLoading
   activeZoneGravity: number | undefined; // NEW: Add activeZoneGravity
   onUpdateZoneGravity: (gravity: number | undefined) => Promise<void>; // NEW: Add onUpdateZoneGravity
-  isSignedIn: boolean; // NEW: Add isSignedIn prop
   activeZoneId: string; // NEW: Add activeZoneId for zone-specific artwork settings
   onArtworkLiftedChange?: (isLifted: boolean) => void; // NEW: Callback for artwork lifted state
   onlineCount?: number; // NEW: Real-time user count
@@ -97,6 +97,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   onUpdateZoneGravity, // NEW: Destructure onUpdateZoneGravity
   isSignedIn, // NEW: Destructure isSignedIn
   isSandboxMode, // NEW: Destructure isSandboxMode
+  onResetSandbox, // NEW: Destructure onResetSandbox
   activeZoneId, // NEW: Destructure activeZoneId
   onArtworkLiftedChange, // NEW: Destructure onArtworkLiftedChange
   onlineCount = 0,
@@ -275,8 +276,20 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
           <div className="flex items-center gap-3 flex-1 min-w-0">
               <h3 className="font-bold tracking-widest uppercase text-sm truncate">Exhibit Editor</h3>
               {isSandboxMode && (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded-full">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded-full group/sandbox">
                   <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Sandbox Mode</span>
+                  {onResetSandbox && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onResetSandbox();
+                      }}
+                      className="ml-1 p-0.5 hover:bg-red-500/20 rounded transition-colors text-red-500/60 hover:text-red-500"
+                      title="Reset Sandbox Overrides"
+                    >
+                      <RotateCcw size={10} />
+                    </button>
+                  )}
                 </div>
               )}
               <div className={`flex items-center gap-1.5 text-green-500 transition-opacity duration-300 ml-auto ${showSaved ? 'opacity-100' : 'opacity-0'}`}>

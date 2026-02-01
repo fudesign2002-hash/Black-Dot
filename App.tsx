@@ -231,6 +231,8 @@ function MuseumApp({
     lightingConfig,
     handleNavigate,
     setLightingOverride,
+    clearLightingOverrides,
+    triggerSandboxRefresh, // NEW: Added triggerSandboxRefresh
     currentIndex,
     refreshNow,
     updateLocalArtworkData,
@@ -641,7 +643,40 @@ function MuseumApp({
       // silent
     }
     // No camera reset needed here, as the ArtworkWrapper will animate the Y position
-  }, [activeZone?.id]);
+  }, [isSandboxMode, activeExhibition?.id, activeZone?.id, embedMode]); // MODIFIED: restored isSandboxMode etc for correct functional behavior
+
+
+  // NEW: Reset sandbox overrides
+  const handleResetSandbox = useCallback(async () => {
+    if (!activeExhibition?.id || !activeZone?.id) return;
+    
+    // 1. Clear Local Storage for current exhibition and zone
+    const layoutKey = `sandbox_layout_${activeExhibition.id}`;
+    const lightingKey = `sandbox_lighting_${activeExhibition.id}_${activeZone.id}`;
+    const themeKey = `sandbox_theme_${activeExhibition.id}_${activeZone.id}`;
+    const gravityKey = `sandbox_gravity_${activeExhibition.id}_${activeZone.id}`;
+    
+    localStorage.removeItem(layoutKey);
+    localStorage.removeItem(lightingKey);
+    localStorage.removeItem(themeKey);
+    localStorage.removeItem(gravityKey);
+    
+    // 2. Clear Local Overrides State
+    setSandboxThemeOverride(null);
+    setSandboxGravityOverride(undefined);
+    clearLightingOverrides();
+    
+    // 3. Force hook to re-evaluate and fetch from Firebase/Default
+    triggerSandboxRefresh();
+    
+    // 4. Request Editor Layout reload
+    // We set this ref to true so that the useEffect below will sync editorLayout
+    // once currentLayout has updated from the hook refresh.
+    editorLayoutReloadRequested.current = true;
+    
+    // Force immediate refresh of scene if possible or show feedback
+    console.log('[Sandbox] All overrides cleared and reset to default.');
+  }, [activeExhibition?.id, activeZone?.id, clearLightingOverrides, triggerSandboxRefresh]);
 
 
   useEffect(() => {
@@ -2262,6 +2297,7 @@ function MuseumApp({
             onUpdateZoneGravity={handleUpdateZoneGravity} // NEW: Pass handler for updating zone gravity
             isSignedIn={isSignedIn || isSandboxMode} // MODIFIED: Bypassed for Sandbox
             activeZoneId={activeZone.id} // NEW: Pass activeZoneId for zone-specific artwork settings
+            onResetSandbox={handleResetSandbox}
             isSandboxMode={isSandboxMode}
             onArtworkLiftedChange={setIsArtworkLifted} // NEW: Pass callback to update artwork lifted state
             ownerId={ownerOverrideUid || user?.uid}
