@@ -85,21 +85,6 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
     }
   };
 
-  React.useEffect(() => {
-    try {
-      const el = panelRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const style = window.getComputedStyle(el);
-      // eslint-disable-next-line no-console
-      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
-        // only debug in dev
-        // eslint-disable-next-line no-console
-        console.debug('[InfoPanel] isOpen changed', { isOpen, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, transform: style.transform, overflow: style.overflow, display: style.display });
-      }
-    } catch (e) {}
-  }, [isOpen]);
-
   // Blur focused element inside the panel when it is closed to avoid aria-hidden warnings
   React.useEffect(() => {
     if (prevIsOpenRef.current && !isOpen) {
@@ -204,12 +189,6 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
         <div className="pt-8 pb-4 pr-4 pl-8 flex justify-between items-start relative">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              {/* Debug log for arrow visibility */}
-              {(() => {
-                // eslint-disable-next-line no-console
-                console.log('[InfoPanel] showArtworkData:', showArtworkData, 'fromArtworkInfo:', fromArtworkInfo, 'focusedArtworkFirebaseId:', focusedArtworkFirebaseId);
-                return null;
-              })()}
               {/* Back arrow only when on exhibit info, navigated from artwork info */}
               {!showArtworkData && fromArtworkInfo && (
                 <button

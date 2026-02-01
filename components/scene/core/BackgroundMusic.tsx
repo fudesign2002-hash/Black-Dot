@@ -63,18 +63,12 @@ const BackgroundMusic: React.FC<BackgroundMusicProps> = ({ url, isMuted = false 
   useEffect(() => {
     if (audioRef.current) {
       if (url) {
-        // eslint-disable-next-line no-console
-        console.log('[BackgroundMusic] Setting new source:', url);
         audioRef.current.src = url;
         audioRef.current.load();
         audioRef.current.volume = 0; // Start at 0 for fade in
         
         if (interacted) {
-          // eslint-disable-next-line no-console
-          console.log('[BackgroundMusic] Attempting to play with fade in...');
           audioRef.current.play().then(() => {
-            // eslint-disable-next-line no-console
-            console.log('[BackgroundMusic] Playback started, initiating fade in');
             fadeIn();
           }).catch(err => {
             // eslint-disable-next-line no-console
@@ -82,8 +76,6 @@ const BackgroundMusic: React.FC<BackgroundMusicProps> = ({ url, isMuted = false 
           });
         }
       } else {
-        // eslint-disable-next-line no-console
-        console.log('[BackgroundMusic] No URL provided, pausing');
         audioRef.current.pause();
         audioRef.current.src = '';
         if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
