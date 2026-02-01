@@ -164,8 +164,6 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const anyLeftButtonsVisible = hasLightsToggle || hasRankingToggle || hasZeroGravityToggle; 
   const anyRightButtonsVisible = hasEditorModeToggle || hasDevToolsToggle || hasResetCamera || hasSmallScreenNav || hasDashboard;
 
-  const shouldShowDivider = anyLeftButtonsVisible && anyRightButtonsVisible;
-
   // NEW: Determine if artwork controls should be visible
   const showArtworkControls = isArtworkFocusedForControls && !isEditorMode && !isRankingMode && !isZeroGravityMode && !showGlobalOverlay;
   // NEW: Determine if main navigation should be visible
@@ -296,10 +294,6 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
 
             {/* REMOVED: Effect buttons section */}
 
-            {shouldShowDivider && (
-              <div className={`w-px my-3 transition-colors duration-700 ${lightsOn ? 'bg-neutral-300' : 'bg-white/10'}`} />
-            )}
-
             {hasEditorModeToggle && (
                 <button 
                   onClick={() => {
@@ -355,7 +349,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                             setHeartEmitterArtworkId(null);
                             onPrev();
                           }}
-                          style={{ position: 'fixed', left: -50, top: '55%', transform: 'translateY(-50%)', zIndex: 50, background: 'none', boxShadow: 'none', border: 'none', padding: 0, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ position: 'fixed', left: -30, top: '55%', transform: 'translateY(-50%)', zIndex: 50, background: 'none', boxShadow: 'none', border: 'none', padding: 0, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           className={`mobile-nav-arrow-left`}
                           title={"Previous Exhibition"}
                         >
@@ -368,7 +362,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                             setHeartEmitterArtworkId(null);
                             onNext();
                           }}
-                          style={{ position: 'fixed', right: -50, top: '55%', transform: 'translateY(-50%)', zIndex: 50, background: 'none', boxShadow: 'none', border: 'none', padding: 0, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ position: 'fixed', right: -30, top: '55%', transform: 'translateY(-50%)', zIndex: 50, background: 'none', boxShadow: 'none', border: 'none', padding: 0, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           className={`mobile-nav-arrow-right`}
                           title={"Next Exhibition"}
                         >
