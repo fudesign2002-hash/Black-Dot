@@ -346,7 +346,7 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                 map={finalMapTexture}
                 roughness={1}
                 metalness={0}
-                envMapIntensity={0.2}
+                envMapIntensity={0}
                 transparent={false}
               />
             </mesh>
@@ -373,9 +373,10 @@ const TexturedWallDisplay: React.FC<TexturedWallDisplayProps> = ({ textureUrl, m
                   ref={artworkMaterialRef as any} 
                   attach="material" 
                   map={finalMapTexture} 
+                  color="#bbbbbb"
                   roughness={1} 
                   metalness={0} 
-                  envMapIntensity={0.2}
+                  envMapIntensity={0}
                   transparent={false} 
                 />
               </mesh>

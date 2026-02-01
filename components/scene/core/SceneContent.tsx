@@ -595,7 +595,7 @@ const SceneContent: React.FC<SceneProps> = ({
     // NEW: Smoothly adjust intensities to avoid flickering and shader re-compilation
     // This now runs regardless of whether a custom background or solid color is used.
     const targetEnvIntensity = lightsOn ? 1.0 : 0.05;
-    const targetMainLightIntensity = lightsOn ? 3.5 : 0;
+    const targetMainLightIntensity = lightsOn ? 2 : 0;
     const targetBgIntensity = lightsOn ? 1.0 : 0.15; // Keep background slightly visible but dark
 
     const lerpFactor = Math.min(1, delta * 8); // Speed up transition (was 4)
@@ -656,12 +656,13 @@ const SceneContent: React.FC<SceneProps> = ({
             color={directionalLightColor}
             castShadow={lightsOn}
             shadow-mapSize={[shadowMapSize, shadowMapSize]} // MODIFIED: Use dynamic shadowMapSize
-            shadow-camera-left={-15}
-            shadow-camera-right={15}
-            shadow-camera-top={15}
-            shadow-camera-bottom={-15}
-            shadow-bias={-0.0001}
-            shadow-normalBias={0.05}
+            shadow-camera-left={-20}
+            shadow-camera-right={20}
+            shadow-camera-top={20}
+            shadow-camera-bottom={-20}
+            shadow-bias={-0.0005}
+            shadow-normalBias={0.02}
+            shadow-radius={6}
         />
         {/* FIX: Use THREE.Vector3 for position and THREE.Color for color */}
         <directionalLight
