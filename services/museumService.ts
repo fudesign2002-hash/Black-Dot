@@ -385,6 +385,7 @@ export const processFirebaseExhibitions = (docs: firebase.firestore.QueryDocumen
             isShowcase: typeof data.isShowcase === 'boolean' ? data.isShowcase : false,
             exhibit_poster: data.exhibit_poster || undefined,
             exhibit_background: data.exhibit_background || undefined, // NEW: Add exhibit_background from Firestore
+            exhibit_bg_music: data.exhibit_bg_music || undefined, // NEW: Add exhibit_bg_music from Firestore
             exhibit_liked: typeof data.exhibit_liked === 'number' ? data.exhibit_liked : 0, // NEW: Add exhibit_liked
             exhibit_viewed: typeof data.exhibit_viewed === 'number' ? data.exhibit_viewed : 0, // NEW: Add exhibit_viewed
             exhibit_capacity: typeof data.exhibit_capacity === 'number' ? data.exhibit_capacity : 100, // NEW: Add exhibit_capacity with default 100

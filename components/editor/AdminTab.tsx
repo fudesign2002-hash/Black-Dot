@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Exhibition, ExhibitionArtItem, FirebaseArtwork } from '../../types'; // MODIFIED: Add ExhibitionArtItem and FirebaseArtwork
-import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock, AlertCircle } from 'lucide-react'; // MODIFIED: Add BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock
+import { FileText, Layout, Calendar, MapPin, Clock, Ticket, Loader2, Check, Copy, Trophy, Orbit, Users as UsersIcon, Sun, Box, BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock, AlertCircle, Music } from 'lucide-react'; // MODIFIED: Add BarChart2, ExternalLink, BookOpen, Instagram, Globe, Lock, Unlock, Music
 import AnalyticsDashboard from '../ui/AnalyticsDashboard'; // NEW: Import AnalyticsDashboard
 import { StatusIndicator, StatusType } from './EditorCommon';
 
@@ -27,7 +27,7 @@ const DEBOUNCE_DELAY = 700;
 // NEW: Explicitly define the keys of Exhibition that are string or string | undefined
 type ExhibitionEditableFieldKeys =
   'title' | 'subtitle' | 'overview' | 'dateFrom' | 'dateTo' |
-  'venue' | 'hours' | 'admissionLink' | 'admission' | 'supportedBy' | 'exhibit_capacity' | 'exhibit_linktype'; // REMOVED: artist, dates, exhibit_poster
+  'venue' | 'hours' | 'admissionLink' | 'admission' | 'supportedBy' | 'exhibit_capacity' | 'exhibit_linktype' | 'exhibit_bg_music'; // REMOVED: artist, dates, exhibit_poster
 
 // FIX: Refactored InputFieldProps to be generic to prevent 'never' type errors
 interface InputFieldProps<T extends ExhibitionEditableFieldKeys> {
@@ -104,6 +104,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
     supportedBy: activeExhibition.supportedBy || '',
     exhibit_capacity: String(activeExhibition.exhibit_capacity ?? 100),
     exhibit_linktype: activeExhibition.exhibit_linktype || 'tickets',
+    exhibit_bg_music: activeExhibition.exhibit_bg_music || '',
   }));
   // FIX: Type updateStatus with Partial<Record<ExhibitionEditableFieldKeys, ...>> to allow empty object initialization
   const [updateStatus, setUpdateStatus] = useState<Partial<Record<ExhibitionEditableFieldKeys, 'idle' | 'saving' | 'saved' | 'error'>>>({});
@@ -155,6 +156,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
       supportedBy: activeExhibition.supportedBy || '',
       exhibit_capacity: String(activeExhibition.exhibit_capacity ?? 100),
       exhibit_linktype: activeExhibition.exhibit_linktype || 'tickets',
+      exhibit_bg_music: activeExhibition.exhibit_bg_music || '',
     };
     setLocalExhibition(initialLocalExhibition);
     // FIX: Clear updateStatus by setting an empty object, now compatible with Partial<Record>
@@ -396,6 +398,7 @@ const AdminTab: React.FC<AdminTabProps> = React.memo(({ uiConfig, activeExhibiti
         <InputField label="Hours" field="hours" icon={Clock} value={localExhibition.hours} onChange={handleChange} statusIcon={getStatusIcon('hours')} uiConfig={uiConfig} />
         <InputField label="Venue" field="venue" icon={MapPin} value={localExhibition.venue} onChange={handleChange} statusIcon={getStatusIcon('venue')} uiConfig={uiConfig} />
         <InputField label="Admission" field="admission" icon={Ticket} value={localExhibition.admission} onChange={handleChange} statusIcon={getStatusIcon('admission')} uiConfig={uiConfig} />
+        <InputField label="Background Music (MP3 URL)" field="exhibit_bg_music" icon={Music} value={localExhibition.exhibit_bg_music} onChange={handleChange} statusIcon={getStatusIcon('exhibit_bg_music')} uiConfig={uiConfig} />
         <InputField label="Overview" field="overview" icon={FileText} isTextArea value={localExhibition.overview} onChange={handleChange} statusIcon={getStatusIcon('overview')} uiConfig={uiConfig} />
         <InputField label="Supported By" field="supportedBy" icon={FileText} value={localExhibition.supportedBy} onChange={handleChange} statusIcon={getStatusIcon('supportedBy')} uiConfig={uiConfig} />
         

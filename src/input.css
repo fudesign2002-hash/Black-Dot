@@ -48,6 +48,13 @@ button[disabled], .disabled\:cursor-not-allowed[disabled] { cursor: not-allowed;
 /* ------------------------------------ */
 
 /* bounce-happy */
+@keyframes music-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+.animate-music-pulse {
+  animation: music-pulse 3s ease-in-out infinite;
+}
 @keyframes bounce-happy {
   0%   { transform: translateY(0); }
   25%  { transform: translateY(-4px); }

@@ -109,9 +109,12 @@ export interface Exhibition {
   exhibit_poster?: string;
   exhibit_background?: string; // NEW: Add exhibit_background property
   exhibit_viewed?: number; // NEW: Add exhibit_viewed
+  exhibit_liked?: number; // NEW: Add exhibit_liked
   exhibit_capacity?: number; // NEW: Add exhibit_capacity
+  exhibit_bg_music?: string; // NEW: Add exhibit_bg_music
   exhibit_linktype?: 'tickets' | 'learn_more' | 'instagram' | 'website'; // NEW: Add exhibit_linktype
   exhibit_dashboard_public?: boolean; // NEW: Add toggle for public dashboard access
+  isShowcase?: boolean; // NEW: Add isShowcase
   ownerId?: string; // NEW: Add ownerId to track exhibition ownership
 }
 

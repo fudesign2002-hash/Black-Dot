@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info, Eye, BookOpen, Instagram, Globe, Info as InfoIcon } from 'lucide-react';
+import { X, Calendar, MapPin, Ticket, Clock, Loader2, Image, Brush, Layers, Ruler, Weight, Heart, Share2, Info, Eye, BookOpen, Instagram, Globe, Info as InfoIcon, Music } from 'lucide-react';
 import ArtistPanel from './ArtistPanel';
 import { Exhibition, FirebaseArtwork } from '../../types';
+import { cleanMusicFileName } from '../../utils/audioUtils';
 
 interface InfoPanelProps {
   isOpen: boolean;
@@ -385,7 +386,17 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                            <div className="flex items-start gap-4">
                              <Calendar size={16} className={`mt-0.5 opacity-40 ${uiConfig.text}`} strokeWidth={1.5} />
                              <div>
-                               <p className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${uiConfig.text}`}>Dates</p>
+                               <div className="flex items-center gap-2 mb-1">
+                                 <p className={`text-[9px] font-medium uppercase tracking-[0.2em] opacity-60 ${uiConfig.text}`}>Dates</p>
+                                 {activeExhibition.exhibit_bg_music && (
+                                   <div className="flex items-center gap-1.5 ml-1">
+                                     <Music size={11} className={`text-cyan-500 ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'}`} />
+                                     <span className={`text-[8px] font-medium uppercase tracking-tight opacity-70 ${uiConfig.text} ${isMusicMuted ? 'line-through opacity-30' : ''}`}>
+                                       {cleanMusicFileName(activeExhibition.exhibit_bg_music)}
+                                     </span>
+                                   </div>
+                                 )}
+                               </div>
                                {exhibitionDateLines.map((line, idx) => (
                                  <p key={`date-line-${idx}`} className={`text-sm font-mono tracking-tight ${uiConfig.text} ${idx === 0 ? '' : 'mt-1'}`}>{line}</p>
                                ))}

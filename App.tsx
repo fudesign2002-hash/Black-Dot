@@ -15,6 +15,7 @@ import SideNavigation from './components/layout/SideNavigation';
 import TransitionOverlay from './components/ui/TransitionOverlay';
 import TopLeftLogout from './components/ui/TopLeftLogout';
 import CurrentExhibitionInfo from './components/info/CurrentExhibitionInfo';
+import BackgroundMusic from './components/scene/core/BackgroundMusic'; // NEW: Import BackgroundMusic
 import ConfirmationDialog from './components/ui/ConfirmationDialog';
 import DevToolsPanel from './components/ui/DevToolsPanel';
 import AnalyticsDashboard from './components/ui/AnalyticsDashboard'; // NEW: Standalone Analytics support
@@ -88,6 +89,14 @@ function MuseumApp({
   const [isArtworkLifted, setIsArtworkLifted] = useState(false); // NEW: State for artwork lifted in layout editor
   // Global flag: whether reset button should be enabled/visible. Toggled by user interactions.
   const [isResetCameraEnable, setIsResetCameraEnable] = useState(false);
+  const [isMusicMuted, setIsMusicMuted] = useState(() => {
+    // NEW: Persist mute state across exhibitions and reloads
+    try {
+      return localStorage.getItem('blackdot_music_muted') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
 
   // NEW: Check for sandbox mode from URL
   const isSandboxMode = useMemo(() => {
@@ -2158,8 +2167,23 @@ function MuseumApp({
           isCurrentExhibitionInfoHidden={isCurrentExhibitionInfoHidden}
           onInfoOpen={handleOpenInfo}
           useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
+          isMusicMuted={isMusicMuted}
+          onToggleMusic={(e) => {
+            e.stopPropagation();
+            setIsMusicMuted(prev => {
+              const newState = !prev;
+              localStorage.setItem('blackdot_music_muted', String(newState));
+              return newState;
+            });
+          }}
         />
       )}
+
+      {/* NEW: Background Music Player */}
+      <BackgroundMusic 
+        url={activeExhibition?.exhibit_bg_music} 
+        isMuted={isMusicMuted}
+      />
 
       {!embedMode && (
         <SideNavigation

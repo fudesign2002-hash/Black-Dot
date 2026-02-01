@@ -1,8 +1,9 @@
 import React from 'react';
 import { HEADER_COLOR_CSS_VAR } from '../../constants/ui';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, Music } from 'lucide-react';
 import { Exhibition } from '../../types';
 import { trackUmamiEvent } from '../../services/umamiService';
+import { cleanMusicFileName } from '../../utils/audioUtils';
 
 interface CurrentExhibitionInfoProps {
   uiConfig: any;
@@ -12,10 +13,12 @@ interface CurrentExhibitionInfoProps {
   isSmallScreen: boolean;
   isCurrentExhibitionInfoHidden: boolean;
   onInfoOpen: (type?: 'exhibition' | 'artwork') => void;
-    useExhibitionBackground?: boolean;
+  useExhibitionBackground?: boolean;
+  isMusicMuted?: boolean; // NEW
+  onToggleMusic?: (e: React.MouseEvent) => void; // NEW
 }
 
-const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo(({ uiConfig, isLoading, activeExhibition, isInfoOpen, isSmallScreen, isCurrentExhibitionInfoHidden, onInfoOpen, useExhibitionBackground = false }) => {
+const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo(({ uiConfig, isLoading, activeExhibition, isInfoOpen, isSmallScreen, isCurrentExhibitionInfoHidden, onInfoOpen, useExhibitionBackground = false, isMusicMuted = false, onToggleMusic }) => {
     const handleInfoClick = () => {
         trackUmamiEvent('Exhibit-Info');
         onInfoOpen('exhibition');
@@ -54,8 +57,8 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
             ) : (
                 <React.Fragment>
                     <div className={`flex items-center gap-2 mb-4 ${subtextClass}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${getStatusColor(activeExhibition.status)}`}></span>
-                        <span className="text-[10px] font-bold tracking-widest uppercase text-current">
+                        <span className={`w-1 h-1 rounded-full animate-pulse ${getStatusColor(activeExhibition.status)}`}></span>
+                        <span className="text-[8px] font-normal tracking-[0.2em] uppercase text-current opacity-80">
                             {activeExhibition.status === 'now showing' ? 'Now Showing' : activeExhibition.status + ' Exhibition'}
                         </span>
                     </div>
@@ -78,8 +81,20 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                             <p className={`text-xs md:text-base font-light tracking-widest ${subtextClass} mb-2`}>
                                 {activeExhibition.subtitle}
                             </p>
-                            <div className={`text-[10px] font-mono opacity-60 ${textClass}`}>
+                            <div className={`flex items-center gap-2 text-[8px] font-normal tracking-wider uppercase opacity-50 ${textClass}`}>
                                 <span className="text-current">{activeExhibition.dates}</span>
+                                {activeExhibition.exhibit_bg_music && (
+                                    <button 
+                                        onClick={onToggleMusic}
+                                        className="flex items-center gap-1.5 ml-1 hover:opacity-100 transition-opacity"
+                                        title={isMusicMuted ? "Unmute Music" : "Mute Music"}
+                                    >
+                                        <Music className={`w-2 h-2 text-current ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'}`} />
+                                        <span className={`truncate max-w-[120px] ${isMusicMuted ? 'line-through opacity-30' : ''}`}>
+                                            {cleanMusicFileName(activeExhibition.exhibit_bg_music)}
+                                        </span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -92,8 +107,20 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                                     {activeExhibition.subtitle}
                                 </p>
                             </div>
-                            <div className={`text-[12px] font-mono opacity-60 mt-2 ${textClass}`}>
+                            <div className={`flex items-center gap-2 text-[9px] font-normal tracking-wider uppercase opacity-50 mt-2 ${textClass}`}>
                                 <span className="text-current">{activeExhibition.dates}</span>
+                                {activeExhibition.exhibit_bg_music && (
+                                    <button 
+                                        onClick={onToggleMusic}
+                                        className="flex items-center gap-1.5 ml-2 hover:opacity-100 transition-opacity"
+                                        title={isMusicMuted ? "Unmute Music" : "Mute Music"}
+                                    >
+                                        <Music className={`w-2.5 h-2.5 text-current ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'}`} />
+                                        <span className={`truncate max-w-[150px] ${isMusicMuted ? 'line-through opacity-30' : ''}`}>
+                                            {cleanMusicFileName(activeExhibition.exhibit_bg_music)}
+                                        </span>
+                                    </button>
+                                )}
                             </div>
                         </>
                     )}
