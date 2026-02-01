@@ -209,7 +209,7 @@ export const useMuseumState = (
     // otherwise (guest) only show exhibitions marked as showcase.
     if (ownerUid) {
       const filteredOwner = processedAllExhibitions.filter(ex => ex.isPublic === true);
-      const statusRank: Record<string, number> = { 'now showing': 0, permanent: 1, past: 2 };
+      const statusRank: Record<string, number> = { past: 0, 'now showing': 1, permanent: 2 };
       filteredOwner.sort((a, b) => {
         const ra = statusRank[a.status] ?? 3;
         const rb = statusRank[b.status] ?? 3;
@@ -225,7 +225,7 @@ export const useMuseumState = (
       ex.isShowcase === true || (initialExhibitionId && ex.id === initialExhibitionId)
     );
     // Default ordering: status priority (past, current, permanent, others) then by dateFrom (newest first)
-    const statusRank: Record<string, number> = { 'now showing': 0, permanent: 1, past: 2 };
+    const statusRank: Record<string, number> = { past: 0, 'now showing': 1, permanent: 2 };
     filtered.sort((a, b) => {
       const ra = statusRank[a.status] ?? 3;
       const rb = statusRank[b.status] ?? 3;
@@ -262,6 +262,13 @@ export const useMuseumState = (
         if (foundIdx !== -1) {
           targetIndex = foundIdx;
         }
+      } else {
+        // MODIFIED: By default, prefer showing the first 'now showing' or 'permanent' exhibition
+        // If none found, stick with index 0 (which would be the newest 'past' exhibition)
+        const priorityIdx = exhibitions.findIndex(ex => ex.status === 'now showing' || ex.status === 'permanent');
+        if (priorityIdx !== -1) {
+          targetIndex = priorityIdx;
+        }
       }
       setCurrentIndex(targetIndex);
       initialIndexAppliedRef.current = true;
@@ -279,7 +286,9 @@ export const useMuseumState = (
     let zone = zones.find(z => z.exhibitionId === exhibition?.id) || DEFAULT_FALLBACK_ZONE;
 
     // Apply Sandbox Overrides for Scene (Theme/Gravity)
-    if (isSandboxMode && exhibition.id !== 'fallback_id' && zone.id !== 'fallback_zone_id') {
+    // MODIFIED: Automatically enable sandbox features for 'past' exhibitions
+    const effectiveSandbox = isSandboxMode || exhibition.status === 'past';
+    if (effectiveSandbox && exhibition.id !== 'fallback_id' && zone.id !== 'fallback_zone_id') {
       try {
         const themeKey = `sandbox_theme_${exhibition.id}_${zone.id}`;
         const themeData = localStorage.getItem(themeKey);
@@ -306,7 +315,9 @@ export const useMuseumState = (
     let finalConfig = { ...baseConfig, ...lightingOverrides[activeZone.id] };
 
     // Apply Sandbox Overrides for Lighting
-    if (isSandboxMode && activeExhibition.id !== 'fallback_id' && activeZone.id !== 'fallback_zone_id') {
+    // MODIFIED: Automatically enable sandbox features for 'past' exhibitions
+    const effectiveSandbox = isSandboxMode || activeExhibition.status === 'past';
+    if (effectiveSandbox && activeExhibition.id !== 'fallback_id' && activeZone.id !== 'fallback_zone_id') {
       try {
         const lightingKey = `sandbox_lighting_${activeExhibition.id}_${activeZone.id}`;
         const sandboxLighting = localStorage.getItem(lightingKey);
@@ -367,8 +378,10 @@ export const useMuseumState = (
     //    OR special "virtual" items (like text_3d) that exist purely for the view.
     // MODIFIED: If in sandbox mode, we trust the sandbox layout and don't strictly filter by canonical ids
     // to allow adding new artworks locally.
+    // MODIFIED: Automatically enable sandbox features for 'past' exhibitions
+    const effectiveSandbox = isSandboxMode || activeExhibition.status === 'past';
     const filteredZoneLayout = zoneLayout.filter(item => 
-        isSandboxMode || canonicalArtworkIds.has(item.artworkId) || item.type === 'text_3d'
+        effectiveSandbox || canonicalArtworkIds.has(item.artworkId) || item.type === 'text_3d'
     );
     const artworksWithCustomLayout = new Set(filteredZoneLayout.map(item => item.artworkId));
 

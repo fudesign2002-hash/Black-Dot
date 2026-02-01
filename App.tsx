@@ -2265,8 +2265,8 @@ function MuseumApp({
         hideZeroGravityControl={hideZeroGravityControl}
         exhibitionId={activeExhibition?.id}
         exhibit_dashboard_public={activeExhibition?.exhibit_dashboard_public === true}
-        isSignedIn={isSignedIn || isSandboxMode} // MODIFIED: Bypassed for Sandbox
-        isSandboxMode={isSandboxMode} // NEW: Pass isSandboxMode
+        isSignedIn={isSignedIn} // MODIFIED: Pass actual sign-in status
+        isSandboxMode={isSandboxMode || activeExhibition?.status === 'past'} // MODIFIED: Enable for Sandbox or Past
         onOpenDashboard={() => setIsAnalyticsOpen(true)}
         isEmbed={!!embedMode}
         isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status
@@ -2279,7 +2279,7 @@ function MuseumApp({
         showGlobalOverlay={showGlobalOverlay}
       />
 
-      {isEditorMode && (!embedMode || isSandboxMode) && (isSignedIn || isSandboxMode) && (
+      {isEditorMode && (!embedMode || isSandboxMode || activeExhibition?.status === 'past') && (isSignedIn || isSandboxMode || activeExhibition?.status === 'past') && (
         <Suspense fallback={null}>
           <FloorPlanEditorLazy
             isOpen={isEditorOpen}

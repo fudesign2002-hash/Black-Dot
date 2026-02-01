@@ -133,12 +133,14 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const nextPrevAnimationClasses = `transition-all duration-500 ease-out ${hideNextPrevOnSmallScreen ? 'opacity-0 translate-x-full pointer-events-none' : 'opacity-100 translate-x-0'}`;
 
   // NEW: Logic for conditional divider rendering
-  // MODIFIED: In simplified editor flow, we don't hide buttons anymore when isEditorMode is true
+  // MODIFIED: If user is signed in, we show the real editor icon even if it's a 'past' exhibit
+  const showAsSandbox = isSandboxMode && !isSignedIn;
+  
   const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl; 
   // MODIFIED: Hide editor mode toggle if in zero gravity mode. Now uses MapIcon and opens editor directly.
   // NEW: Allow editor toggle if in sandbox mode even if not signed in
   // MODIFIED: Sandbox icon now shows up in embed mode if explicitly requested
-  const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && (isSandboxMode || (!!isSignedIn && !isEmbed));
+  const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && (showAsSandbox || (!!isSignedIn && !isEmbed));
   // Determine right-side buttons based on their visibility conditions
   // REMOVED: DevTools toggle button as it is now controlled via hotkey only
   const hasDevToolsToggle = false; 
@@ -301,15 +303,15 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
                     onEditorOpen();
                   }} 
                   className={`relative w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 ease-out ${isEditorMode ? uiConfig.glassActive : uiConfig.glass}`} 
-                  title={isSandboxMode ? "Enter Sandbox Mode" : "Open Exhibit Editor"}
+                  title={showAsSandbox ? "Enter Sandbox Mode" : "Open Exhibit Editor"}
                 >
-                    {isSandboxMode ? (
+                    {showAsSandbox ? (
                       <FlaskConical className={`w-5 h-5 ${isEditorMode && (lightsOn ? 'text-amber-500' : 'text-amber-400')}`} />
                     ) : (
                       <MapIcon className={`w-4 h-4 ${isEditorMode && (lightsOn ? 'text-cyan-500' : 'text-cyan-400')}`} />
                     )}
                     
-                    {isSandboxMode && (
+                    {showAsSandbox && (
                       <span className="absolute -top-1 -right-1 text-[7px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold tracking-tighter shadow-sm border border-white/20">SANDBOX</span>
                     )}
                 </button>
