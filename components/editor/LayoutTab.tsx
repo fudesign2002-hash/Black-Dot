@@ -1,7 +1,7 @@
 
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { RefreshCw, Lightbulb, Sun, Video, Sparkles, X, ChevronDown, ChevronUp, Trash2, Type } from 'lucide-react'; // NEW: Add Trash2, Type
+import { RefreshCw, Lightbulb, Sun, Video, Sparkles, X, ChevronDown, ChevronUp, Trash2, Type, ArrowUpDown } from 'lucide-react'; // NEW: Add Trash2, Type, ArrowUpDown
 // FIX: Added missing imports for types
 import { ExhibitionArtItem, SimplifiedLightingConfig, ArtType, FirebaseArtwork, ArtworkData } from '../../types';
 import ArtworkSettingsForm from './ArtworkSettingsForm'; // NEW: Import ArtworkSettingsForm
@@ -126,10 +126,17 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
-  const [isEditingArtwork, setIsEditingArtwork] = useState<boolean>(false); // NEW: State for edit panel
+  const [isEditingArtwork, setIsEditingArtwork] = useState<boolean>(true); // MODIFIED: Default to expanded
   const [collidingArtworkId, setCollidingArtworkId] = useState<string | null>(null);
   const [cameraIconRotation, setCameraIconRotation] = useState(0); // NEW: State for camera icon rotation in degrees
   const [isArtworkLifted, setIsArtworkLifted] = useState(false); // NEW: Track if artwork is lifted (first selection)
+
+  // NEW: Automatically expand artwork settings when an artwork is selected
+  useEffect(() => {
+    if (selectedArtworkId) {
+      setIsEditingArtwork(true);
+    }
+  }, [selectedArtworkId]);
 
   const hasMotionArt = useMemo(() => {
     return currentLayout.some(art => art.type === 'motion') || 
@@ -640,6 +647,40 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
             />
             <span className="font-mono text-sm w-12 text-right">{currentRotationDegrees}°</span>
           </div>
+
+          <div className="flex items-center gap-4 mb-2">
+            <button 
+              onClick={() => {
+                if (!selectedArt) return;
+                onEditorLayoutChange(prev => prev.map(art => 
+                  art.id === selectedArt.id ? { ...art, position: [art.position[0], 0, art.position[2]] } : art
+                ));
+              }} 
+              className={`p-2 rounded-full transition-colors ${buttonHoverClass}`} 
+              title="Reset Elevation"
+            >
+              <ArrowUpDown size={14} className="opacity-60" />
+            </button>
+            <input 
+              type="range"
+              min="-5"
+              max="15"
+              step="0.1"
+              value={selectedArt?.position[1] || 0}
+              onChange={(e) => {
+                if (!selectedArt) return;
+                const newY = parseFloat(e.target.value);
+                onEditorLayoutChange(prev => prev.map(art => 
+                  art.id === selectedArt.id ? { ...art, position: [art.position[0], newY, art.position[2]] } : art
+                ));
+              }}
+              onPointerDown={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
+              disabled={!selectedArt}
+              className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500 disabled:opacity-50 ${sliderTrackClass} [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-300 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:shadow-lg`}
+            />
+            <span className="font-mono text-sm w-12 text-right">{selectedArt?.position[1].toFixed(1)}m</span>
+          </div>
         </div>
 
         {selectedArt && selectedArt.type === 'text_3d' && (
@@ -680,22 +721,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                     className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500 ${sliderTrackClass} [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-300`}
                   />
                   <span className="font-mono text-sm w-12 text-right">×{(selectedArt.scale || 1.0).toFixed(1)}</span>
-                </div>
-              </div>
-
-              <div>
-                <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${subtext}`}>Height (Y)</p>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="0"
-                    max="15.0"
-                    step="0.1"
-                    value={selectedArt.position[1]}
-                    onChange={handleTextHeightChange}
-                    className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500 ${sliderTrackClass} [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-300`}
-                  />
-                  <span className="font-mono text-sm w-12 text-right">{selectedArt.position[1].toFixed(1)}m</span>
                 </div>
               </div>
             </div>
@@ -742,44 +767,6 @@ const LayoutTab: React.FC<LayoutTabProps> = React.memo(({
                   {isEditingArtwork ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
               </div>
-            </div>
-
-            {/* NEW: Y-Axis Height Slider */}
-            <div className="mt-4 px-1 pb-2 border-b border-dashed border-white/10">
-              <div className="flex justify-between items-center mb-1">
-                <span className={`text-[10px] font-bold uppercase tracking-widest ${subtext}`}>Elevation (Y-Axis)</span>
-                <div className="flex items-center gap-2">
-                   <button 
-                     onClick={() => {
-                       onEditorLayoutChange(prev => prev.map(art => 
-                         art.id === selectedArt.id 
-                           ? { ...art, position: [art.position[0], 0, art.position[2]] } 
-                           : art
-                       ));
-                     }}
-                     className="text-[8px] px-1.5 py-0.5 bg-neutral-500/10 hover:bg-neutral-500/20 rounded-sm font-bold opacity-60"
-                   >
-                     RESET
-                   </button>
-                   <span className="text-[10px] font-mono">{selectedArt.position[1].toFixed(1)}m</span>
-                </div>
-              </div>
-              <input 
-                type="range"
-                min="-5"
-                max="10"
-                step="0.1"
-                value={selectedArt.position[1]}
-                onChange={(e) => {
-                  const newY = parseFloat(e.target.value);
-                  onEditorLayoutChange(prev => prev.map(art => 
-                    art.id === selectedArt.id 
-                      ? { ...art, position: [art.position[0], newY, art.position[2]] } 
-                      : art
-                  ));
-                }}
-                className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-              />
             </div>
 
             {isEditingArtwork && (

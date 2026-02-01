@@ -7,6 +7,7 @@ import { ArtworkData } from '../../../types';
 interface Text3DExhibitProps {
   artworkData?: ArtworkData;
   scale?: number;
+  lightsOn?: boolean;
   onDimensionsCalculated?: (width: number, height: number, depth: number, podiumHeight: number, finalGroupYPosition: number) => void;
 }
 
@@ -16,14 +17,19 @@ const FONT_URL = 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tc@5.0.2/fi
 const Text3DExhibit: React.FC<Text3DExhibitProps> = ({ 
   artworkData, 
   scale = 1,
+  lightsOn = true,
   onDimensionsCalculated 
 }) => {
   const textContent = artworkData?.text || 'BLACK DOT';
   const materialConfig = artworkData?.material || { color: '#000000' };
 
-  const materialColor = useMemo(() => 
-    new THREE.Color(materialConfig.color || '#000000'), 
-  [materialConfig.color]);
+  const materialColor = useMemo(() => {
+    // Force white color when lights are off
+    if (!lightsOn) {
+      return new THREE.Color('#FFFFFF');
+    }
+    return new THREE.Color(materialConfig.color || '#000000');
+  }, [materialConfig.color, lightsOn]);
 
   // Provide basic dimensions to parent for selection ring logic
   React.useEffect(() => {

@@ -65,6 +65,11 @@ const ProximityHandler: React.FC<ProximityHandlerProps> = ({ artworks, setFocuse
     frustum.setFromProjectionMatrix(projectionScreenMatrix);
 
     artworks.forEach((art, idx) => {
+      // NEW: Ignore 3D text for proximity detection
+      if (art.type === 'text_3d') {
+        return;
+      }
+
       artWorldPosition.set(...art.position);
 
       if (!frustum.containsPoint(artWorldPosition)) {

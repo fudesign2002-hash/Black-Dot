@@ -243,8 +243,8 @@ const SceneContent: React.FC<SceneProps> = ({
     return undefined;
   }, [explicitUseCustom, lightingConfig.backgroundColor]);
 
-  const [currentBackgroundTexture, setCurrentBackgroundTexture] = useState<THREE.CubeTexture | null>(null); // MODIFIED: Store as single Texture
-  const prevBackgroundTextureRef = useRef<THREE.CubeTexture | null>(null); // NEW: Ref to store previous background texture for disposal
+  const [currentBackgroundTexture, setCurrentBackgroundTexture] = useState<THREE.Texture | null>(null); // MODIFIED: Store as single Texture
+  const prevBackgroundTextureRef = useRef<THREE.Texture | null>(null); // NEW: Ref to store previous background texture for disposal
 
   // NEW: State and Ref for managing dynamic effects
   const clock = useMemo(() => new THREE.Clock(), []); // NEW: Clock for effects
@@ -282,30 +282,69 @@ const SceneContent: React.FC<SceneProps> = ({
       }
 
       setIsBackgroundLoading(true);
-      const cubeTextureUrls = Array(6).fill(imagePath);
 
-      new THREE.CubeTextureLoader().loadAsync(cubeTextureUrls)
-        .then(cubeTexture => {
-          (cubeTexture as any)._sourceUrl = imagePath; // Tag it for future comparison
-          const old = prevBackgroundTextureRef.current;
+      const loader = new THREE.TextureLoader();
+      loader.load(imagePath, (originalTexture) => {
+        const img = originalTexture.image;
+        const canvas = document.createElement('canvas');
+        const w = img.width;
+        const h = img.height;
+        canvas.width = w * 2;
+        canvas.height = h * 2;
+        const ctx = canvas.getContext('2d');
+
+        if (ctx) {
+          // Draw 2x2 mirrored grid
+          // Top-Left: Original
+          ctx.drawImage(img, 0, 0, w, h);
           
-          // Only apply if we are still supposed to be using this background and URL
-          if (useExhibitionBackground && activeExhibition.exhibit_background === imagePath) {
-            setCurrentBackgroundTexture(cubeTexture);
-            prevBackgroundTextureRef.current = cubeTexture;
-          } else {
-            cubeTexture.dispose();
-          }
-          
-          setIsBackgroundLoading(false);
-          if (old && old !== cubeTexture) {
-            try { old.dispose(); } catch (e) {}
-          }
-        })
-        .catch((e) => {
-          setCurrentBackgroundTexture(null);
-          setIsBackgroundLoading(false);
-        });
+          // Top-Right: Flip Horizontal
+          ctx.save();
+          ctx.translate(w * 2, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(img, 0, 0, w, h);
+          ctx.restore();
+
+          // Bottom-Left: Flip Vertical
+          ctx.save();
+          ctx.translate(0, h * 2);
+          ctx.scale(1, -1);
+          ctx.drawImage(img, 0, 0, w, h);
+          ctx.restore();
+
+          // Bottom-Right: Flip Both
+          ctx.save();
+          ctx.translate(w * 2, h * 2);
+          ctx.scale(-1, -1);
+          ctx.drawImage(img, 0, 0, w, h);
+          ctx.restore();
+        }
+
+        // Create a CubeTexture where each side uses the same seamless mirrored canvas
+        const cubeTexture = new THREE.CubeTexture(Array(6).fill(canvas));
+        cubeTexture.colorSpace = THREE.SRGBColorSpace;
+        cubeTexture.needsUpdate = true;
+        (cubeTexture as any)._sourceUrl = imagePath;
+
+        const old = prevBackgroundTextureRef.current;
+        
+        if (useExhibitionBackground && activeExhibition.exhibit_background === imagePath) {
+          setCurrentBackgroundTexture(cubeTexture);
+          prevBackgroundTextureRef.current = cubeTexture;
+        } else {
+          cubeTexture.dispose();
+        }
+        
+        setIsBackgroundLoading(false);
+        originalTexture.dispose(); // Cleanup raw texture
+        if (old && old !== cubeTexture) {
+          try { old.dispose(); } catch (e) {}
+        }
+      }, undefined, (e) => {
+        console.error('[SceneContent] Error loading background texture:', e);
+        setCurrentBackgroundTexture(null);
+        setIsBackgroundLoading(false);
+      });
     } else {
       // If useExhibitionBackground is false or no URL, clear the background texture
       try {
@@ -692,7 +731,7 @@ const SceneContent: React.FC<SceneProps> = ({
               // NEW: In editor mode, if lights are off and nothing is selected, highlight the central artwork
               const isEditorFallbackInDark = isEditorMode && !lightsOn && !selectedArtworkId && art.id === centralArtworkId;
 
-              const isSmartSpotlightActive = isExplicitlyFocused || isProximityFocusedInDark || isEditorFallbackInDark;
+              const isSmartSpotlightActive = (isExplicitlyFocused || isProximityFocusedInDark || isEditorFallbackInDark) && art.type !== 'text_3d';
 
               // NEW: Apply a global Y offset for photography artworks to lower them in the scene
               const PHOTOGRAPHY_Y_OFFSET = -1.5;
