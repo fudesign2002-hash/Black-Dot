@@ -51,6 +51,7 @@ interface MainControlsProps {
   isEmbed?: boolean; // NEW: hide certain controls when embedded
   showGlobalOverlay?: boolean; // NEW: Add showGlobalOverlay prop to prevent UI flicker
   exhibitionId?: string; // NEW: optional exhibition id for analytics attributes
+  isPastExhibition?: boolean; // NEW: Add isPastExhibition prop
   exhibit_dashboard_public?: boolean; // NEW: Whether the dashboard is public
   // REMOVED: activeEffectName: string | null; // NEW: Add activeEffectName
   // REMOVED: onEffectToggle: (effectName: string) => void; // NEW: Add onEffectToggle
@@ -98,6 +99,7 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   isResetCameraEnable, // NEW: Destructure isResetCameraEnable
   isEmbed = false,
   exhibitionId,
+  isPastExhibition = false, // NEW: Destructure isPastExhibition
   exhibit_dashboard_public = false, // NEW: Destructure exhibit_dashboard_public
   setHeartEmitterArtworkId,
   hasMotionArtwork, // NEW: Destructure hasMotionArtwork
@@ -133,8 +135,9 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const nextPrevAnimationClasses = `transition-all duration-500 ease-out ${hideNextPrevOnSmallScreen ? 'opacity-0 translate-x-full pointer-events-none' : 'opacity-100 translate-x-0'}`;
 
   // NEW: Logic for conditional divider rendering
-  // MODIFIED: If user is signed in, we show the real editor icon even if it's a 'past' exhibit
-  const showAsSandbox = isSandboxMode && !isSignedIn;
+  // MODIFIED: Determine effective sandbox mode status
+  // In our unified logic, the isSandboxMode prop already represents the effective sandbox state (URL or Auto).
+  const showAsSandbox = !!isSandboxMode && !isSignedIn;
   
   const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl; 
   // MODIFIED: Hide editor mode toggle if in zero gravity mode. Now uses MapIcon and opens editor directly.

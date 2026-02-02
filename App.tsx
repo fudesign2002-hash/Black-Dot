@@ -133,6 +133,8 @@ function MuseumApp({
 
   const isSignedIn = Boolean(user && !user.isAnonymous && (user.providerData && user.providerData.length > 0));
 
+  // [effectiveSandboxMode memo removed here to avoid circular dependency; handeled by useMuseumState]
+
   // NEW: Add hotkey for debug panel (Command/Ctrl + Shift + D)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -245,12 +247,13 @@ function MuseumApp({
     currentIndex,
     refreshNow,
     updateLocalArtworkData,
+    effectiveSandbox: effectiveSandboxMode, // NEW: Receive unified sandbox flag from hook
   } = useMuseumState(
     isSnapshotEnabledGlobally, 
     ownerOverrideUid || user?.uid, 
     isIdentityResolved, 
     initialExhibitionId,
-    isSandboxMode // Pass sandbox mode flag
+    isSandboxMode // Pass only the URL-based flag
   ); // Pass initialExhibitionId to hook
 
   // NEW: Update page title and URL dynamically based on active exhibition
@@ -332,9 +335,9 @@ function MuseumApp({
   // changing from 'fallback_zone_id' handles the first-load case as well.
 
   // NEW: activeEffectName now comes directly from activeZone.zone_theme
-  const activeEffectName = isSandboxMode && sandboxThemeOverride !== null ? sandboxThemeOverride : (activeZone?.zone_theme || null);
+  const activeEffectName = effectiveSandboxMode && sandboxThemeOverride !== null ? sandboxThemeOverride : (activeZone?.zone_theme || null);
   // NEW: activeZoneGravity now comes directly from activeZone.zone_gravity
-  const activeZoneGravity = isSandboxMode && sandboxGravityOverride !== undefined ? sandboxGravityOverride : activeZone?.zone_gravity;
+  const activeZoneGravity = effectiveSandboxMode && sandboxGravityOverride !== undefined ? sandboxGravityOverride : activeZone?.zone_gravity;
 
 
   // NEW: Function to dynamically load the remote effect bundle
@@ -585,7 +588,7 @@ function MuseumApp({
 
   // NEW: Handle updating zone_theme in Firebase
   const handleUpdateZoneTheme = useCallback(async (themeName: string | null) => {
-    if (isSandboxMode) {
+    if (effectiveSandboxMode) {
       setSandboxThemeOverride(themeName);
       if (activeExhibition?.id && activeZone?.id) {
         const storageKey = `sandbox_theme_${activeExhibition.id}_${activeZone.id}`;
@@ -627,7 +630,7 @@ function MuseumApp({
 
   // NEW: Handle updating zone_gravity in Firebase
   const handleUpdateZoneGravity = useCallback(async (gravityValue: number | undefined) => {
-    if (isSandboxMode) {
+    if (effectiveSandboxMode) {
       setSandboxGravityOverride(gravityValue);
       if (activeExhibition?.id && activeZone?.id) {
         const storageKey = `sandbox_gravity_${activeExhibition.id}_${activeZone.id}`;
@@ -652,7 +655,7 @@ function MuseumApp({
       // silent
     }
     // No camera reset needed here, as the ArtworkWrapper will animate the Y position
-  }, [isSandboxMode, activeExhibition?.id, activeZone?.id, embedMode]); // MODIFIED: restored isSandboxMode etc for correct functional behavior
+  }, [effectiveSandboxMode, activeExhibition?.id, activeZone?.id, embedMode]); // MODIFIED: restored isSandboxMode etc for correct functional behavior
 
 
   // NEW: Reset sandbox overrides
@@ -834,7 +837,7 @@ function MuseumApp({
   useEffect(() => {
     if (isEditorMode) {
       // NEW: In sandbox mode, prioritize loading from localStorage
-      if (isSandboxMode && activeExhibition?.id) {
+      if (effectiveSandboxMode && activeExhibition?.id) {
         const saved = localStorage.getItem(`sandbox_layout_${activeExhibition.id}`);
         if (saved) {
           try {
@@ -864,7 +867,7 @@ function MuseumApp({
       setFocusedArtworkInstanceId(null);
       setIsArtworkFocusedForControls(false);
     }
-  }, [isEditorMode, isSandboxMode, activeExhibition?.id]); // MODIFIED: Added isSandboxMode and activeExhibition.id to deps
+  }, [isEditorMode, effectiveSandboxMode, activeExhibition?.id]); // MODIFIED: Added isSandboxMode and activeExhibition.id to deps
 
   // If a refresh was requested (e.g. after external DB write), apply the updated currentLayout
   // into the editorLayout when editor is open. This avoids stale editorScene when edits are made
@@ -941,7 +944,7 @@ function MuseumApp({
 
   // NEW: Load sandbox lighting from localStorage on zone change
   useEffect(() => {
-    if (isSandboxMode && activeExhibition?.id && activeZone?.id) {
+    if (effectiveSandboxMode && activeExhibition?.id && activeZone?.id) {
       const saved = localStorage.getItem(`sandbox_lighting_${activeExhibition.id}_${activeZone.id}`);
       if (saved) {
         try {
@@ -952,7 +955,7 @@ function MuseumApp({
         }
       }
     }
-  }, [isSandboxMode, activeExhibition?.id, activeZone?.id, setLightingOverride]);
+  }, [effectiveSandboxMode, activeExhibition?.id, activeZone?.id, setLightingOverride]);
 
   const handleFocusArtworkInstance = useCallback((instanceId: string | null) => {
     setFocusedArtworkInstanceId(instanceId);
@@ -972,7 +975,7 @@ function MuseumApp({
     }
 
     // NEW: Sandbox mode persistence (localStorage instead of Firebase)
-    if (isSandboxMode) {
+    if (effectiveSandboxMode) {
       if (activeExhibition?.id) {
         localStorage.setItem(`sandbox_layout_${activeExhibition.id}`, JSON.stringify(layoutToSave));
         // No alert, just silent local save like the real editor
@@ -998,7 +1001,7 @@ function MuseumApp({
     } catch (error) {
         // 
     }
-  }, [activeZone.id, isSandboxMode, activeExhibition?.id, embedMode]);
+  }, [activeZone.id, effectiveSandboxMode, activeExhibition?.id, embedMode]);
 
   useEffect(() => {
     if (!editorLayout || !isEditorMode) return;
@@ -1065,7 +1068,7 @@ function MuseumApp({
     preloads.push(import('./components/scene/art/SculptureExhibit').catch(() => {}));
 
     // If it's not embed mode, we prioritize preloading the editor if Sandbox or Signed-in
-    if (!embedMode && (isSignedIn || isSandboxMode)) {
+    if (!embedMode && (isSignedIn || effectiveSandboxMode)) {
       preloads.push(import('./components/editor/FloorPlanEditor').catch(() => {}));
     }
 
@@ -1076,7 +1079,7 @@ function MuseumApp({
 
     // Fire-and-forget: warm modules but don't block render
     Promise.allSettled(preloads).catch(() => {});
-  }, [isSignedIn, isSandboxMode, ZeroGravityLegendLazy]);
+  }, [isSignedIn, effectiveSandboxMode, ZeroGravityLegendLazy]);
 
   const handleSelectArtwork = useCallback((id: string | null) => {
     
@@ -1119,7 +1122,7 @@ function MuseumApp({
   const LOG_APP_LIGHTING = false;
   const handleLightingUpdate = useCallback(async (newConfig: SimplifiedLightingConfig) => {
     // NEW: Sandbox mode persistence (localStorage instead of Firebase)
-    if (isSandboxMode) {
+    if (effectiveSandboxMode) {
       setLightingOverride(activeZone.id, newConfig);
       if (activeExhibition?.id) {
         localStorage.setItem(`sandbox_lighting_${activeExhibition.id}_${activeZone.id}`, JSON.stringify(newConfig));
@@ -1274,7 +1277,7 @@ function MuseumApp({
   }, [exhibitions.length, currentIndex, loadExhibition]);
 
   const handleUpdateArtworkFile = useCallback(async (artworkId: string, newFileUrl: string) => {
-    if (isSandboxMode) {
+    if (effectiveSandboxMode) {
       // Logic for local-only artwork update could be added here if needed
       return;
     }
@@ -1299,7 +1302,7 @@ function MuseumApp({
   }, [refreshNow, user, ownerOverrideUid]);
 
   const handleUpdateArtworkField = useCallback(async (artworkId: string, field: string, value: any) => {
-    if (isSandboxMode) return;
+    if (effectiveSandboxMode) return;
     if (embedMode) return;
     try {
       if ((import.meta as any).env?.DEV) {
@@ -1310,10 +1313,10 @@ function MuseumApp({
     } catch (error) {
       console.error(`Error updating artwork ${field}:`, error);
     }
-  }, [refreshNow]);
+  }, [refreshNow, effectiveSandboxMode]);
 
   const handleUpdateArtworkData = useCallback(async (artworkId: string, updatedArtworkData: Partial<ArtworkData>) => {
-    if (isSandboxMode) {
+    if (effectiveSandboxMode) {
       // Optimistically update local state for sandbox mode immediate feedback
       if (typeof updateLocalArtworkData === 'function') {
         const currentData = firebaseArtworks.find(a => a.id === artworkId)?.artwork_data || {};
@@ -1357,10 +1360,10 @@ function MuseumApp({
       // 
       throw error;
     }
-  }, [refreshNow, user, ownerOverrideUid]);
+  }, [refreshNow, user, ownerOverrideUid, effectiveSandboxMode]);
 
   const handleUpdateExhibition = useCallback(async (exhibitionId: string, updatedFields: Partial<Exhibition>) => {
-    if (isSandboxMode) return;
+    if (effectiveSandboxMode) return;
     if (embedMode) {
       console.warn('[embed] blocked handleUpdateExhibition');
       return;
@@ -1382,10 +1385,10 @@ function MuseumApp({
       // 
       throw error;
     }
-  }, [refreshNow, user, ownerOverrideUid]);
+  }, [refreshNow, user, ownerOverrideUid, effectiveSandboxMode]);
 
   const onRemoveArtworkFromLayout = useCallback(async (artworkIdToRemove: string) => {
-    if (isSandboxMode) {
+    if (effectiveSandboxMode) {
       // Handled via onEditorLayoutChange updater in LayoutTab which calls handleSaveLayout (intercepted for sandbox)
       return;
     }
@@ -1870,7 +1873,7 @@ function MuseumApp({
     }
     
     // 2. If in sandbox mode, try to load from localStorage first
-    if (isSandboxMode && activeExhibition?.id && activeExhibition.id !== 'fallback_id') {
+    if (effectiveSandboxMode && activeExhibition?.id && activeExhibition.id !== 'fallback_id') {
       const saved = localStorage.getItem(`sandbox_layout_${activeExhibition.id}`);
       if (saved) {
         try {
@@ -1889,7 +1892,7 @@ function MuseumApp({
       return artworksInRankingOrder;
     }
     return currentLayout;
-  }, [isEditorMode, editorLayout, isRankingMode, artworksInRankingOrder, currentLayout, isSandboxMode, activeExhibition?.id]);
+  }, [isEditorMode, editorLayout, isRankingMode, artworksInRankingOrder, currentLayout, effectiveSandboxMode, activeExhibition?.id]);
 
   // Compute min/max views and proportional tick positions for zero gravity legend
   const zeroGravityViews = useMemo(() => {
@@ -2265,10 +2268,11 @@ function MuseumApp({
         hideZeroGravityControl={hideZeroGravityControl}
         exhibitionId={activeExhibition?.id}
         exhibit_dashboard_public={activeExhibition?.exhibit_dashboard_public === true}
-        isSignedIn={isSignedIn} // MODIFIED: Pass actual sign-in status
-        isSandboxMode={isSandboxMode || activeExhibition?.status === 'past'} // MODIFIED: Enable for Sandbox or Past
+        isSignedIn={isSignedIn} 
+        isSandboxMode={effectiveSandboxMode} 
         onOpenDashboard={() => setIsAnalyticsOpen(true)}
         isEmbed={!!embedMode}
+        isPastExhibition={activeExhibition?.status === 'past'} // NEW: Pass isPastExhibition flag
         isCameraAtDefaultPosition={isCameraAtDefaultPosition} // NEW: Pass camera position status
         // NEW: global flag to control reset button visibility
         isResetCameraEnable={isResetCameraEnable}
@@ -2279,7 +2283,7 @@ function MuseumApp({
         showGlobalOverlay={showGlobalOverlay}
       />
 
-      {isEditorMode && (!embedMode || isSandboxMode || activeExhibition?.status === 'past') && (isSignedIn || isSandboxMode || activeExhibition?.status === 'past') && (
+      {isEditorMode && (!embedMode || effectiveSandboxMode) && (isSignedIn || effectiveSandboxMode) && (
         <Suspense fallback={null}>
           <FloorPlanEditorLazy
             isOpen={isEditorOpen}
@@ -2319,10 +2323,10 @@ function MuseumApp({
             isEffectRegistryLoading={isEffectRegistryLoading} // NEW: Pass effect registry loading state
             activeZoneGravity={activeZoneGravity} // NEW: Pass activeZoneGravity
             onUpdateZoneGravity={handleUpdateZoneGravity} // NEW: Pass handler for updating zone gravity
-            isSignedIn={isSignedIn || isSandboxMode} // MODIFIED: Bypassed for Sandbox
+            isSignedIn={isSignedIn || effectiveSandboxMode} // MODIFIED: Bypassed for Sandbox
             activeZoneId={activeZone.id} // NEW: Pass activeZoneId for zone-specific artwork settings
             onResetSandbox={handleResetSandbox}
-            isSandboxMode={isSandboxMode}
+            isSandboxMode={effectiveSandboxMode}
             onArtworkLiftedChange={setIsArtworkLifted} // NEW: Pass callback to update artwork lifted state
             ownerId={ownerOverrideUid || user?.uid}
           />

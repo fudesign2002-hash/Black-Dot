@@ -355,8 +355,8 @@ const ArtworkSettingsForm: React.FC<ArtworkSettingsFormProps> = ({
             {isGlb ? (
               <div className="flex flex-col items-center"><Box size={40} className="mb-2 opacity-50" /><span>GLB Model</span></div>
             ) : isVideo ? ( previewMediaError ? <AlertCircle size={32} /> : 
-              <iframe src={getVideoEmbedUrl(currentEditValue) || ''} frameBorder="0" allowFullScreen style={{ width: '100%', height: '100%', pointerEvents: 'none' }} onError={() => setPreviewMediaError(true)} />
-            ) : ( previewMediaError ? <AlertCircle size={32} /> : <img src={currentEditValue} alt={artwork.title} className="object-cover w-full h-full" onError={() => setPreviewMediaError(true)} />
+              <iframe src={getVideoEmbedUrl(currentEditValue) || undefined} frameBorder="0" allowFullScreen style={{ width: '100%', height: '100%', pointerEvents: 'none' }} onError={() => setPreviewMediaError(true)} />
+            ) : ( previewMediaError ? <AlertCircle size={32} /> : <img src={currentEditValue || undefined} alt={artwork.title} className="object-cover w-full h-full" onError={() => setPreviewMediaError(true)} />
             )}
             {isUploading && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white z-10"><Loader2 className="animate-spin mb-2" size={24} /><span className="text-xs font-medium">{Math.round(uploadProgress)}%</span></div>}
           </div>

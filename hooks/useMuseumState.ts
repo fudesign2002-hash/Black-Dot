@@ -286,9 +286,13 @@ export const useMuseumState = (
     let zone = zones.find(z => z.exhibitionId === exhibition?.id) || DEFAULT_FALLBACK_ZONE;
 
     // Apply Sandbox Overrides for Scene (Theme/Gravity)
-    // MODIFIED: Automatically enable sandbox features for 'past' exhibitions
-    const effectiveSandbox = isSandboxMode || exhibition.status === 'past';
-    if (effectiveSandbox && exhibition.id !== 'fallback_id' && zone.id !== 'fallback_zone_id') {
+    // MODIFIED: Automatically enable sandbox features if the flag is set (consistent with effectiveSandbox)
+    // Note: We don't use the effectiveSandbox memo here yet because it is defined below this memo.
+    // For consistency, we use the same inline logic.
+    const isAutoSandbox = !ownerUid && exhibition.status === 'past';
+    const currentEffectiveSandbox = isSandboxMode || isAutoSandbox;
+    
+    if (currentEffectiveSandbox && exhibition.id !== 'fallback_id' && zone.id !== 'fallback_zone_id') {
       try {
         const themeKey = `sandbox_theme_${exhibition.id}_${zone.id}`;
         const themeData = localStorage.getItem(themeKey);
@@ -307,16 +311,20 @@ export const useMuseumState = (
     }
 
     return { activeExhibition: exhibition, activeZone: zone };
-  }, [isLoading, exhibitions, zones, currentIndex, isSandboxMode, sandboxVersion]);
+  }, [isLoading, exhibitions, zones, currentIndex, isSandboxMode, sandboxVersion, ownerUid]);
   
+  // NEW: Unified sandbox mode detection logic (identical to App.tsx)
+  const effectiveSandbox = useMemo(() => {
+    return isSandboxMode || (!ownerUid && activeExhibition.status === 'past');
+  }, [isSandboxMode, ownerUid, activeExhibition.status]);
+
   const lightingConfig = useMemo((): SimplifiedLightingConfig => {
     const baseConfig = { ...DEFAULT_SIMPLIFIED_LIGHTING_CONFIG, ...activeZone.lightingDesign.defaultConfig };
     // NEW: Apply customCameraPosition from baseConfig, then any overrides
     let finalConfig = { ...baseConfig, ...lightingOverrides[activeZone.id] };
 
     // Apply Sandbox Overrides for Lighting
-    // MODIFIED: Automatically enable sandbox features for 'past' exhibitions
-    const effectiveSandbox = isSandboxMode || activeExhibition.status === 'past';
+    // MODIFIED: Automatically enable sandbox features if effective sandbox is active
     if (effectiveSandbox && activeExhibition.id !== 'fallback_id' && activeZone.id !== 'fallback_zone_id') {
       try {
         const lightingKey = `sandbox_lighting_${activeExhibition.id}_${activeZone.id}`;
@@ -349,7 +357,7 @@ export const useMuseumState = (
       finalConfig.floorColor = DEFAULT_SIMPLIFIED_LIGHTING_CONFIG.floorColor;
     }
     return finalConfig;
-  }, [activeZone, lightingOverrides, activeExhibition, firebaseArtworks, isSandboxMode, sandboxVersion]);
+  }, [activeZone, lightingOverrides, activeExhibition, firebaseArtworks, isSandboxMode, sandboxVersion, ownerUid]);
 
   const currentLayout = useMemo((): ExhibitionArtItem[] => {
     const canonicalArtworkIds = new Set(activeExhibition.exhibit_artworks || []);
@@ -357,7 +365,8 @@ export const useMuseumState = (
     let zoneArtworkSelected = activeZone.artwork_selected;
 
     // Apply Sandbox Overrides for Layout
-    if (isSandboxMode && activeExhibition.id !== 'fallback_id' && activeZone.id !== 'fallback_zone_id') {
+    // MODIFIED: Automatically enable sandbox features if the effective sandbox is active
+    if (effectiveSandbox && activeExhibition.id !== 'fallback_id' && activeZone.id !== 'fallback_zone_id') {
       try {
         const layoutKey = `sandbox_layout_${activeExhibition.id}`;
         const sandboxLayout = localStorage.getItem(layoutKey);
@@ -378,8 +387,6 @@ export const useMuseumState = (
     //    OR special "virtual" items (like text_3d) that exist purely for the view.
     // MODIFIED: If in sandbox mode, we trust the sandbox layout and don't strictly filter by canonical ids
     // to allow adding new artworks locally.
-    // MODIFIED: Automatically enable sandbox features for 'past' exhibitions
-    const effectiveSandbox = isSandboxMode || activeExhibition.status === 'past';
     const filteredZoneLayout = zoneLayout.filter(item => 
         effectiveSandbox || canonicalArtworkIds.has(item.artworkId) || item.type === 'text_3d'
     );
@@ -392,7 +399,7 @@ export const useMuseumState = (
 
     
     return [...filteredZoneLayout, ...newArtworks];
-  }, [activeExhibition, activeZone, firebaseArtworks, isSandboxMode, sandboxVersion]);
+  }, [activeExhibition, activeZone, firebaseArtworks, isSandboxMode, sandboxVersion, ownerUid]);
 
   const handleNavigate = useCallback((index: number) => {
     setCurrentIndex(index);
@@ -443,6 +450,7 @@ export const useMuseumState = (
     triggerSandboxRefresh, // NEW: Export the refresh trigger
     refreshNow,
     updateLocalArtworkData,
+    effectiveSandbox,
   };
 };
 
