@@ -2349,6 +2349,15 @@ function MuseumApp({
         isLoading={isLoading}
         focusedArtworkFirebaseId={focusedArtworkFirebaseId}
         allFirebaseArtworks={firebaseArtworks}
+        isMusicMuted={isMusicMuted}
+        onToggleMusic={(e) => {
+          e.stopPropagation();
+          setIsMusicMuted(prev => {
+            const newState = !prev;
+            localStorage.setItem('blackdot_music_muted', String(newState));
+            return newState;
+          });
+        }}
         onOpenExhibitionInfoFromArtwork={handleOpenExhibitionInfoFromArtwork}
         fromArtworkInfoFlag={fromArtworkInfoFlag}
         onBackToArtworkInfo={() => {

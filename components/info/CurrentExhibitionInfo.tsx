@@ -48,7 +48,7 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
 
     return (
         <React.Fragment>
-        <div className={`absolute ${isSmallScreen ? 'left-6' : 'left-10'} z-40 transition-all duration-500 max-w-xl ${isInfoOpen ? '-translate-x-full opacity-0' : slideOutClass} ${isSmallScreen ? 'bottom-32' : 'bottom-28'} md:bottom-10`} style={headerColorStyle}>
+        <div className={`absolute ${isSmallScreen ? 'left-6' : 'left-10'} z-[80] transition-all duration-500 max-w-xl ${isInfoOpen ? '-translate-x-full opacity-0' : slideOutClass} ${isSmallScreen ? 'bottom-36' : 'bottom-28'} md:bottom-10`} style={headerColorStyle}>
             {isLoading ? (
                 <div className={`flex items-center gap-3 ${textClass} animate-pulse`}>
                     <Loader2 className="w-6 h-6 text-current" />
@@ -56,41 +56,41 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                 </div>
             ) : (
                 <React.Fragment>
-                    <div className={`flex items-center gap-2 mb-4 ${subtextClass}`}>
+                    <div className={`flex items-center gap-2 ${isSmallScreen ? 'mb-2.5' : 'mb-4'} ${subtextClass}`}>
                         <span className={`w-1 h-1 rounded-full animate-pulse ${getStatusColor(activeExhibition.status)}`}></span>
-                        <span className="text-[8px] font-normal tracking-[0.2em] uppercase text-current opacity-80">
+                        <span className={`${isSmallScreen ? 'text-[7.5px]' : 'text-[8px]'} font-normal tracking-[0.2em] uppercase text-current opacity-80`}>
                             {activeExhibition.status === 'now showing' ? 'Now Showing' : activeExhibition.status + ' Exhibition'}
                         </span>
                     </div>
                     {isSmallScreen ? (
                         <div className="flex items-center gap-3 mb-2">
-                            <h2 className={`text-2xl md:text-5xl font-serif font-medium leading-tight uppercase ${textClass}`}>
+                            <h2 className={`text-[1.375rem] md:text-5xl font-serif font-medium leading-tight uppercase ${textClass}`}>
                                 {activeExhibition.title}
                             </h2>
-                            <button onClick={handleInfoClick} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
+                            <button onClick={handleInfoClick} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.lightsOn ? 'bg-white/20 border border-white/20' : 'bg-white/10 border border-white/10'} backdrop-blur-md`} title="Exhibition Details">
                                 <Info className="w-4 h-4 text-current" />
                             </button>
                         </div>
                     ) : (
-                        <h2 className={`text-4xl md:text-5xl font-serif font-medium leading-tight uppercase ${textClass} mb-2`}>
+                        <h2 className={`text-3xl md:text-4xl font-serif font-medium leading-tight uppercase ${textClass} mb-2`}>
                             {activeExhibition.title}
                         </h2>
                     )}
                     {isSmallScreen ? (
                         <div className={`border-l ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-3`}>
-                            <p className={`text-xs md:text-base font-light tracking-widest ${subtextClass} mb-2`}>
+                            <p className={`text-[11px] md:text-base font-light tracking-widest ${subtextClass} mb-2`}>
                                 {activeExhibition.subtitle}
                             </p>
-                            <div className={`flex items-center gap-2 text-[8px] font-normal tracking-wider uppercase opacity-50 ${textClass}`}>
+                            <div className={`flex items-center gap-2 text-[7.5px] font-normal tracking-wider uppercase opacity-50 ${textClass}`}>
                                 <span className="text-current">{activeExhibition.dates}</span>
                                 {activeExhibition.exhibit_bg_music && (
                                     <button 
                                         onClick={onToggleMusic}
-                                        className="flex items-center gap-1.5 ml-1 hover:opacity-100 transition-opacity"
+                                        className="flex items-center gap-1.5 ml-1 hover:opacity-100 active:opacity-60 transition-all p-3 -m-3 relative z-10 pointer-events-auto touch-manipulation"
                                         title={isMusicMuted ? "Unmute Music" : "Mute Music"}
                                     >
-                                        <Music className={`w-2 h-2 text-current ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'}`} />
-                                        <span className={`truncate max-w-[120px] ${isMusicMuted ? 'line-through opacity-30' : ''}`}>
+                                        <Music className={`w-3.5 h-3.5 text-current ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'}`} />
+                                        <span className={`truncate max-w-[110px] ${isMusicMuted ? 'line-through opacity-30' : ''}`}>
                                             {cleanMusicFileName(activeExhibition.exhibit_bg_music)}
                                         </span>
                                     </button>
@@ -100,22 +100,22 @@ const CurrentExhibitionInfo: React.FC<CurrentExhibitionInfoProps> = React.memo((
                     ) : (
                         <>
                             <div className="flex items-center gap-4 mb-2">
-                                <button onClick={handleInfoClick} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.glass}`} title="Exhibition Details">
-                                    <Info className="w-5 h-5 text-current" />
+                                <button onClick={handleInfoClick} className={`flex-shrink-0 p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${uiConfig.lightsOn ? 'bg-white/20 border border-white/20' : 'bg-white/10 border border-white/10'} backdrop-blur-md`} title="Exhibition Details">
+                                    <Info className="w-4 h-4 text-current" />
                                 </button>
-                                <p className={`text-sm md:text-base font-light tracking-widest ${subtextClass} border-l-2 ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-4`}>
+                                <p className={`text-xs md:text-sm font-light tracking-widest ${subtextClass} border-l-2 ${uiConfig.lightsOn ? 'border-current border-opacity-30' : 'border-neutral-700'} pl-4`}>
                                     {activeExhibition.subtitle}
                                 </p>
                             </div>
-                            <div className={`flex items-center gap-2 text-[9px] font-normal tracking-wider uppercase opacity-50 mt-2 ${textClass}`}>
+                            <div className={`flex items-center gap-2 text-[8px] font-normal tracking-wider uppercase opacity-50 mt-2 ${textClass}`}>
                                 <span className="text-current">{activeExhibition.dates}</span>
                                 {activeExhibition.exhibit_bg_music && (
                                     <button 
                                         onClick={onToggleMusic}
-                                        className="flex items-center gap-1.5 ml-2 hover:opacity-100 transition-opacity"
+                                        className="flex items-center gap-1.5 ml-2 hover:opacity-100 active:opacity-60 transition-all p-3 -m-3 relative z-10 pointer-events-auto touch-manipulation"
                                         title={isMusicMuted ? "Unmute Music" : "Mute Music"}
                                     >
-                                        <Music className={`w-2.5 h-2.5 text-current ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'}`} />
+                                        <Music className={`w-3.5 h-3.5 text-current ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'}`} />
                                         <span className={`truncate max-w-[150px] ${isMusicMuted ? 'line-through opacity-30' : ''}`}>
                                             {cleanMusicFileName(activeExhibition.exhibit_bg_music)}
                                         </span>

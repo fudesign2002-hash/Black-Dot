@@ -51,7 +51,7 @@ interface MainControlsProps {
   isEmbed?: boolean; // NEW: hide certain controls when embedded
   showGlobalOverlay?: boolean; // NEW: Add showGlobalOverlay prop to prevent UI flicker
   exhibitionId?: string; // NEW: optional exhibition id for analytics attributes
-  isPastExhibition?: boolean; // NEW: Add isPastExhibition prop
+  isPastExhibition?: boolean; // NEW: Add isPastExhibition flag
   exhibit_dashboard_public?: boolean; // NEW: Whether the dashboard is public
   // REMOVED: activeEffectName: string | null; // NEW: Add activeEffectName
   // REMOVED: onEffectToggle: (effectName: string) => void; // NEW: Add onEffectToggle
@@ -106,7 +106,6 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   customCameraPosition, // NEW: Destructure customCameraPosition
   showGlobalOverlay = false, // NEW: Destructure showGlobalOverlay
   // REMOVED: activeEffectName, // NEW: Destructure activeEffectName
-  // REMOVED: onEffectToggle, // NEW: Destructure onEffectToggle
 }) => {
   const artworkControlsRef = React.useRef<HTMLDivElement>(null);
   const mainNavRef = React.useRef<HTMLDivElement>(null);

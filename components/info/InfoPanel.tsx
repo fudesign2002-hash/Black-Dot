@@ -27,9 +27,11 @@ interface InfoPanelProps {
   onOpenExhibitionInfoFromArtwork?: () => void;
   onBackToArtworkInfo?: () => void;
   fromArtworkInfoFlag?: boolean; // 直接由父層傳 flag
+  isMusicMuted?: boolean; // NEW
+  onToggleMusic?: (e: React.MouseEvent) => void; // NEW
 }
 
-const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, activeExhibition, isLoading, focusedArtworkFirebaseId, allFirebaseArtworks, onOpenExhibitionInfoFromArtwork, onBackToArtworkInfo, fromArtworkInfoFlag }) => {
+const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, activeExhibition, isLoading, focusedArtworkFirebaseId, allFirebaseArtworks, onOpenExhibitionInfoFromArtwork, onBackToArtworkInfo, fromArtworkInfoFlag, isMusicMuted = false, onToggleMusic }) => {
   const [artistPanelOpen, setArtistPanelOpen] = React.useState(false);
   const [artistId, setArtistId] = React.useState<string | null>(null);
   // 直接用 prop 控制返回箭頭
@@ -368,12 +370,16 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ isOpen, onClose, uiConfig, active
                                <div className="flex items-center gap-2 mb-1">
                                  <p className={`text-[9px] font-medium uppercase tracking-[0.2em] opacity-60 ${uiConfig.text}`}>Dates</p>
                                  {activeExhibition.exhibit_bg_music && (
-                                   <div className="flex items-center gap-1.5 ml-1">
-                                     <Music size={11} className={`text-cyan-500 ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'}`} />
+                                   <button 
+                                     onClick={onToggleMusic}
+                                     className="flex items-center gap-1.5 ml-1 group transition-all p-2 -m-2 relative z-10 touch-manipulation"
+                                     title={isMusicMuted ? "Unmute Music" : "Mute Music"}
+                                   >
+                                     <Music size={14} className={`text-cyan-500 ${isMusicMuted ? 'opacity-30' : 'animate-music-pulse'} group-active:scale-95 transition-transform`} />
                                      <span className={`text-[8px] font-medium uppercase tracking-tight opacity-70 ${uiConfig.text} ${isMusicMuted ? 'line-through opacity-30' : ''}`}>
                                        {cleanMusicFileName(activeExhibition.exhibit_bg_music)}
                                      </span>
-                                   </div>
+                                   </button>
                                  )}
                                </div>
                                {exhibitionDateLines.map((line, idx) => (

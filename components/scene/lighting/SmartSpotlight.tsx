@@ -73,12 +73,9 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
       lightRef.current.angle = THREE.MathUtils.lerp(lightRef.current.angle, spotlightAngle, delta * 8); // Speed up transition (was 3)
       lightRef.current.distance = THREE.MathUtils.lerp(lightRef.current.distance, spotlightDistance, delta * 8); // Speed up transition (was 3)
 
-      // NEW: Soft-start shadows - only enable when intensity is high enough
-      // This avoids sudden shadow map allocation lag at the very start of the transition
-      const shouldCast = lightRef.current.intensity > 0.1;
-      if (lightRef.current.castShadow !== shouldCast) {
-        lightRef.current.castShadow = shouldCast;
-      }
+      // OPTIMIZATION: Removed dynamic castShadow toggling based on intensity threshold.
+      // Toggling castShadow during a lerp triggers shader re-compilation every frame 
+      // the threshold is crossed, causing significant stutter.
     }
   });
 
@@ -95,6 +92,7 @@ const SmartSpotlight: React.FC<SmartSpotlightProps> = ({ isActive, lightsOn, col
         distance={spotlightDistance}
         decay={2} 
         color={memoColor}
+        castShadow={true}
         shadow-bias={-0.0001}
         shadow-normalBias={0.03}
         shadow-mapSize={[1024, 1024]}

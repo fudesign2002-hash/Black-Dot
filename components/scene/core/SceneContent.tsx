@@ -613,8 +613,9 @@ const SceneContent: React.FC<SceneProps> = ({
 
     if (dirLight1Ref.current) {
       dirLight1Ref.current.intensity = mainLightIntensityRef.current;
-      // Only disable shadows when intensity is very low to avoid sudden shadow disappearance
-      dirLight1Ref.current.castShadow = mainLightIntensityRef.current > 0.1;
+      // OPTIMIZATION: Removed dynamic castShadow toggling based on intensity threshold.
+      // Toggling castShadow triggers a massive shader re-compilation which causes 
+      // the "multi-second lag" during transitions. We keep it tied to the stable lightsOn state.
     }
     if (dirLight2Ref.current) {
       dirLight2Ref.current.intensity = THREE.MathUtils.lerp(dirLight2Ref.current.intensity, lightsOn ? 2.0 : 0, lerpFactor);
@@ -633,6 +634,25 @@ const SceneContent: React.FC<SceneProps> = ({
   const selectedArtwork = useMemo(() => artworks.find(art => art.id === selectedArtworkId), [artworks, selectedArtworkId]);
 
   const shadowMapSize = useMemo(() => getShadowMapSize(isSmallScreen), [isSmallScreen]); // NEW: Calculate shadow map size dynamically
+
+  // NEW: Pre-calculate which artwork should have a spotlight to avoid redundant checks in the map loop
+  const activeSpotlightId = useMemo(() => {
+    // Spotlights are typically only used when main lights are off
+    if (lightsOn) return null;
+
+    if (isEditorMode) {
+      if (selectedArtworkId) return selectedArtworkId;
+      return centralArtworkId;
+    }
+
+    if (focusedArtworkInstanceId) return focusedArtworkInstanceId;
+
+    if (!isRankingMode && !isZeroGravityMode && artworks[focusedIndex]) {
+      return artworks[focusedIndex].id;
+    }
+
+    return null;
+  }, [lightsOn, isEditorMode, selectedArtworkId, centralArtworkId, focusedArtworkInstanceId, focusedIndex, isRankingMode, isZeroGravityMode, artworks]);
 
   const keyLightPos = useMemo(() => new THREE.Vector3(...(lightingConfig.keyLightPosition || [-2, 8, 9])), [lightingConfig.keyLightPosition]);
   const fillLightPos = useMemo(() => new THREE.Vector3(...(lightingConfig.fillLightPosition || [5, 0, 5])), [lightingConfig.fillLightPosition]);
@@ -654,7 +674,7 @@ const SceneContent: React.FC<SceneProps> = ({
             position={keyLightPos}
             intensity={mainLightIntensityRef.current}
             color={directionalLightColor}
-            castShadow={lightsOn}
+            castShadow={true}
             shadow-mapSize={[shadowMapSize, shadowMapSize]} // MODIFIED: Use dynamic shadowMapSize
             shadow-camera-left={-20}
             shadow-camera-right={20}
@@ -727,12 +747,7 @@ const SceneContent: React.FC<SceneProps> = ({
 
               const isExplicitlyFocused = isEditorMode ? art.id === selectedArtworkId : focusedArtworkInstanceId === art.id;
 
-              const isProximityFocusedInDark = !isEditorMode && !lightsOn && !focusedArtworkInstanceId && index === focusedIndex && !isRankingMode && !isZeroGravityMode; // NEW: Add !isZeroGravityMode to condition
-
-              // NEW: In editor mode, if lights are off and nothing is selected, highlight the central artwork
-              const isEditorFallbackInDark = isEditorMode && !lightsOn && !selectedArtworkId && art.id === centralArtworkId;
-
-              const isSmartSpotlightActive = (isExplicitlyFocused || isProximityFocusedInDark || isEditorFallbackInDark) && art.type !== 'text_3d';
+              const isSmartSpotlightActive = art.id === activeSpotlightId && art.type !== 'text_3d';
 
               // NEW: Apply a global Y offset for photography artworks to lower them in the scene
               const PHOTOGRAPHY_Y_OFFSET = -1.5;
@@ -811,7 +826,8 @@ const SceneContent: React.FC<SceneProps> = ({
                     thresholdLevel={thresholdLevel}
                     activeZoneId={activeZoneId}
                   />
-                  {!lightsOn && (
+                  {/* OPTIMIZATION: Only mount the spotlight if it's actually active to prevent massive shader recompilation lag when toggling lights */}
+                  {!lightsOn && isSmartSpotlightActive && (
                     <SmartSpotlight
                       isActive={isSmartSpotlightActive}
                       lightsOn={lightsOn}
