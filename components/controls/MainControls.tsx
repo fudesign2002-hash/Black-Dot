@@ -133,15 +133,15 @@ const MainControls: React.FC<MainControlsProps> = React.memo(({
   const hideNextPrevOnSmallScreen = isSmallScreen && (isArtworkFocusedForControls || isZeroGravityMode);
   const nextPrevAnimationClasses = `transition-all duration-500 ease-out ${hideNextPrevOnSmallScreen ? 'opacity-0 translate-x-full pointer-events-none' : 'opacity-100 translate-x-0'}`;
 
-  // NEW: Logic for conditional divider rendering
-  // MODIFIED: Determine effective sandbox mode status
-  // In our unified logic, the isSandboxMode prop already represents the effective sandbox state (URL or Auto).
-  const showAsSandbox = !!isSandboxMode && !isSignedIn;
+  // NEW: Determine if artwork controls should be visible
+  // MODIFIED: showAsSandbox no longer requires !isSignedIn — sandbox button should
+  // always appear when sandbox mode is active, regardless of auth state or embed mode.
+  const showAsSandbox = !!isSandboxMode;
   
   const hasLightsToggle = !isRankingMode && !isZeroGravityMode && !hideLightsControl; 
   // MODIFIED: Hide editor mode toggle if in zero gravity mode. Now uses MapIcon and opens editor directly.
   // NEW: Allow editor toggle if in sandbox mode even if not signed in
-  // MODIFIED: Sandbox icon now shows up in embed mode if explicitly requested
+  // MODIFIED: Sandbox icon shows in embed mode when sandbox is active (whitelist exception)
   const hasEditorModeToggle = !isRankingMode && !isZeroGravityMode && (showAsSandbox || (!!isSignedIn && !isEmbed));
   // Determine right-side buttons based on their visibility conditions
   // REMOVED: DevTools toggle button as it is now controlled via hotkey only

@@ -60,7 +60,8 @@ export const useMuseumState = (
   ownerUid?: string | null, 
   authResolved: boolean = true, 
   initialExhibitionId?: string | null,
-  isSandboxMode: boolean = false // NEW: Support sandbox mode
+  isSandboxMode: boolean = false, // NEW: Support sandbox mode
+  embedSandboxExhibitionIds?: string[] // EXCEPTION: Exhibition doc IDs that always get sandbox in embed
 ) => {
   const [rawExhibitionDocs, setRawExhibitionDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
   const [rawArtworkDocs, setRawArtworkDocs] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[]>([]);
@@ -289,7 +290,8 @@ export const useMuseumState = (
     // MODIFIED: Automatically enable sandbox features if the flag is set (consistent with effectiveSandbox)
     // Note: We don't use the effectiveSandbox memo here yet because it is defined below this memo.
     // For consistency, we use the same inline logic.
-    const isAutoSandbox = !ownerUid && exhibition.status === 'past';
+    const isAutoSandbox = (!ownerUid && exhibition.status === 'past') ||
+      (embedSandboxExhibitionIds?.includes(initialExhibitionId ?? '') ?? false);
     const currentEffectiveSandbox = isSandboxMode || isAutoSandbox;
     
     if (currentEffectiveSandbox && exhibition.id !== 'fallback_id' && zone.id !== 'fallback_zone_id') {
@@ -311,12 +313,16 @@ export const useMuseumState = (
     }
 
     return { activeExhibition: exhibition, activeZone: zone };
-  }, [isLoading, exhibitions, zones, currentIndex, isSandboxMode, sandboxVersion, ownerUid]);
+  }, [isLoading, exhibitions, zones, currentIndex, isSandboxMode, sandboxVersion, ownerUid, embedSandboxExhibitionIds]);
   
-  // NEW: Unified sandbox mode detection logic (identical to App.tsx)
+  // NEW: Unified sandbox mode detection logic
+  // embedSandboxExhibitionIds is checked against initialExhibitionId (the session's starting
+  // Firestore doc ID) so sandbox stays active for the whole embed session even after navigation.
   const effectiveSandbox = useMemo(() => {
-    return isSandboxMode || (!ownerUid && activeExhibition.status === 'past');
-  }, [isSandboxMode, ownerUid, activeExhibition.status]);
+    return isSandboxMode ||
+      (!ownerUid && activeExhibition.status === 'past') ||
+      (embedSandboxExhibitionIds?.includes(initialExhibitionId ?? '') ?? false);
+  }, [isSandboxMode, ownerUid, activeExhibition.status, initialExhibitionId, embedSandboxExhibitionIds]);
 
   const lightingConfig = useMemo((): SimplifiedLightingConfig => {
     const baseConfig = { ...DEFAULT_SIMPLIFIED_LIGHTING_CONFIG, ...activeZone.lightingDesign.defaultConfig };

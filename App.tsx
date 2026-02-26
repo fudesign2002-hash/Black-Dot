@@ -41,6 +41,12 @@ interface SceneRipple {
 // NEW: Define remote URL for effect bundle
 const REMOTE_EFFECT_BUNDLE_URL = "https://firebasestorage.googleapis.com/v0/b/blackdot-1890a.firebasestorage.app/o/effect_bundles%2Feffect_bundle.js?alt=media";
 
+// EXCEPTION: Exhibition IDs that should activate sandbox mode when viewed in embed mode,
+// regardless of ownership or status. See README for full sandbox activation rules.
+const SANDBOX_EMBED_EXHIBITION_IDS: string[] = [
+  'bauhaus-blueprint-qevdv', // fu-design.com permanent embed
+];
+
 // NEW: Define FloorPlanEditor once at top level to avoid remounting issues
 const FloorPlanEditorLazy = React.lazy(() => import('./components/editor/FloorPlanEditor'));
 
@@ -253,7 +259,8 @@ function MuseumApp({
     ownerOverrideUid || user?.uid, 
     isIdentityResolved, 
     initialExhibitionId,
-    isSandboxMode // Pass only the URL-based flag
+    isSandboxMode, // URL ?sandbox=true flag
+    embedMode ? SANDBOX_EMBED_EXHIBITION_IDS : undefined // EXCEPTION: embed whitelist by Firestore doc ID
   ); // Pass initialExhibitionId to hook
 
   // NEW: Update page title and URL dynamically based on active exhibition
