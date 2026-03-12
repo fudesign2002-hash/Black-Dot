@@ -64,6 +64,41 @@ export default async function handler(req, res) {
     // 將 set 轉回陣列
     const artworkIds = Array.from(artworkIdsSet);
     
+    // ======== 加入 UMAMI 數據撈取 (可選) ========
+    let umamiStats = null;
+    try {
+      const UMAMI_API_KEY = process.env.UMAMI_API_KEY || process.env.UMAMI_API_TOKEN;
+      const UMAMI_ENDPOINT = process.env.UMAMI_API_CLIENT_ENDPOINT || process.env.UMAMI_BASE_URL || 'https://api.umami.is/v1';
+      const UMAMI_WID = process.env.UMAMI_WEBSITE_ID || '20b3507a-02cd-4fc4-a8e0-2f360e6002d0'; // 專案預設或抓取環境變數
+      
+      if (UMAMI_API_KEY) {
+        // 設定大範圍時間，取得從以前到現在的觀看次數
+        const endAt = Date.now();
+        const startAt = endAt - (365 * 24 * 60 * 60 * 1000); // 過去一年
+        
+        // 此展覽在前端的路徑為 /exhibition/{id}
+        const targetPath = `/exhibition/${id}`;
+        // 依照 Umami API 要求帶入 query string
+        const url = `${UMAMI_ENDPOINT.replace(/\/$/, '')}/websites/${UMAMI_WID}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(targetPath)}`;
+
+        const umamiRes = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-umami-api-key': UMAMI_API_KEY
+          }
+        });
+        
+        if (umamiRes.ok) {
+          umamiStats = await umamiRes.json();
+        } else {
+           console.warn('Umami fetch failed:', await umamiRes.text());
+        }
+      }
+    } catch (umamiErr) {
+      console.warn('Umami stats error:', umamiErr);
+    }
+    // ===========================================
+    
     // 為了小冊子而準備的 artworks 陣列
     let artworks = [];
 
@@ -82,6 +117,7 @@ export default async function handler(req, res) {
               id: artDocSnap.id,
               title: artData.title || 'Untitled',
               artist: artData.artist || '',
+              artistInfo: artData.artist_info || artData.artistBio || '', // 擴充：加入藝術家生平或介紹
               type: artData.artwork_type || 'unknown',
               materials: artData.materials || '',
               medium: artData.artwork_medium || '',
@@ -89,8 +125,8 @@ export default async function handler(req, res) {
               dimensions: artData.artwork_dimensions || '',
               file: artData.file || '',
               artworkFile: artData.artwork_file || '',
-              description: artData.description || '', // 如果有簡介的話
-              // 可以加其他的只要不是 3D 定位
+              description: artData.description || artData.artwork_description || '', // 擴充：加強敘述的讀取
+              digitalSize: artData.digitalSize || '', // 擴充：數位檔案大小等額外資訊
             };
           }
         } catch (err) {
@@ -119,6 +155,7 @@ export default async function handler(req, res) {
         admission: data.admission || '',
         dates: data.dates || ''
       },
+      stats: umamiStats, // 將 Umami 數據同捆回傳給前端
       artworks: artworks
     });
 
