@@ -1,7 +1,11 @@
 
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+<<<<<<< Updated upstream
 import { X, Check, Sun, Map, Brush, Settings, Camera, SquarePen } from 'lucide-react';
+=======
+import { X, Check, Sun, Map, Brush, Settings, Camera, SquarePen, RotateCcw, FileText, Loader2 } from 'lucide-react';
+>>>>>>> Stashed changes
 import { SimplifiedLightingConfig, ExhibitionArtItem, ZoneLightingDesign, FirebaseArtwork, ArtworkData, Exhibition, EffectRegistryType } from '../../types';
 import LightingTab from './LightingTab';
 import LayoutTab from './LayoutTab';
@@ -113,6 +117,60 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragStateRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number } | null>(null);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  // NEW: AI Agent Generation State
+  const [isGeneratingAiReport, setIsGeneratingAiReport] = useState(false);
+
+  const handleGenerateAiReport = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isGeneratingAiReport) return;
+    
+    setIsGeneratingAiReport(true);
+    try {
+      // 1. Capture screen
+      const canvas = document.querySelector('canvas');
+      let imageBase64 = null;
+      if (canvas) {
+        imageBase64 = canvas.toDataURL('image/png', 0.8);
+      }
+
+      // 2. Prepare payload
+      const exhibitInfo = {
+        id: activeExhibition?.id,
+        title: activeExhibition?.title || "Untitled Exhibition",
+        artist: activeExhibition?.artist || "Unknown Curator",
+      };
+      
+      const payload = {
+        exhibitInfo,
+        userPrompt: "Generate a professional curatorial report for this scene.",
+        imageBase64
+      };
+
+      // 3. Request AI
+      const res = await fetch('http://localhost:8080/api/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      if (data.pdfBase64) {
+        // Create download link for PDF
+        const a = document.createElement('a');
+        a.href = data.pdfBase64;
+        a.download = `AI_Report_${activeExhibition?.title || 'Exhibit'}.pdf`;
+        a.click();
+      } else {
+        alert("Failed to generate PDF");
+      }
+    } catch(err) {
+       console.error("AI Report Error:", err);
+       alert("Error generating report. Check console and local agent server.");
+    } finally {
+      setIsGeneratingAiReport(false);
+    }
+  };
 
   const { lightsOn } = uiConfig;
 
@@ -275,6 +333,28 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                  <Check size={14} />
                  <span className="text-[10px] font-bold uppercase tracking-widest">Saved</span>
               </div>
+              
+              {/* NEW: AI Agent Challenge CTA Button */}
+              <button 
+                onClick={handleGenerateAiReport}
+                disabled={isGeneratingAiReport}
+                className={`ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                  isGeneratingAiReport 
+                    ? 'bg-neutral-500/20 text-neutral-400 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-500 shadow-[0_0_10px_rgba(37,99,235,0.5)]'
+                }`}
+                title="Generate Exhibition PDF Report (AI Agent)"
+              >
+                 {isGeneratingAiReport ? (
+                   <>
+                     <Loader2 size={12} className="animate-spin" /> Generating...
+                   </>
+                 ) : (
+                   <>
+                     <FileText size={12} /> AI Report
+                   </>
+                 )}
+              </button>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-neutral-500/20 rounded-lg transition-colors cursor-pointer flex-shrink-0"><X size={18} className="opacity-60" /></button>
         </div>
