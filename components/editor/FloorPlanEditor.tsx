@@ -1,11 +1,7 @@
 
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-<<<<<<< Updated upstream
-import { X, Check, Sun, Map, Brush, Settings, Camera, SquarePen } from 'lucide-react';
-=======
 import { X, Check, Sun, Map, Brush, Settings, Camera, SquarePen, RotateCcw, FileText, Loader2 } from 'lucide-react';
->>>>>>> Stashed changes
 import { SimplifiedLightingConfig, ExhibitionArtItem, ZoneLightingDesign, FirebaseArtwork, ArtworkData, Exhibition, EffectRegistryType } from '../../types';
 import LightingTab from './LightingTab';
 import LayoutTab from './LayoutTab';
