@@ -347,7 +347,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({
                    </>
                  ) : (
                    <>
-                     <FileText size={12} /> AI Report
+                     <FileText size={12} /> Exhibit Flyer Agent
                    </>
                  )}
               </button>
