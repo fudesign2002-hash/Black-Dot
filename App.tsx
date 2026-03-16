@@ -133,9 +133,10 @@ function MuseumApp({
   // Identity resolution status: resolved once auth is determined, and for signed-in users, once team logic completes.
   const isIdentityResolved = useMemo(() => {
     if (!authResolved) return false;
+    if (embedMode) return true; // Treat embed mode as guest immediately
     if (user && !user.isAnonymous && ownerOverrideUid === null) return false;
     return true;
-  }, [authResolved, user, ownerOverrideUid]);
+  }, [authResolved, user, ownerOverrideUid, embedMode]);
 
   const isSignedIn = Boolean(user && !user.isAnonymous && (user.providerData && user.providerData.length > 0));
 
@@ -256,7 +257,7 @@ function MuseumApp({
     effectiveSandbox: effectiveSandboxMode, // NEW: Receive unified sandbox flag from hook
   } = useMuseumState(
     isSnapshotEnabledGlobally, 
-    ownerOverrideUid || user?.uid, 
+    embedMode ? null : (ownerOverrideUid || user?.uid), 
     isIdentityResolved, 
     initialExhibitionId,
     isSandboxMode, // URL ?sandbox=true flag
@@ -2335,7 +2336,7 @@ function MuseumApp({
             onResetSandbox={handleResetSandbox}
             isSandboxMode={effectiveSandboxMode}
             onArtworkLiftedChange={setIsArtworkLifted} // NEW: Pass callback to update artwork lifted state
-            ownerId={ownerOverrideUid || user?.uid}
+            ownerId={embedMode ? null : (ownerOverrideUid || user?.uid)}
           />
         </Suspense>
       )}
