@@ -207,10 +207,10 @@ const SceneContent: React.FC<SceneProps> = ({
     };
   }, [focusedArtworkInstanceId, artworks]);
 
-  const lightBgColor = useMemo(() => new THREE.Color("#e4e4e4"), []);
+  const lightBgColor = useMemo(() => new THREE.Color("#ffffff"), []);
   const darkBgColor = useMemo(() => new THREE.Color("#000000"), []);
   // overlay mesh will be used instead of changing scene.background to black
-  const lightFloorColor = useMemo(() => new THREE.Color("#eeeeee"), []);
+  const lightFloorColor = useMemo(() => new THREE.Color("#f8f7f7"), []);
   const darkFloorColor = useMemo(() => new THREE.Color("#000000"), []);
   // NOTE: These four values are the canonical initial color settings
   // - lightBgColor / lightFloorColor: used as defaults when lights are ON
