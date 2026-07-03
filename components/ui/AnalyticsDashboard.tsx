@@ -69,9 +69,20 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   
   const [umamiEvents, setUmamiEvents] = useState<any[] | null>(null);
   const [copied, setCopied] = useState(false);
+  const [proxyError, setProxyError] = useState<string | null>(null);
 
   const exhibitionId = exhibition.id;
   const exhibitionTitle = exhibition.title || '';
+  const umamiEmbedRaw = (import.meta.env.VITE_UMAMI_EMBED_URL || '').trim();
+  const [analyticsMode, setAnalyticsMode] = useState<'native' | 'umami'>(umamiEmbedRaw ? 'umami' : 'native');
+  const resolvedUmamiEmbedUrl = useMemo(() => {
+    if (!umamiEmbedRaw || !exhibitionId) return '';
+
+    const encodedId = encodeURIComponent(exhibitionId);
+    return umamiEmbedRaw
+      .replaceAll('{exhibitionId}', encodedId)
+      .replaceAll('{id}', encodedId);
+  }, [umamiEmbedRaw, exhibitionId]);
 
   // NEW: Fetch Umami Analytics data
   useEffect(() => {
@@ -79,6 +90,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
     const fetchUmamiData = async () => {
       setIsLoading(true);
+      setProxyError(null);
       // Reset previous data so we don't see it while loading
       setUmamiStats(null);
       setUmamiEvents(null);
@@ -110,6 +122,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         if (statsRes.ok) {
           const stats = await statsRes.json();
           setUmamiStats(stats);
+        } else {
+          const details = await statsRes.text();
+          setProxyError(details || `Umami proxy failed (${statsRes.status})`);
         }
 
         // Fetch metrics in parallel
@@ -166,6 +181,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         }
       } catch (err) {
         console.error('[Analytics] Failed to fetch Umami data:', err);
+        setProxyError(err instanceof Error ? err.message : 'Unknown analytics error');
       } finally {
         setIsLoading(false);
       }
@@ -330,6 +346,23 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
             
             <div className="flex items-center gap-3">
+              {resolvedUmamiEmbedUrl && (
+                <div className={`flex items-center rounded-full border ${border} p-1 ${lightsOn ? 'bg-neutral-100/60' : 'bg-neutral-800/40'}`}>
+                  <button
+                    onClick={() => setAnalyticsMode('native')}
+                    className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors ${analyticsMode === 'native' ? 'bg-orange-500 text-white' : `${text} opacity-60 hover:opacity-100`}`}
+                  >
+                    Native
+                  </button>
+                  <button
+                    onClick={() => setAnalyticsMode('umami')}
+                    className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors ${analyticsMode === 'umami' ? 'bg-orange-500 text-white' : `${text} opacity-60 hover:opacity-100`}`}
+                  >
+                    Umami
+                  </button>
+                </div>
+              )}
+
               <div className={`flex items-center gap-2 px-3 py-1.5 bg-neutral-100/50 dark:bg-neutral-800/50 rounded-lg border ${border}`}>
                 <span className={`text-[9px] font-bold ${subtext} opacity-50 uppercase tracking-widest`}>ID:</span>
                 <span className={`text-[9px] font-mono font-bold ${text}`}>{exhibitionId.toUpperCase()}</span>
@@ -370,7 +403,60 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
         {/* Scrollable Body - Reduced padding further */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
-          <div className="max-w-[1240px] mx-auto space-y-4">
+          {analyticsMode === 'umami' && resolvedUmamiEmbedUrl && (
+            <div className="max-w-[1240px] mx-auto">
+              <div className={`p-4 md:p-6 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/20'} space-y-4`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Embedded Analytics</h3>
+                    <p className={`text-lg font-serif ${text}`}>Umami Dashboard</p>
+                  </div>
+                  <a
+                    href={resolvedUmamiEmbedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${border} text-[10px] font-bold uppercase tracking-widest ${text} hover:opacity-80`}
+                  >
+                    Open Full Umami
+                    <ExternalLink size={12} strokeWidth={1.5} />
+                  </a>
+                </div>
+
+                <div className="w-full h-[75vh] min-h-[540px] rounded-lg overflow-hidden border border-neutral-200/70 dark:border-neutral-700/70">
+                  <iframe
+                    src={resolvedUmamiEmbedUrl}
+                    title="Umami Analytics"
+                    className="w-full h-full"
+                    loading="lazy"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                </div>
+
+                {proxyError && (
+                  <p className={`text-[11px] ${subtext} opacity-80`}>
+                    Native analytics proxy error: {proxyError}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className={`max-w-[1240px] mx-auto ${analyticsMode === 'umami' && resolvedUmamiEmbedUrl ? 'hidden' : 'space-y-4'}`}>
+            {proxyError && (
+              <div className={`p-3 rounded-lg border ${border} ${lightsOn ? 'bg-amber-50 text-amber-900' : 'bg-amber-900/20 text-amber-200'}`}>
+                <p className="text-[11px] font-medium">
+                  Analytics proxy unavailable: {proxyError}
+                </p>
+                {resolvedUmamiEmbedUrl && (
+                  <button
+                    onClick={() => setAnalyticsMode('umami')}
+                    className="mt-2 text-[10px] font-bold uppercase tracking-widest underline"
+                  >
+                    Switch to Umami embed
+                  </button>
+                )}
+              </div>
+            )}
             
             {/* Exhibition Info Overview - More Concise 4-column */}
             <div className={`p-4 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/20'} grid grid-cols-2 md:grid-cols-4 gap-4 relative overflow-hidden`}>
