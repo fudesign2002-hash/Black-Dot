@@ -5,8 +5,6 @@ import Chart from 'chart.js/auto';
 import { X, BarChart2, Users, MousePointer2, TrendingUp, Copy, Check, ExternalLink, Activity, PieChart, Map as MapIcon, ArrowUpRight, ArrowDownRight, Calendar, MapPin, Clock, Ticket, Sparkles, Eye, Trophy, Orbit, ListOrdered, Sun, Image as ImageIcon, Monitor, Smartphone, Globe, Info } from 'lucide-react';
 import { Exhibition, ExhibitionArtItem, FirebaseArtwork } from '../../types'; // NEW: Import types
 import BlackDotLogo from './BlackDotLogo'; // NEW: Import Logo
-import TrafficTrendChart from './TrafficTrendChart';
-import { fetchUmamiProxy } from '../../utils/apiUtils';
 import { countryCodeToFlag, getCountryName } from '../../utils/locationUtils';
 
 interface AnalyticsDashboardProps {
@@ -69,12 +67,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   
   const [umamiEvents, setUmamiEvents] = useState<any[] | null>(null);
   const [copied, setCopied] = useState(false);
-  const [proxyError, setProxyError] = useState<string | null>(null);
 
   const exhibitionId = exhibition.id;
   const exhibitionTitle = exhibition.title || '';
   const umamiEmbedRaw = (import.meta.env.VITE_UMAMI_EMBED_URL || '').trim();
-  const [analyticsMode, setAnalyticsMode] = useState<'native' | 'umami'>(umamiEmbedRaw ? 'umami' : 'native');
   const resolvedUmamiEmbedUrl = useMemo(() => {
     if (!umamiEmbedRaw || !exhibitionId) return '';
 
@@ -86,109 +82,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
   // NEW: Fetch Umami Analytics data
   useEffect(() => {
-    if (!isOpen || !exhibitionId) return;
+    if (!isOpen) return;
 
-    const fetchUmamiData = async () => {
-      setIsLoading(true);
-      setProxyError(null);
-      // Reset previous data so we don't see it while loading
-      setUmamiStats(null);
-      setUmamiEvents(null);
-      setTechStats({ devices: [], browsers: [], screens: [] });
-      setLocationStats({ countries: [], regions: [], cities: [] });
-
-      // Get user timezone and calculate start of current day (local midnight)
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const startOfTodayMs = today.getTime();
-
-      const timeRangeMs = {
-        '24H': 0, // startAt will be midnight today
-        '7D': 6 * 24 * 60 * 60 * 1000,
-        '30D': 29 * 24 * 60 * 60 * 1000,
-        '90D': 89 * 24 * 60 * 60 * 1000,
-        '12M': 364 * 24 * 60 * 60 * 1000,
-      }[timeRange as string] || 0;
-
-      const now = Date.now();
-      const startTimestamp = startOfTodayMs - timeRangeMs;
-      // Pass timezone to the proxy
-      const commonParams = `&exhibitionId=${exhibitionId}&start=${startTimestamp}&end=${now}&timezone=${encodeURIComponent(userTimezone)}&_t=${now}`;
-
-      try {
-        // Fetch summary stats
-        const statsRes = await fetchUmamiProxy(`?type=stats${commonParams}`);
-        if (statsRes.ok) {
-          const stats = await statsRes.json();
-          setUmamiStats(stats);
-        } else {
-          const details = await statsRes.text();
-          setProxyError(details || `Umami proxy failed (${statsRes.status})`);
-        }
-
-        // Fetch metrics in parallel
-        const [deviceRes, browserRes, screenRes, eventRes, countryRes, regionRes, cityRes] = await Promise.all([
-          fetchUmamiProxy(`?type=metrics&metric=device${commonParams}`),
-          fetchUmamiProxy(`?type=metrics&metric=browser${commonParams}`),
-          fetchUmamiProxy(`?type=metrics&metric=screen${commonParams}`),
-          fetchUmamiProxy(`?type=metrics&metric=event${commonParams}`),
-          fetchUmamiProxy(`?type=metrics&metric=country${commonParams}`),
-          fetchUmamiProxy(`?type=metrics&metric=region${commonParams}`),
-          fetchUmamiProxy(`?type=metrics&metric=city${commonParams}`)
-        ]);
-
-        const [devices, browsers, screens, events, countries, regions, cities] = await Promise.all([
-          deviceRes.ok ? deviceRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
-          browserRes.ok ? browserRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
-          screenRes.ok ? screenRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
-          eventRes.ok ? eventRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
-          countryRes.ok ? countryRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
-          regionRes.ok ? regionRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
-          cityRes.ok ? cityRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([])
-        ]);
-
-        setUmamiEvents(events);
-        setLocationStats({ 
-          countries: Array.isArray(countries) ? countries : [], 
-          regions: Array.isArray(regions) ? regions : [], 
-          cities: Array.isArray(cities) ? cities : [] 
-        });
-
-        // Fallback: If device distribution is empty, try OS distribution
-        if (Array.isArray(devices) && devices.length === 0) {
-          const osRes = await fetchUmamiProxy(`?type=metrics&metric=os${commonParams}`);
-          if (osRes.ok) {
-            const osData = await osRes.json();
-            setTechStats({ 
-              devices: Array.isArray(osData) ? osData : [], 
-              browsers: Array.isArray(browsers) ? browsers : [], 
-              screens: Array.isArray(screens) ? screens : [] 
-            });
-          } else {
-            setTechStats({ 
-              devices: [], 
-              browsers: Array.isArray(browsers) ? browsers : [], 
-              screens: Array.isArray(screens) ? screens : [] 
-            });
-          }
-        } else {
-          setTechStats({ 
-            devices: Array.isArray(devices) ? devices : [], 
-            browsers: Array.isArray(browsers) ? browsers : [], 
-            screens: Array.isArray(screens) ? screens : [] 
-          });
-        }
-      } catch (err) {
-        console.error('[Analytics] Failed to fetch Umami data:', err);
-        setProxyError(err instanceof Error ? err.message : 'Unknown analytics error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUmamiData();
-  }, [isOpen, exhibitionId, timeRange, exhibitionTitle]);
+    // Analytics page is embed-only: disable native Umami proxy/API path.
+    setIsLoading(false);
+    setUmamiStats(null);
+    setUmamiEvents(null);
+    setTechStats({ devices: [], browsers: [], screens: [] });
+    setLocationStats({ countries: [], regions: [], cities: [] });
+  }, [isOpen]);
 
   useEffect(() => {
     setMounted(true);
@@ -347,19 +249,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             
             <div className="flex items-center gap-3">
               {resolvedUmamiEmbedUrl && (
-                <div className={`flex items-center rounded-full border ${border} p-1 ${lightsOn ? 'bg-neutral-100/60' : 'bg-neutral-800/40'}`}>
-                  <button
-                    onClick={() => setAnalyticsMode('native')}
-                    className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors ${analyticsMode === 'native' ? 'bg-orange-500 text-white' : `${text} opacity-60 hover:opacity-100`}`}
-                  >
-                    Native
-                  </button>
-                  <button
-                    onClick={() => setAnalyticsMode('umami')}
-                    className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full transition-colors ${analyticsMode === 'umami' ? 'bg-orange-500 text-white' : `${text} opacity-60 hover:opacity-100`}`}
-                  >
-                    Umami
-                  </button>
+                <div className={`px-3 py-1 rounded-full border ${border} ${lightsOn ? 'bg-neutral-100/60' : 'bg-neutral-800/40'}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${text} opacity-70`}>
+                    Umami Embed Mode
+                  </span>
                 </div>
               )}
 
@@ -403,25 +296,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
         {/* Scrollable Body - Reduced padding further */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
-          {analyticsMode === 'umami' && resolvedUmamiEmbedUrl && (
+          {resolvedUmamiEmbedUrl && (
             <div className="max-w-[1240px] mx-auto">
-              <div className={`p-4 md:p-6 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/20'} space-y-4`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-60`}>Embedded Analytics</h3>
-                    <p className={`text-lg font-serif ${text}`}>Umami Dashboard</p>
-                  </div>
-                  <a
-                    href={resolvedUmamiEmbedUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${border} text-[10px] font-bold uppercase tracking-widest ${text} hover:opacity-80`}
-                  >
-                    Open Full Umami
-                    <ExternalLink size={12} strokeWidth={1.5} />
-                  </a>
-                </div>
-
+              <div className={`p-4 md:p-6 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/20'}`}>
                 <div className="w-full h-[75vh] min-h-[540px] rounded-lg overflow-hidden border border-neutral-200/70 dark:border-neutral-700/70">
                   <iframe
                     src={resolvedUmamiEmbedUrl}
@@ -431,32 +308,16 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     referrerPolicy="strict-origin-when-cross-origin"
                   />
                 </div>
-
-                {proxyError && (
-                  <p className={`text-[11px] ${subtext} opacity-80`}>
-                    Native analytics proxy error: {proxyError}
-                  </p>
-                )}
               </div>
             </div>
           )}
 
-          <div className={`max-w-[1240px] mx-auto ${analyticsMode === 'umami' && resolvedUmamiEmbedUrl ? 'hidden' : 'space-y-4'}`}>
-            {proxyError && (
-              <div className={`p-3 rounded-lg border ${border} ${lightsOn ? 'bg-amber-50 text-amber-900' : 'bg-amber-900/20 text-amber-200'}`}>
-                <p className="text-[11px] font-medium">
-                  Analytics proxy unavailable: {proxyError}
-                </p>
-                {resolvedUmamiEmbedUrl && (
-                  <button
-                    onClick={() => setAnalyticsMode('umami')}
-                    className="mt-2 text-[10px] font-bold uppercase tracking-widest underline"
-                  >
-                    Switch to Umami embed
-                  </button>
-                )}
-              </div>
-            )}
+          <div className={`max-w-[1240px] mx-auto ${resolvedUmamiEmbedUrl ? 'hidden' : 'space-y-4'}`}>
+            <div className={`p-3 rounded-lg border ${border} ${lightsOn ? 'bg-amber-50 text-amber-900' : 'bg-amber-900/20 text-amber-200'}`}>
+              <p className="text-[11px] font-medium">
+                Analytics is now embed-only. Set VITE_UMAMI_EMBED_URL in .env.local to enable this page.
+              </p>
+            </div>
             
             {/* Exhibition Info Overview - More Concise 4-column */}
             <div className={`p-4 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/20'} grid grid-cols-2 md:grid-cols-4 gap-4 relative overflow-hidden`}>
@@ -602,7 +463,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
               {/* Traffic Trend Chart */}
               <div className="lg:col-span-8 h-full">
-                <TrafficTrendChart exhibitionId={exhibitionId} uiConfig={{ lightsOn, text, subtext, border }} />
+                <div className={`p-6 rounded-xl border ${border} ${lightsOn ? 'bg-white' : 'bg-neutral-800/10'} flex items-center justify-center h-full min-h-[400px]`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${subtext} opacity-50`}>
+                    Umami Embed Mode (Native proxy disabled)
+                  </span>
+                </div>
               </div>
             </div>
 
