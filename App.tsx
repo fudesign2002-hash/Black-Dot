@@ -359,13 +359,30 @@ function MuseumApp({
       }
       const jsCode = await response.text();
 
+      // Safety scan: avoid executing bundles that contain messaging listeners
+      // or extension-specific APIs which can cause the message-channel error
+      // (e.g. chrome.runtime.onMessage handlers returning true without sendResponse)
+      const unsafePatterns = [
+        /chrome\.runtime/i,
+        /browser\.runtime/i,
+        /addEventListener\('\s*message\s*'/i,
+        /addEventListener\(\"\s*message\s*\"/i,
+        /onMessage\s*\(/i,
+        /postMessage\s*\(/i,
+        /return\s+true\s*;/i
+      ];
+
+      const foundUnsafe = unsafePatterns.some((re) => re.test(jsCode));
+      if (foundUnsafe) {
+        throw new Error('Remote effect bundle contains unsupported messaging APIs; load aborted for safety.');
+      }
+
       const blob = new Blob([jsCode], { type: 'application/javascript' });
       const objectUrl = URL.createObjectURL(blob);
 
       // Dynamically import the module
       const module = await import(/* @vite-ignore */ objectUrl);
       setEffectRegistry(module.EffectRegistry);
-      // console.log("EffectRegistry loaded dynamically:", module.EffectRegistry);
 
       URL.revokeObjectURL(objectUrl); // Clean up the object URL
     } catch (error: any) {
