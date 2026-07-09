@@ -366,9 +366,6 @@ const CanvasExhibit: React.FC<CanvasExhibitProps> = ({ orientation, textureUrl, 
               height="100%"
               frameBorder="0"
               allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; accelerometer; gyroscope"
-              allowFullScreen
-              webkitallowfullscreen="true"
-              mozallowfullscreen="true"
               style={{ display: 'block', position: 'absolute', top: 0, left: 0 }}
               title="Embedded video player"
               aria-label="Embedded video player"
