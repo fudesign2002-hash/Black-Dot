@@ -19,9 +19,11 @@ interface HeaderProps {
   activeExhibition?: any;
   showCelebration?: boolean; // NEW: Add showCelebration prop
   testOnlineCount?: number | null; // NEW: Add testOnlineCount prop
+  isHidden?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, hideUserCount, hideLogo, zoneCapacity, isEmbed = false, useExhibitionBackground = false, activeExhibition = null, showCelebration = false, testOnlineCount = null }) => {
+const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpen, isSmallScreen, isHeaderExpanded, setIsHeaderExpanded, onlineUsers, hideUserCount, hideLogo, zoneCapacity, isEmbed = false, useExhibitionBackground = false, activeExhibition = null, showCelebration = false, testOnlineCount = null, isHidden = false }) => {
+  if (isHidden) return null;
   const treatAsCompact = isSmallScreen || isEmbed;
   const handleLogoClick = () => {
     setIsHeaderExpanded(!isHeaderExpanded);
@@ -164,7 +166,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
   return (
     <React.Fragment>
       {!hideLogo && (
-        <div className={`fixed ${treatAsCompact ? 'top-6 right-6' : 'top-10 right-10'} z-40 select-none transition-opacity duration-500 py-4 ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
+        <div className={`fixed ${treatAsCompact ? 'top-4 right-6' : 'top-7 right-10'} z-40 select-none transition-opacity duration-500 py-1 ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
           <div className={innerFlexContainerClasses} style={headerColorStyle}>
               <div className={`relative ${isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <div className="overflow-hidden">

@@ -88,6 +88,7 @@ function MuseumApp({
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(initialAnalyticsOpen); // NEW: State for analytics
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
+  const [isUiHidden, setIsUiHidden] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [isCurrentExhibitionInfoHidden, setIsCurrentExhibitionInfoHidden] = useState(false);
   const [isCameraAtDefaultPosition, setIsCameraAtDefaultPosition] = useState(true); // NEW: State for camera position
@@ -738,6 +739,21 @@ function MuseumApp({
     window.addEventListener('resize', checkScreenSize);
 
     return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isModifierPressed = event.metaKey || event.ctrlKey;
+      const isDotPressed = event.key === '.' || event.code === 'Period';
+
+      if (isModifierPressed && isDotPressed) {
+        event.preventDefault();
+        setIsUiHidden(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Pusher instance and subscription refs
@@ -2108,7 +2124,7 @@ function MuseumApp({
     <React.Fragment>
       <TransitionOverlay isTransitioning={showGlobalOverlay} message={transitionMessage} />
 
-      {!embedMode && <TopLeftLogout user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} onRequestCloseInfo={() => { try { setIsInfoOpen(false); } catch (e) {} }} />}
+      {!embedMode && <TopLeftLogout isHidden={isUiHidden} user={user} onLogout={handleLogout} onSignIn={(curatorUid) => setOwnerOverrideUid(curatorUid || null)} onRequestCloseInfo={() => { try { setIsInfoOpen(false); } catch (e) {} }} />}
 
       <React.Fragment>
         <Scene
@@ -2188,14 +2204,15 @@ function MuseumApp({
         isHeaderExpanded={isHeaderExpanded}
         setIsHeaderExpanded={setIsHeaderExpanded}
         onlineUsers={currentExhibitOnlineUsers}
-        hideUserCount={hideUserCount}
-        hideLogo={hideLogo}
+        hideUserCount={hideUserCount || isUiHidden}
+        hideLogo={hideLogo || isUiHidden}
         zoneCapacity={activeExhibition?.exhibit_capacity || 100}
         isEmbed={!!embedMode}
         useExhibitionBackground={lightingConfig.useExhibitionBackground || false}
         activeExhibition={activeExhibition}
         showCelebration={showCelebration}
         testOnlineCount={testOnlineCount}
+        isHidden={isUiHidden}
       />
 
       {!hideExhibitInfo && (
@@ -2238,7 +2255,8 @@ function MuseumApp({
         isSmallScreen={isSmallScreen}
         isArtworkFocusedForControls={isArtworkFocusedForControls}
         isRankingMode={isRankingMode}
-        isZeroGravityMode={isZeroGravityMode} // NEW: Pass isZeroGravityMode
+        isZeroGravityMode={isZeroGravityMode}
+        isHidden={isUiHidden}
         />
       )}
 

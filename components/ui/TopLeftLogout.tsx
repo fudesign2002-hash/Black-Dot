@@ -9,9 +9,11 @@ interface Props {
   onLogout?: () => void;
   onSignIn?: (teamCuratorUid?: string | null) => void;
   onRequestCloseInfo?: () => void; // optional callback to request closing the InfoPanel
+  isHidden?: boolean;
 }
 
-export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestCloseInfo }: Props) {
+export default function TopLeftLogout({ user, onLogout, onSignIn, onRequestCloseInfo, isHidden = false }: Props) {
+  if (isHidden) return null;
   const [open, setOpen] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
