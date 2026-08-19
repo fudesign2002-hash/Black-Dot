@@ -185,8 +185,20 @@ function MuseumApp({
   const lightingUpdateTimeoutRef = useRef<number | null>(null);
 
   const [onlineUsersPerExhibit, setOnlineUsersPerExhibit] = useState<Record<string, number>>({});
+  // TEMP DEMO ONLY: randomize the visible online count between 300 and 500 until production is restored.
+  const [demoOnlineUsers, setDemoOnlineUsers] = useState<number>(Math.floor(Math.random() * 201) + 300);
+  useEffect(() => {
+    const updateDemoOnlineUsers = () => {
+      setDemoOnlineUsers(Math.floor(Math.random() * 201) + 300);
+    };
 
-  const cameraControlRef = useRef<{ 
+    updateDemoOnlineUsers();
+    const intervalId = window.setInterval(updateDemoOnlineUsers, 4000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const cameraControlRef = useRef<{
     moveCameraToArtwork: (artworkInstanceId: string, position: [number, number, number], rotation: [number, number, number], artworkType: ArtType, isMotionVideo: boolean) => void;
     moveCameraToPrevious: () => void;
     moveCameraToInitial: (customCameraPosition?: [number, number, number]) => void;
@@ -831,8 +843,9 @@ function MuseumApp({
   }, [activeExhibition?.id]);
 
   const currentExhibitOnlineUsers = useMemo(() => {
-    return activeExhibition && activeExhibition.id ? (onlineUsersPerExhibit[activeExhibition.id] ?? 0) : 0;
-  }, [activeExhibition?.id, onlineUsersPerExhibit]);
+    // TEMP DEMO ONLY: force a random live count in the 300-500 range for presentation use.
+    return demoOnlineUsers;
+  }, [demoOnlineUsers]);
 
 
   useEffect(() => {
