@@ -190,11 +190,14 @@ function MuseumApp({
   const [demoOnlineUsers, setDemoOnlineUsers] = useState<number>(Math.floor(Math.random() * 201) + 300);
   useEffect(() => {
     const updateDemoOnlineUsers = () => {
-      setDemoOnlineUsers(Math.floor(Math.random() * 201) + 300);
+      setDemoOnlineUsers(current => {
+        const delta = Math.floor(Math.random() * 21) - 10;
+        return Math.max(300, Math.min(500, current + delta));
+      });
     };
 
     updateDemoOnlineUsers();
-    const intervalId = window.setInterval(updateDemoOnlineUsers, 15000);
+    const intervalId = window.setInterval(updateDemoOnlineUsers, 20000);
 
     return () => window.clearInterval(intervalId);
   }, []);
