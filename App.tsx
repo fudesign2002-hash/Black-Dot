@@ -194,7 +194,7 @@ function MuseumApp({
     };
 
     updateDemoOnlineUsers();
-    const intervalId = window.setInterval(updateDemoOnlineUsers, 4000);
+    const intervalId = window.setInterval(updateDemoOnlineUsers, 15000);
 
     return () => window.clearInterval(intervalId);
   }, []);
@@ -280,8 +280,10 @@ function MuseumApp({
   // NEW: Update page title and URL dynamically based on active exhibition
   useEffect(() => {
     if (activeExhibition?.title && activeExhibition.id !== 'fallback_id') {
-      document.title = `Kurodot.io - ${activeExhibition.title}`;
-      
+      const exhibitionTitle = activeExhibition.title || 'Untitled Exhibition';
+      const artistName = activeExhibition.artist || 'Unknown Artist';
+      document.title = `${exhibitionTitle} by ${artistName}`;
+
       // Update URL to match active exhibition logic
       const params = new URLSearchParams(window.location.search);
       const isEmbed = params.get('embed') === 'true';
