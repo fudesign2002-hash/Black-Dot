@@ -152,7 +152,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
   const subtextClass = uiConfig.lightsOn ? 'text-current opacity-70' : uiConfig.subtext;
   const smallUnderlineClass = uiConfig.lightsOn ? 'bg-current opacity-60' : 'bg-neutral-600';
 
-  const innerFlexContainerClasses = `flex items-center gap-6 ${uiConfig.text} transition-all duration-500 ease-out
+  const innerFlexContainerClasses = `flex items-start gap-6 ${uiConfig.text} transition-all duration-500 ease-out
     ${treatAsCompact ? (isHeaderExpanded ? 'justify-start' : 'justify-end') : 'justify-end'}
     `;
 
@@ -162,28 +162,78 @@ const Header: React.FC<HeaderProps> = React.memo(({ uiConfig, version, isInfoOpe
   `;
   
   const logoRotationStyle = isHeaderExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+  const brandLogoSize = treatAsCompact ? 28 : 36;
 
   return (
     <React.Fragment>
       {!hideLogo && (
         <div className={`fixed ${treatAsCompact ? 'top-4 right-6' : 'top-7 right-10'} z-40 select-none transition-opacity duration-500 py-1 ${isInfoOpen ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
           <div className={innerFlexContainerClasses} style={headerColorStyle}>
+            <div className="flex items-start gap-3">
               <div className={`relative ${isHeaderExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <div className="overflow-hidden">
-                  <div className={`flex flex-col justify-center items-end transform transition-all duration-500 ease-out ${isHeaderExpanded ? 'translate-x-0' : 'translate-x-full'}`}>
-                      <p className="text-[0.5rem] tracking-[0.4em] uppercase font-bold font-sans mb-0.5" style={{ color: '#94a3b8' }}>
-                        Powered By
-                      </p>
-                      <a href="https://www.kurodot.io" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                        <h1 className="text-[1.2rem] font-normal font-sans tracking-[-0.05em] leading-none m-0" style={{ color: headerColorValue || '#000000' }}>
-                          kurodot<span style={{ color: '#9ca3af' }}>.io</span>
-                        </h1>
-                      </a>
+                  <div className={`flex flex-col justify-center items-start transform transition-all duration-500 ease-out ${isHeaderExpanded ? 'translate-x-0' : 'translate-x-full'}`}>
+                    <p className="text-[0.5rem] tracking-[0.4em] uppercase font-bold font-sans mb-0.5 mt-2" style={{ color: '#94a3b8' }}>
+                      Powered By
+                    </p>
+                    <a href="https://www.kurodot.io" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+                      <h1 className="text-[1.2rem] font-normal font-sans tracking-[-0.05em] leading-none m-0" style={{ color: headerColorValue || '#000000' }}>
+                        kurodot<span style={{ color: '#9ca3af' }}>.io</span>
+                      </h1>
+                    </a>
                   </div>
                 </div>
               </div>
 
-              <BlackDotLogo treatAsCompact={treatAsCompact} logoRotationStyle={logoRotationStyle} onClick={handleLogoClick} ariaLabel="Toggle header details" />
+              <div className="flex flex-col items-center justify-start gap-1.5 self-start pt-1">
+                <BlackDotLogo treatAsCompact={treatAsCompact} logoRotationStyle={logoRotationStyle} onClick={handleLogoClick} ariaLabel="Toggle header details" />
+                <a
+                  href="https://thefwa.com/cases/furobot-p2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center w-[36px] h-[36px] hover:opacity-80 transition-opacity"
+                  aria-label="Open FWA case study"
+                >
+                  <img
+                    src="/logo%20FWA.svg"
+                    alt="FWA logo"
+                    width={brandLogoSize}
+                    height={brandLogoSize}
+                    className="w-full h-full object-contain select-none"
+                  />
+                </a>
+                <a
+                  href="https://www.cssdesignawards.com/sites/furobot/50013/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center w-[36px] h-[36px] hover:opacity-80 transition-opacity"
+                  aria-label="Open CSSDA award page"
+                >
+                  <img
+                    src="/logo cssda-nominee-dark.svg"
+                    alt="CSSDA nominee logo"
+                    width={brandLogoSize}
+                    height={brandLogoSize}
+                    className="w-full h-full object-contain select-none"
+                  />
+                </a>
+                <a
+                  href="https://www.awwwards.com/sites/furobot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center w-[36px] h-[36px] mt-0.5 hover:opacity-80 transition-opacity"
+                  aria-label="Open Awwwards Furobot page"
+                >
+                  <img
+                    src="/logo Awwwards.svg"
+                    alt="Awwwards logo"
+                    width={brandLogoSize}
+                    height={brandLogoSize}
+                    className="w-full h-full object-contain select-none"
+                  />
+                </a>
+              </div>
+            </div>
           </div>
 
           {/* NEW: Online User Count moved to under logo for small screens (Always visible) */}

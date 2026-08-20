@@ -5,8 +5,23 @@
 /* ------------------------------------ */
 
 /* cursor fallback */
-button, a, [role="button"], .cursor-pointer { cursor: pointer; }
-button[disabled], .disabled\:cursor-not-allowed[disabled] { cursor: not-allowed; }
+button,
+a,
+[role="button"],
+[onClick],
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+.clickable,
+.cursor-pointer {
+  cursor: pointer;
+}
+button[disabled],
+input[disabled],
+[aria-disabled="true"],
+.disabled\:cursor-not-allowed[disabled] {
+  cursor: not-allowed;
+}
 
 /* standard bounce animation */
 @keyframes bounce {
